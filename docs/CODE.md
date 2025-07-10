@@ -54,9 +54,26 @@ greengovrag/
 │   └── test_ui.py
 │
 ├── docker/
-│   ├── Dockerfile             # App container
-│   ├── docker-compose.yml     # Multi-container setup (app + db)
-│   └── start.sh               # Entrypoint script
+│   ├── compose/
+│   │   ├── docker-compose.yml
+│   │   ├── Dockerfile.streamlit
+│   │   ├── Dockerfile.api
+│   │   ├── .env
+│   │   └── airflow.env
+│   │
+│   ├── airflow/                # Airflow setup (local only)
+│   │   ├── dags/
+│   │   │   ├── ingest_dag.py
+│   │   │   └── preprocess_dag.py
+│   │   ├── Dockerfile.airflow
+│   │   ├── requirements.txt
+│   │   └── airflow.cfg         # Optional override/mount
+│   │
+│   └── prod/
+│       ├── Dockerfile.streamlit
+│       ├── Dockerfile.api
+│       ├── Dockerfile.etl
+│       └── start.sh
 │
 ├── scripts/                   # Dev and helper scripts
 │   ├── download_docs.py       # Quick ingestion from URLs

@@ -1,12 +1,108 @@
 ## TODO
 
-| Week       | Milestone                                                                                                                                                                                                                                          |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Week 1** | 🗂️ **Collect 10–20 documents** from federal/state/council sources (e.g. EPBC Act, SA Planning Code PDFs) <br> 🧠 **Set up basic RAG pipeline** using LangChain + FAISS <br> 🚀 **Launch local CLI or Streamlit MVP** for basic question answering |
-| **Week 2** | 🏗️ **Add UI with citation view** for retrieved chunks <br> 🔍 **Improve chunking** (recursive vs fixed), enable metadata filtering by doc/state <br> 📌 Start storing document metadata (e.g., region, topic) in FAISS/PostgreSQL                 |
-| **Week 3** | 📦 **Containerize and deploy** on ECS, Streamlit Cloud or Render <br> 🧪 **Add 10+ test queries** (e.g. "Do I need an EIS in SA?") <br> 📄 **Create README and short demo video (SpeakerDeck or YouTube)**                                         |
-| **Week 4** | ✨ **Polish UI**, add location-based filtering (dropdown + embedded GeoJSON map) <br> 🌐 **Enable geospatial overlay** (Streamlit + QGIS/GeoJSON/Folium) <br> 🔔 **Package for open-source/pitch** with license, issue tracker, roadmap             |
+### Week 1 – Build the Core (ETL, RAG, Local Dev)
 
+#### 📅 Day 1 – Project Setup
+- [ ] Scaffold folder structure (`app/`, `etl/`, `rag/`, etc.)
+- [ ] Create `docker/compose` with:
+  - [ ] Streamlit
+  - [ ] FastAPI (optional)
+  - [ ] PostGIS
+  - [ ] Airflow
+- [ ] Prepare `configs/documents_config.yml`
+- [ ] Add 5–10 environmental PDFs or web links
+
+#### 📅 Day 2 – ETL Pipeline
+- [ ] Write `chunker.py` for PDF/HTML splitting
+- [ ] Write `loader.py` and `utils.py` for config, cleaning
+- [ ] Generate document metadata
+- [ ] Save raw & chunked files under `data/`
+
+#### 📅 Day 3 – Vector Store & Embeddings
+- [ ] Implement `embeddings.py` (OpenAI or HF)
+- [ ] Implement `vector_store.py` (FAISS)
+- [ ] Store document chunks + metadata in FAISS
+- [ ] Test retrieval locally via script
+
+#### 📅 Day 4 – LangChain RAG Chain
+- [ ] Write `rag_chain.py` with:
+  - [ ] Prompt template
+  - [ ] Metadata filtering
+  - [ ] Source linking
+- [ ] Add `filters.py` for region/topic filters
+- [ ] CLI/Streamlit test: prompt → answer → source
+
+#### 📅 Day 5 – Airflow Integration
+- [ ] Set up `docker/airflow/`
+- [ ] Write DAGs:
+  - [ ] `ingest_dag.py`
+  - [ ] `preprocess_dag.py`
+- [ ] Trigger DAG from Airflow UI
+- [ ] Verify new docs land in FAISS
+
+#### 📅 Day 6 – Streamlit UI
+- [ ] Basic text input + response display
+- [ ] Create `ui.py`, `config.py`
+- [ ] Add `map.py` with:
+  - [ ] Folium + GeoJSON LGA overlay
+  - [ ] Click to select region
+
+#### 📅 Day 7 – Integration & Testing
+- [ ] End-to-end test: PDF → ETL → Embed → Ask
+- [ ] Add tests:
+  - [ ] `tests/test_etl.py`
+  - [ ] `tests/test_rag.py`
+- [ ] Commit code, push to GitHub
+- [ ] Write initial `README.md`
+
+---
+
+### Week 2 – AWS Infra, Deployment, Polishing
+
+#### 📅 Day 8 – AWS CDK Setup
+- [ ] Create `deploy/greengovrag_stack.py`
+- [ ] Provision:
+  - [ ] VPC
+  - [ ] ECS Cluster
+  - [ ] S3 Bucket
+  - [ ] RDS (PostGIS)
+  - [ ] Secrets Manager
+- [ ] Use context vars (`cdk.json` or CLI)
+
+#### 📅 Day 9 – Docker & Deployment
+- [ ] Build prod Dockerfiles (`docker/prod/`)
+  - [ ] `Dockerfile.streamlit`
+  - [ ] `Dockerfile.api`
+- [ ] ECS Fargate deployment for dual containers
+- [ ] Link ECS with Secrets + S3 bucket
+
+#### 📅 Day 10 – Data Access & Logs
+- [ ] Connect deployed app to:
+  - [ ] S3 documents bucket
+  - [ ] PostGIS metadata DB
+- [ ] Add CloudWatch logging
+- [ ] Secure IAM roles for ECS tasks
+
+#### 📅 Day 11 – Frontend Polish
+- [ ] Region dropdown or search on map
+- [ ] Topic filters (emissions, EIS, etc.)
+- [ ] Add loading spinners, error handling
+
+#### 📅 Day 12 – Airflow Finalization
+- [ ] Schedule daily ingestion in DAG
+- [ ] Create `airflow.env` for secrets
+- [ ] Store processed docs to S3 (optional)
+
+#### 📅 Day 13 – Testing & CI/CD
+- [ ] Add GitHub Action (`.github/workflows/ci.yml`)
+- [ ] Include lint, test, and deploy steps
+- [ ] Run smoke test on deployed app
+
+#### 📅 Day 14 – Demo & Docs
+- [ ] Record short walkthrough demo
+- [ ] Update `README.md` with architecture diagram
+- [ ] Add `LICENSE`, `CONTRIBUTING.md` if open-sourcing
+- [ ] Draft blog post or pitch deck
 
 ### POTENTIAL EXTENSIONS
 

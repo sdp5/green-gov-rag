@@ -31,6 +31,15 @@ Ideal for lightweight, low-traffic MVPs
 - boto3 for integrations
 - Optional: Bedrock + Claude for internal LLM
 
+```bash
+cd deploy/
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cdk bootstrap
+cdk deploy
+```
+
 #### 2. Option B – ECS + Docker + RDS
 
 Ideal for scalable, production-ready version

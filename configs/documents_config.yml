@@ -1,0 +1,81 @@
+documents:
+
+  - title: EPBC Act – Environment Protection and Biodiversity Conservation
+    source_url: https://www.legislation.gov.au/Series/C2004A00485
+    jurisdiction: federal
+    category: legislation
+    topic: biodiversity
+    region: AU
+    sovereign: true
+
+  - title: Planning and Design Code (SA)
+    source_url: https://code.plan.sa.gov.au/
+    jurisdiction: state
+    category: planning
+    topic: land_use
+    region: South Australia
+    sovereign: true
+
+  - title: Native Vegetation Guidelines (SA)
+    source_url: https://www.environment.sa.gov.au/topics/native-vegetation
+    jurisdiction: state
+    category: environment
+    topic: vegetation_clearance
+    region: South Australia
+    sovereign: true
+
+  - title: NSW Biodiversity Offsets Scheme
+    source_url: https://www.environment.nsw.gov.au/topics/animals-and-plants/biodiversity-offsets-scheme
+    jurisdiction: state
+    category: offsets
+    topic: biodiversity
+    region: New South Wales
+    sovereign: true
+
+  - title: NSW Planning Portal – EIA Guidelines
+    source_url: https://www.planningportal.nsw.gov.au/
+    jurisdiction: state
+    category: planning
+    topic: environmental_impact
+    region: New South Wales
+    sovereign: true
+
+  - title: National Construction Code (NCC)
+    source_url: https://ncc.abcb.gov.au/
+    jurisdiction: federal
+    category: building
+    topic: standards
+    region: AU
+    sovereign: true
+
+  - title: City of Adelaide Development Guidelines
+    source_url: https://www.cityofadelaide.com.au/planning
+    jurisdiction: local
+    category: development_plan
+    topic: zoning
+    region: City of Adelaide
+    sovereign: true
+
+  - title: Port Adelaide Enfield Sustainability Policies
+    source_url: https://www.cityofpae.sa.gov.au
+    jurisdiction: local
+    category: environment
+    topic: sustainable_development
+    region: Port Adelaide Enfield
+    sovereign: true
+
+  - title: Victoria Planning Provisions (VPP)
+    source_url: https://www.planning.vic.gov.au/
+    jurisdiction: state
+    category: planning
+    topic: land_use
+    region: Victoria
+    sovereign: true
+
+  - title: ABS LGA Boundaries (GeoJSON)
+    source_url: https://www.abs.gov.au/statistics/mapping/geo-boundaries
+    jurisdiction: federal
+    category: geospatial
+    topic: lga_boundaries
+    region: AU
+    sovereign: true

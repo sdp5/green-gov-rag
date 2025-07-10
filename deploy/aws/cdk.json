@@ -1,6 +1,9 @@
 {
   "app": "python3 app.py",
   "context": {
-    "project_name": "green-gov-rag"
+    "project_name": "GreenGovRAG",
+    "region": "ap-southeast-2",
+    "docker_image_path": "../",     // Root with Dockerfile
+    "container_port": 8501
   }
 }

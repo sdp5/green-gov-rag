@@ -1,0 +1,18 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.10
+  build:
+    commands:
+      - echo "Building Docker image"
+      - docker build -t greengovrag .
+      - docker tag greengovrag:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/greengovrag:latest
+  post_build:
+    commands:
+      - echo "Pushing to ECR"
+      - aws ecr get-login-password | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/greengovrag:latest
+artifacts:
+  files: '**/*'

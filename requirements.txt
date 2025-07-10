@@ -1,12 +1,9 @@
+streamlit
 fastapi
 uvicorn
 langchain
 openai
 faiss-cpu
-tqdm
-pymupdf
-python-dotenv
-httpx
-boto3
-azure-storage-blob
-psycopg2
+PyMuPDF
+PyYAML
+folium

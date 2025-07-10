@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
+
 import aws_cdk as cdk
-from greengovrag.greengovrag_stack import GreenGovRagStack
+from deploy.greengovrag_stack import GreenGovRAGStack
 
 app = cdk.App()
-GreenGovRagStack(app, "GreenGovRagStack")
+GreenGovRAGStack(
+    app, "GreenGovRAGStack",
+    env=cdk.Environment(account="YOUR_AWS_ACCOUNT_ID", region="ap-southeast-2")  # Sydney
+)
 app.synth()

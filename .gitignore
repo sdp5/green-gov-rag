@@ -194,5 +194,5 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-data/processed_docs/
-data/raw_docs/
+data/processed/
+data/raw/

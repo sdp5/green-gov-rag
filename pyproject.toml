@@ -1,0 +1,249 @@
+[build-system]
+requires = [
+    "setuptools>=60",
+    "wheel",
+    "setuptools-scm[toml]>=8.0",
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["green_gov_rag"]
+namespaces = false
+
+[tool.setuptools.package-data]
+"green_gov_rag" = ["py.typed"]
+
+[tool.setuptools_scm]
+version_file = "green_gov_rag/_version.py"
+git_describe_command = "git describe"
+version_scheme = "post-release"
+
+[project]
+name = "green-gov-rag"
+dynamic = ["version"]
+description = "An AI Assistant for Navigating Australian Environmental & Planning Regulations."
+readme = "README.md"
+license-files = ["LICEN[CS]E*"]
+authors = [
+    {name = "Sundeep Anand", email = "contact@sundeep.id.au"},
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+keywords = [
+    "AI Assistant",
+    "Australian Environmental Regulations",
+    "Planning Regulations",
+    "Retrieval Augmented Generation"
+]
+dependencies = [
+    "langchain ~= 0.3.26",
+    "openai ~= 1.95.0",
+    "faiss-cpu ~= 1.11.0",
+    "PyYAML ~= 6.0.2",
+    "PyMuPDF ~= 1.26.3",
+    "streamlit ~= 1.46.1",
+    "folium ~= 0.20.0",
+    "fastapi ~= 0.116.0",
+    "uvicorn[standard] ~= 0.35.0",
+    "sqlalchemy ~= 2.0.41",
+    "psycopg2-binary ~= 2.9.10",
+    "boto3 ~= 1.39.4",
+    "python-dotenv ~= 1.1.1"
+]
+requires-python = "~=3.12.3"
+
+[project.optional-dependencies]
+# dev specific dependencies
+dev = [
+    "pylint",
+    "mypy",
+    "mypy-extensions",
+    "pytest-cov",
+    "pytest",
+    "sphinx",
+    "sphinx-markdown-tables",
+    "types-PyYAML",
+    "isort",
+    "build",
+    "WebTest",
+    "recommonmark",
+    "ruff==0.1.15",
+    "httpx>=0.27.0",
+]
+
+[project.urls]
+Source = "https://github.com/sdp5/green-gov-rag"
+
+[project.scripts]
+greengovrag-cli = "greengovrag.scripts.download_docs:main"
+rag-query = "greengovrag.scripts.evaluate_model:main"
+
+### RUFF ###
+
+[tool.ruff]
+line-length = 100
+indent-width = 4
+src = ["api", "app", "etl", "rag", "scripts", "tests"]
+namespace-packages = ["docs", "deploy"]
+# Assume Python 3.12
+target-version = "py312"
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".tox",
+    ".venv",
+    ".vscode",
+    ".idea",
+    "__pypackages__",
+    "_build",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+    "migration",
+]
+
+[tool.ruff.lint]
+preview = true
+select = [
+    "F",       # Pyflakes
+    "E",       # pycodestyle
+    "W",       # pycodestyle
+    "C90",     # mccabe
+    "I",       # isort
+    "N",       # pep8-naming
+    "D",       # pydocstyle
+    "UP",      # pyupgrade
+    "YTT",     # flake8-2020
+    "ANN",     # flake8-annotations
+    "ASYNC",    # flake8-async
+    "TRIO",    # flake8-trio
+    "S",       # flake8-bandit
+    "BLE",     # flake8-blind-except
+    "FBT",     # flake8-boolean-trap
+    "B",       # flake8-bugbear
+    "A",       # flake8-builtins
+    "COM",     # flake8-commas
+    "CPY",     # flake8-copyright
+    "C4",      # flake8-comprehensions
+    "DTZ",     # flake8-datetimez
+    "T10",     # flake8-debugger
+    "DJ",      # flake8-django
+    "EM",      # flake8-errmsg
+    "EXE",     # flake8-executable
+    "FA",      # flake8-future-annotations
+    "ISC",     # flake8-implicit-str-concat
+    "ICN",     # flake8-import-conventions
+    "G",       # flake8-logging-format
+    "INP",     # flake8-no-pep420
+    "PIE",     # flake8-pie
+    "T20",     # flake8-print
+    "PYI",     # flake8-pyi
+    "PT",      # flake8-pytest-style
+    "Q",       # flake8-quotes
+    "RSE",     # flake8-raise
+    "RET",     # flake8-return
+    "SLF",     # flake8-self
+    "SLOT",    # flake8-slots
+    "SIM",     # flake8-simplify
+    "TID",     # flake8-tidy-imports
+    "TCH",     # flake8-type-checking
+    "INT",     # flake8-gettext
+    "ARG",     # flake8-unused-arguments
+    "PTH",     # flake8-use-pathlib
+    "TD",      # flake8-todos
+    "FIX",     # flake8-fixme
+    "ERA",     # eradicate
+    "PD",      # pandas-vet
+    "PGH",     # pygrep-hooks
+    "PL",      # Pylint
+    "TRY",     # tryceratops
+    "FLY",     # flynt
+    "NPY",     # NumPy-specific rules
+    "AIR",     # Airflow
+    "PERF",    # Perflint
+    "FURB",    # refurb
+    "LOG",     # flake8-logging
+    "RUF",     # Ruff-specific rules
+]
+ignore = [
+    # Rules can be explained with `ruff rule <rule_code>`
+    ### BEGIN Permanent Rules ###
+    "ANN101",  # missing-type-self (not needed, mypy can handle this)
+    "ANN102",  # missing-type-cls (not needed, mypy can handle this)
+    "RUF003",  # ambiguous-unicode-character-comment (this flags things like σ being similar to o in comments, not required)
+    "S301",    # suspicious-pickle-usage (if this project were customer facing or pull random pickles out of the web, this would be needed)
+    "FIX002",  # line-contains-todo (what's the point of having to-dos when you are not allowed to have them)
+    "CPY001",  # missing-copyright-notice (potentially needed in future, we currently don't need a license header)
+    ### END Permanent Rules ###
+    "D205",    # 1 blank line required between summary line and description (continuation to next line is necessary some times)
+    "COM812",  # missing-trailing-comma (that could be just a preference)
+    "ISC001",  # single-line-implicit-string-concatenation
+    "S101",    # assert (being used mostly in test cases)
+    "TD002",   # Missing author in TODO; try: `# TODO(<author_name>): ...` or `# TODO @<author_name>: ...`
+    "TD003",   # Missing issue link on the line following this TODO
+    "ANN204",  # Missing return type annotation for special method __method__
+    "ERA001",  # Found commented-out code (most of them are TODO)
+    "RET504",  # Unnecessary assignment to `data` before `return` statement (it looks neat at occasions)
+    "RUF100",  # Unused `noqa` directive (unused: `A003`) (confusing and may cause circular errors)
+]
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.format]
+# Same Defaults as black
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "lf"
+docstring-code-format = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.pycodestyle]
+max-doc-length = 100
+max-line-length = 100
+
+[tool.ruff.lint.isort]
+known-first-party = ["green_gov_rag"]
+force-sort-within-sections = false
+force-wrap-aliases = true
+no-sections = false
+
+[tool.ruff.lint.mccabe]
+# Flag errors (`C901`) whenever the complexity level exceeds 10.
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 8
+max-positional-args = 5
+
+
+### MYPY ###
+
+[tool.mypy]
+python_version = "3.12"
+namespace_packages = "yes"
+warn_unused_ignores = "yes"
+ignore_missing_imports = "yes"
+allow_untyped_globals = "no"
+warn_redundant_casts = "yes"
+allow_redefinition = "no"
+strict_optional = "yes"
+disallow_untyped_defs = "yes"
+warn_unreachable = "yes"

@@ -1,4 +1,89 @@
-## GreenGovRAG – System Architecture (High-Level)
+## Repository Structure 
+
+```bash
+green-gov-rag/
+├── .github/
+│   └── workflows/             # CI/CD GitHub Actions (test, lint, deploy)
+│       └── ci.yml
+│
+├── greengovrag/               # Python package root
+│   ├── __init__.py
+│   ├── app/                   # Streamlit frontend (still importable)
+│   │   ├── __init__.py
+│   │   ├── ui.py
+│   │   ├── map.py
+│   │   └── config.py
+│   ├── api/                   # FastAPI backend
+│   │   ├── __init__.py
+│   │   ├── main.py
+│   │   └── routes.py
+│   ├── rag/                   # LangChain RAG logic
+│   │   ├── __init__.py
+│   │   ├── rag_chain.py
+│   │   ├── embeddings.py
+│   │   ├── vector_store.py
+│   │   ├── filters.py
+│   │   └── agent_tools.py
+│   ├── etl/                   # ETL for doc processing
+│   │   ├── __init__.py
+│   │   ├── ingest.py
+│   │   ├── chunker.py
+│   │   ├── loader.py
+│   │   ├── utils.py
+│   │   └── validators.py
+│   └── scripts/              # Optional: CLI tools (entry_points)
+│       ├── __init__.py
+│       ├── download_docs.py
+│       ├── build_embeddings.py
+│       └── evaluate_model.py
+│
+├── configs/
+│   ├── documents_config.yml   # Source list with metadata + sovereignty flag
+│   └── logging_config.yaml    # Logging, format, levels
+│
+├── data/
+│   ├── raw/                   # Original downloaded documents (PDF, HTML)
+│   ├── processed/             # Chunked docs, embeddings (cache)
+│   └── geo/                   # GeoJSON files (ABS, LGAs, SA2s)
+│
+├── models/                    # LLMs or embedding models (if local)
+│   └── README.md
+│
+├── notebooks/                 # Jupyter notebooks (exploration, evaluation)
+│   └── evaluation.ipynb
+│
+├── tests/                     # Unit tests and test data
+│   ├── test_rag.py
+│   ├── test_etl.py
+│   └── test_ui.py
+│
+├── deploy
+│   ├── aws
+│   │     ├── app.py
+│   │     ├── buildspec.yml
+│   │     ├── cdk.json
+│   │     ├── greengovrag_stack.py
+│   │     └── README.md
+│   ├── docker
+│   │     ├── airflow
+│   │     │  ├── dags
+│   │     │  │  └── rag_pipeline_dag.py
+│   │     │  ├── Dockerfile
+│   │     │  └── README.md
+│   │     ├── docker-compose.airflow.yml
+│   │     ├── docker-compose.yml
+│   │     ├── Dockerfile
+│   │     └── start.sh
+│   └── README.md
+│
+├── requirements.txt           # Python dependencies
+├── pyproject.toml             # Optional (if using Poetry)
+├── README.md
+├── LICENSE
+└── .env.example               # Env config sample (for OpenAI key, etc.)
+```
+
+## System Architecture (High-Level)
 
                         ┌──────────────────────────────┐
                         │        USER INTERFACE        │

@@ -4,9 +4,11 @@ from fastapi import APIRouter
 
 router = APIRouter()
 
+
 @router.get("/health")
 def health_check():
     return {"status": "ok"}
+
 
 @router.post("/query")
 def query_policy(question: str):

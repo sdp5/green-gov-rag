@@ -1,7 +1,9 @@
+from datetime import datetime, timedelta
+
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from datetime import datetime, timedelta
-from scripts import download_docs, build_embeddings, evaluate_model
+
+from green_gov_rag.scripts import build_embeddings, download_docs, evaluate_model
 
 default_args = {
     'owner': 'greengovrag',

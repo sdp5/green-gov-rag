@@ -1,5 +1,3 @@
-# GreenGovRAG
-
 ## Document & Data Sources
 
 ### Federal Government (Australia-wide)

@@ -137,6 +137,9 @@ env.bak/
 venv.bak/
 .idea/
 
+# Versioning
+_version.py
+
 # Spyder project settings
 .spyderproject
 .spyproject

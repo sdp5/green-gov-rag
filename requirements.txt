@@ -1,9 +1,0 @@
-streamlit
-fastapi
-uvicorn
-langchain
-openai
-faiss-cpu
-PyMuPDF
-PyYAML
-folium

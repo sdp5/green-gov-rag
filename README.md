@@ -4,7 +4,7 @@
 
 GreenGovRAG is an **AI assistant powered by Retrieval-Augmented Generation (RAG)** that answers user questions by retrieving relevant sections from a curated knowledge base of regulations.
 
-### Data Sources
+## Data Sources
 
 | Document Type       | Where to Get It                                                    |
 | ------------------- | ------------------------------------------------------------------ |
@@ -14,13 +14,71 @@ GreenGovRAG is an **AI assistant powered by Retrieval-Augmented Generation (RAG)
 | NSW Planning Portal | [planningportal.nsw.gov.au](https://www.planningportal.nsw.gov.au) |
 | PDF building codes  | State building authorities (PDF scrapers + PyMuPDF)                |
 
-### Sample Queries
+## Use Cases
 
-- _"Do I need an environmental impact statement for a wind farm in regional NSW?"_
-- _"What are zoning restrictions for coastal development in Victoria?"_
-- _"What are the renewable energy incentives available in Adelaide?"_
+### 1. Environmental Impact Assessment (EIA) Pre-screening
 
-### Project
+```
+User: Environmental consultant, planner, or developer
+Goal: Determine whether a proposed project needs an EIS/EIA based on location and type.
+```
+Example Query:
+
+> "Do I need an environmental impact assessment to build a solar farm in regional NSW?"
+
+RAG Output:
+
+- Summarizes relevant sections of the NSW planning portal and EPBC Act
+- Cites sources and maps out exemption criteria
+
+### 2. Native Vegetation Clearing Rules by Region
+
+```
+User: Local council officer or landowner
+Goal: Understand what approvals are needed to clear vegetation in a specific region.
+```
+Example Query:
+
+> "Can I clear native vegetation on my property near Murray Bridge, SA?"
+
+RAG Output:
+
+- Combines SA Government vegetation clearance policies
+- Uses map filter (via LGA/SA2) for local rules
+- Returns allowed/disallowed activities and buffer zones
+
+### 3. Zoning Regulations and Permitted Uses
+
+```
+User: Urban planner or real estate developer
+Goal: Identify permitted land uses for a parcel in a specific zone.
+```
+Example Query:
+
+> "What are the zoning restrictions for coastal land in Mornington Peninsula, VIC?"
+
+RAG Output:
+
+- Retrieves overlays from council planning schemes
+- Explains permitted uses, height limits, environmental constraints
+
+### 4. Emission and Energy Standards Compliance
+
+```
+User: Sustainability advisor or industrial developer
+Goal: Ensure new facility complies with environmental emission standards.
+```
+Example Query:
+
+> "Which emissions standards apply to industrial zones in Greater Sydney?"
+
+RAG Output:
+
+- Points to NSW EPA and federal requirements
+- Suggests offsets or sustainable alternatives
+- Could plug into energy incentive schemes
+
+## Project
 
 | Folder/File | Purpose                                                |
 | ----------- | ------------------------------------------------------ |

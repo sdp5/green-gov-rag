@@ -1,7 +1,9 @@
 # Streamlit logic (text UI + map + results)
 
 import streamlit as st
-from app.map import render_map, folium_static
+
+from green_gov_rag.app.map import folium_static, render_map
+
 
 def main():
     st.title("GreenGovRAG - Environmental Policy Assistant")
@@ -18,6 +20,7 @@ def main():
     if query and st.button("Ask"):
         # Placeholder for RAG answer
         st.info(f"Querying RAG system for: {query} in {selected_lga}")
+
 
 if __name__ == "__main__":
     main()

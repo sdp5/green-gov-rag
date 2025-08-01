@@ -2,17 +2,111 @@ documents:
 
   - title: EPBC Act – Environment Protection and Biodiversity Conservation
     source_url: https://www.legislation.gov.au/Series/C2004A00485
+    download_urls:
+      - https://www.legislation.gov.au/C2004A00485/2025-03-28/2025-03-28/text/original/pdf/1
+      - https://www.legislation.gov.au/C2004A00485/2025-03-28/2025-03-28/text/original/pdf/2
     jurisdiction: federal
     category: legislation
     topic: biodiversity
-    region: AU
+    region: Australia
+    sovereign: true
+
+  - title: Clean Energy Regulator
+    source_url: https://cer.gov.au/
+    download_urls:
+      - https://cer.gov.au/document/estimating-emissions-and-energy-coal-mining-guideline
+      - https://cer.gov.au/document/estimating-emissions-and-energy-electricity-production-and-consumption-guideline
+      - https://cer.gov.au/document/estimating-emissions-and-energy-industrial-processes-guidance
+      - https://cer.gov.au/document/estimating-emissions-and-energy-industrial-processes-guidance
+      - https://cer.gov.au/document/estimating-emissions-and-energy-wastewater-handling-domestic-commercial-and-industrial-guideline
+      - https://cer.gov.au/document/voluntary-market-based-scope-2-emissions-guideline
+      - https://cer.gov.au/document/guidance-aggregated-facility-reporting-percentage-estimates-and-incidental-emissions-and-energy-0
+      - https://cer.gov.au/document/reporting-blended-fuels-other-fuel-mixes-bitumen-and-explosives-guideline
+      - https://cer.gov.au/document/estimating-emissions-and-energy-fuel-combustion-guideline
+      - https://cer.gov.au/document/landfill-site-plan-and-verification-requirements-methods-2-and-3
+      - https://cer.gov.au/document/reporting-energy-production-and-consumption-guideline-1
+      - https://cer.gov.au/document/reporting-hydrofluorocarbons-and-sulphur-hexafluoride-gases-guideline
+      - https://cer.gov.au/document/methods-and-measurement-criteria-guideline
+      - https://cer.gov.au/document/reporting-petroleum-based-oils-and-greases-other-petroleum-based-oils-and-greases-used-fuel-0
+      - https://cer.gov.au/document/reporting-uncertainty-guideline
+      - https://cer.gov.au/document/nger-quick-help-topics
+    jurisdiction: federal
+    category: environment
+    topic: emissions_reporting
+    region: Australia
+    sovereign: true
+
+  - title: ABS LGA Boundaries (GeoJSON)
+    source_url: https://www.abs.gov.au/statistics/mapping/geo-boundaries
+    jurisdiction: federal
+    category: geospatial
+    topic: lga_boundaries
+    region: Australia
+    sovereign: true
+
+  - title: National Construction Code (NCC)
+    source_url: https://ncc.abcb.gov.au/
+    download_urls:
+      - https://ncc.abcb.gov.au/system/files/ncc/ncc2022-volume-one.pdf
+      - https://ncc.abcb.gov.au/system/files/ncc/ncc2022-volume-two.pdf
+      - https://ncc.abcb.gov.au/system/files/ncc/ncc2022-volume-three.pdf
+      - https://ncc.abcb.gov.au/system/files/ncc/ncc2022-abcb-housing-provisions.pdf
+    jurisdiction: federal
+    category: building
+    topic: standards
+    region: Australia
+    sovereign: true
+
+  - title: NSW Biodiversity Offsets Scheme
+    source_url: https://www.environment.nsw.gov.au/topics/animals-and-plants/biodiversity-offsets-scheme
+    download_urls:
+      - https://www.environment.nsw.gov.au/sites/default/files/biodiversity-assessment-method-170206.pdf
+    jurisdiction: state
+    category: offsets
+    topic: biodiversity
+    region: New South Wales
+    sovereign: true
+
+  - title: NSW Planning Portal – EIA Guidelines
+    source_url: https://www.planningportal.nsw.gov.au/
+    download_urls:
+      - https://www.planning.nsw.gov.au/sites/default/files/2023-02/piggeries-eis-guideline.pdf
+      - https://www.planning.nsw.gov.au/sites/default/files/2023-02/landfilling-eis-guideline.pdf
+      - https://www.planning.nsw.gov.au/sites/default/files/2023-02/composting-and-related-facilities-eis-guideline.pdf
+      - https://www.planning.nsw.gov.au/sites/default/files/2023-02/roads-and-related-facilities-eis-guideline.pdf
+      - https://www.planning.nsw.gov.au/sites/default/files/2023-02/marinas-and-related-facilities-eis-guideline.pdf
+      - https://www.planning.nsw.gov.au/sites/default/files/2023-02/extractive-industries-quarries-eis-guideline.pdf
+      - https://www.planning.nsw.gov.au/sites/default/files/2023-02/sewerage-systems-eis-guideline.pdf
+      - https://www.planning.nsw.gov.au/sites/default/files/2023-02/chemical-facilities-eis-guideline.pdf
+      - https://www.planning.nsw.gov.au/sites/default/files/2023-02/concrete-works-eis-guideline.pdf
+      - https://www.planning.nsw.gov.au/sites/default/files/2023-02/extractive-industries-dredging-and-other-extraction-in-riparian-and-coastal-areas-eis-guideline.pdf
+      - https://www.planning.nsw.gov.au/sites/default/files/2023-02/bitumen-works-eis-guideline.pdf
+      - https://www.planning.nsw.gov.au/sites/default/files/2023-02/cattle-feedlots-eis-guidline.pdf
+    jurisdiction: state
+    category: planning
+    topic: environmental_impact
+    region: New South Wales
     sovereign: true
 
   - title: Planning and Design Code (SA)
     source_url: https://code.plan.sa.gov.au/
+    download_urls:
+      - https://code.plan.sa.gov.au/__data/assets/pdf_file/0008/1405817/Full-Code-31072025-1.pdf
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0008/597842/Fact_Sheet_-_Native_Vegetation.pdf
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0010/799939/Guide_to_the_Planning_and_Design_Code.pdf
     jurisdiction: state
     category: planning
     topic: land_use
+    region: South Australia
+    sovereign: true
+
+  - title: Environment Protection Act 1993 (SA)
+    source_url: https://www.legislation.sa.gov.au/
+    download_urls:
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/a/environment%20protection%20act%201993/current/1993.76.auth.pdf
+    jurisdiction: state
+    category: legislation
+    topic: environment_protection
     region: South Australia
     sovereign: true
 
@@ -24,32 +118,13 @@ documents:
     region: South Australia
     sovereign: true
 
-  - title: NSW Biodiversity Offsets Scheme
-    source_url: https://www.environment.nsw.gov.au/topics/animals-and-plants/biodiversity-offsets-scheme
-    jurisdiction: state
-    category: offsets
-    topic: biodiversity
-    region: New South Wales
-    sovereign: true
-
-  - title: NSW Planning Portal – EIA Guidelines
-    source_url: https://www.planningportal.nsw.gov.au/
-    jurisdiction: state
-    category: planning
-    topic: environmental_impact
-    region: New South Wales
-    sovereign: true
-
-  - title: National Construction Code (NCC)
-    source_url: https://ncc.abcb.gov.au/
-    jurisdiction: federal
-    category: building
-    topic: standards
-    region: AU
-    sovereign: true
-
   - title: City of Adelaide Development Guidelines
     source_url: https://www.cityofadelaide.com.au/planning
+    download_urls:
+      - https://d31atr86jnqrq2.cloudfront.net/docs/guidelines-adelaide-park-lands-buildings.pdf
+      - https://d31atr86jnqrq2.cloudfront.net/docs/guidelines-infrastructure-design-city-of-adelaide.pdf
+      - https://d31atr86jnqrq2.cloudfront.net/docs/uec-lighting-electrical-design.pdf
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0007/593080/City_of_Adelaide_-_Council_Specific_Code_Extract.pdf
     jurisdiction: local
     category: development_plan
     topic: zoning
@@ -58,6 +133,21 @@ documents:
 
   - title: Port Adelaide Enfield Sustainability Policies
     source_url: https://www.cityofpae.sa.gov.au
+    download_urls:
+      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0023/1611671/PAE-private-planting-on-verges-policy.pdf
+      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0040/1595758/PAE-significant-and-regulated-trees-assistance-scheme-policy.pdf
+      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0027/1754361/PAE-tree-management-guidelines.pdf
+      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0035/1594763/PAE-tree-management-policy.pdf
+      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0034/1595761/PAE-verge-development-guidelines.pdf
+      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0033/1593465/PAE-building-and-swimming-pools-notification-policy.pdf
+      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0027/1634841/PAE-Code-Amendment-Proposals-from-Private-Parties-Guidelines.pdf
+      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0036/1593468/PAE-fencing-cost-reimbursements-policy.pdf
+      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0038/1593497/PAE-Heritage-Plaques-Guidelines.pdf
+      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0038/1837829/Lease-Licence-and-Property-Agreements-Guidelines-CURRENT.pdf
+      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0039/1597944/ECM_18240115_v2_Lease-Licence-and-Property-Agreement-CURRENT.pdf
+      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0037/1593496/PAE-Sustainable-Buildings-Guidelines.pdf
+      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0035/1593494/PAE-sustainable-buildings.pdf
+      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0035/1593476/PAE-waiving-reduction-development-fees.pdf
     jurisdiction: local
     category: environment
     topic: sustainable_development
@@ -66,16 +156,10 @@ documents:
 
   - title: Victoria Planning Provisions (VPP)
     source_url: https://www.planning.vic.gov.au/
+    download_urls:
+      - https://www.planning.vic.gov.au/__data/assets/pdf_file/0037/709597/Practitioners-Guide-to-Victorias-Planning-Schemes-Final-August-2025.pdf
     jurisdiction: state
     category: planning
     topic: land_use
     region: Victoria
-    sovereign: true
-
-  - title: ABS LGA Boundaries (GeoJSON)
-    source_url: https://www.abs.gov.au/statistics/mapping/geo-boundaries
-    jurisdiction: federal
-    category: geospatial
-    topic: lga_boundaries
-    region: AU
     sovereign: true

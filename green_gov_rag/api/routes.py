@@ -1,16 +1,42 @@
 # Route handlers
-
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
+from typing import Optional, List
+from rag.agent_tools import RAGAgent
 
 router = APIRouter()
-
+agent = RAGAgent()  # initialize with default vector store and embedder
 
 @router.get("/health")
 def health_check():
     return {"status": "ok"}
 
 
-@router.post("/query")
-def query_policy(question: str):
-    # TODO: Call RAG system
-    return {"answer": f"Response to '{question}' (stub)"}
+@router.get("/query")
+async def query_rag(
+        q: str = Query(..., description="Query string"),
+        jurisdiction: Optional[str] = Query(None, description="Filter by jurisdiction"),
+        category: Optional[str] = Query(None, description="Filter by document category"),
+        topic: Optional[str] = Query(None, description="Filter by topic"),
+        region: Optional[str] = Query(None, description="Filter by region")
+):
+    """
+    Query RAG with optional metadata filters.
+    Returns an answer + source documents.
+    """
+    metadata_filters = {}
+    if jurisdiction: metadata_filters["jurisdiction"] = jurisdiction
+    if category: metadata_filters["category"] = category
+    if topic: metadata_filters["topic"] = topic
+    if region: metadata_filters["region"] = region
+
+    result = agent.query(query=q, metadata_filters=metadata_filters)
+    return {"query": q, "filters": metadata_filters, "result": result}
+
+
+@router.get("/documents")
+async def list_documents():
+    """
+    List all ingested documents and their metadata.
+    """
+    docs = agent.list_documents()
+    return {"documents": docs}

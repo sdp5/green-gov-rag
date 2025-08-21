@@ -253,3 +253,51 @@ green-gov-rag/
 | 🔁 Orchestration     | Deploy Airflow or Step Functions for periodic ingestion              | Robust data ingestion                          |
 | 📂 Model Abstraction | Abstract LLM choice (OpenAI vs Bedrock vs local LLM)                 | Easier to swap model providers                 |
 | 🛰️ Service Mesh     | Use internal routing / service discovery between Streamlit & FastAPI | Scale to multi-container microservices cleanly |
+
+## Program flow
+
+```
+                           +-----------------+
+                           |   app/ui.py     |
+                           | (Streamlit UI)  |
+                           +--------+--------+
+                                    |
+                                    v
+                           +------------------------+
+                           |   rag/agent_tools.py   |
+                           |    (Agent wrapper)     |
+                           +--------+---------------+
+                                    |
+                                    v
+                        +------------------------+
+                        |   rag/rag_chain.py     |
+                        | (RAG Query Engine)     |
+                        +--------+---------------+
+                                    |
+                                    v
+                  +-----------------+-----------------+
+                  |                                   |
+       +---------------------+             +--------------------+
+       | rag/vector_store.py |             | etl/embeddings.py  |
+       | (FAISS/Qdrant store)|             | (Embedding models) |
+       +---------------------+             +--------------------+
+                  |                                   ^
+                  |                                   |
+                  v                                   |
+           +-----------------+                        |
+           | etl/chunker.py  |                        |
+           | (Text splitters)|------------------------+
+           +--------+--------+
+                    |
+                    v
+           +-------------------------+
+           | etl/parsers/__init__.py |
+           | (PDF/HTML Dispatcher)   |
+           +--------+----------------+
+                    |
+                    v
+           +------------------------+
+           | etl/utils.py           |
+           | (Cleaning/Normalizing) |
+           +------------------------+
+```

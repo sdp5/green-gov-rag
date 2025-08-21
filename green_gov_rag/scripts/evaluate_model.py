@@ -1,22 +1,33 @@
-from green_gov_rag.rag.rag_chain import create_rag_chain
-from green_gov_rag.rag.vector_store import load_vectorstore
+#!/usr/bin/env python3
+"""
+Evaluate GreenGovRAG model with sample queries
 
-EXAMPLES = [
-    "What are the native vegetation clearance rules in SA?",
-    "Do I need an EIS for a wind farm in NSW?",
-    "What are emissions standards in Victoria?",
-]
+python scripts/evaluate_model.py
+"""
 
+from rag.agent_tools import RAGAgent
 
-def evaluate():
-    retriever = load_vectorstore("data/processed/default").as_retriever()
-    rag_chain = create_rag_chain(retriever)
+def run_sample_queries(agent: RAGAgent):
+    sample_queries = [
+        "What are the biodiversity offset requirements in NSW?",
+        "Which regulations cover emissions reporting for coal mining?",
+        "Show me the zoning rules for City of Adelaide parklands",
+        "What are the building standards under the National Construction Code?"
+    ]
 
-    for query in EXAMPLES:
-        print(f"\n🔍 Query: {query}")
-        result = rag_chain.run(query)
-        print(f"🧠 Answer: {result}")
+    for query in sample_queries:
+        print("=" * 80)
+        print(f"Query: {query}")
+        result = agent.query(query)
+        print("Answer:\n", result.get("answer", "No answer"))
+        print("Sources:")
+        for s in result.get("sources", []):
+            print(f"- {s['title']} ({s.get('region', 'Unknown')})")
+        print("=" * 80, "\n")
 
+def main():
+    agent = RAGAgent()  # Ensure vector store & embedder are preloaded
+    run_sample_queries(agent)
 
 if __name__ == "__main__":
-    evaluate()
+    main()

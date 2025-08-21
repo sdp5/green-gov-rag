@@ -1,36 +1,50 @@
-# Folium + GeoJSON integration
-import json
-
 import folium
+from streamlit_folium import st_folium
 import streamlit as st
+import geopandas as gpd
+import json
+from app.config import LGA_GEOJSON_PATH, MAP_CENTER, MAP_ZOOM_START, MAP_TILE
+from app.config import LGA_DEFAULT_COLOR, LGA_SELECTED_COLOR, LGA_DEFAULT_OPACITY, LGA_SELECTED_OPACITY
 
-
-def load_geojson(path):
-    with open(path, "r") as f:
+@st.cache_data
+def load_geojson(path=LGA_GEOJSON_PATH):
+    with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
+def create_map(selected_lgas=None):
+    """
+    Create a Folium map of Australia with LGA boundaries.
+    :param selected_lgas: list of selected LGA names
+    """
+    selected_lgas = selected_lgas or []
 
-def render_map(selected_lga=None):
-    geojson = load_geojson("../../data/geo/aus_lga.geojson")
-    m = folium.Map(location=[-25.0, 135.0], zoom_start=4)
+    m = folium.Map(location=MAP_CENTER, zoom_start=MAP_ZOOM_START, tiles=MAP_TILE)
+
+    geojson_data = load_geojson()
 
     def style_function(feature):
-        if selected_lga and feature["properties"]["LGA_NAME"] == selected_lga:
-            return {"fillColor": "#ff7800", "color": "black", "weight": 2, "fillOpacity": 0.7}
+        name = feature["properties"].get("LGA_NAME") or feature["properties"].get("NAME")
+        if name in selected_lgas:
+            return {
+                "fillColor": LGA_SELECTED_COLOR,
+                "color": LGA_SELECTED_COLOR,
+                "weight": 2,
+                "fillOpacity": LGA_SELECTED_OPACITY
+            }
         else:
-            return {"fillColor": "#grey", "color": "black", "weight": 1, "fillOpacity": 0.3}
+            return {
+                "fillColor": LGA_DEFAULT_COLOR,
+                "color": LGA_DEFAULT_COLOR,
+                "weight": 1,
+                "fillOpacity": LGA_DEFAULT_OPACITY
+            }
 
     folium.GeoJson(
-        geojson,
+        geojson_data,
         name="LGAs",
         style_function=style_function,
-        tooltip=folium.GeoJsonTooltip(fields=["LGA_NAME"]),
+        tooltip=folium.GeoJsonTooltip(fields=["LGA_NAME"], aliases=["LGA:"], labels=True),
+        highlight_function=lambda x: {"weight": 3, "color": "yellow"}
     ).add_to(m)
 
     return m
-
-
-def folium_static(m):
-    import streamlit.components.v1 as components
-
-    components.html(m._repr_html_(), height=500)

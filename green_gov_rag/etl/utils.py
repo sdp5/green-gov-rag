@@ -6,21 +6,26 @@ import re
 import unicodedata
 from typing import List
 
+
 def normalize_unicode(text: str) -> str:
     """Normalize unicode characters (e.g., accents, ligatures)."""
     return unicodedata.normalize("NFKC", text)
+
 
 def remove_urls(text: str) -> str:
     """Remove URLs from text."""
     return re.sub(r"http\S+|www\.\S+", "", text)
 
+
 def remove_non_alphanumeric(text: str) -> str:
     """Keep only alphanumeric, basic punctuation, and whitespace."""
     return re.sub(r"[^0-9a-zA-Z\s.,;:!?()\"\'-]", " ", text)
 
+
 def collapse_whitespace(text: str) -> str:
     """Collapse multiple spaces/newlines into a single space."""
     return re.sub(r"\s+", " ", text).strip()
+
 
 def clean_text(text: str) -> str:
     """
@@ -33,8 +38,7 @@ def clean_text(text: str) -> str:
     text = collapse_whitespace(text)
     return text
 
+
 def batch_clean(texts: List[str]) -> List[str]:
     """Clean a list of text strings."""
     return [clean_text(t) for t in texts]
-
-

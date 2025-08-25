@@ -1,7 +1,8 @@
-import pytest
 from unittest.mock import patch
-from etl import utils, chunker
-from rag import embeddings, vector_store, rag_chain
+
+import pytest
+from etl import chunker, utils
+from rag import embeddings, rag_chain, vector_store
 
 # -----------------------------
 # Sample document texts
@@ -10,25 +11,31 @@ DOCS = [
     {
         "title": "Biodiversity PDF",
         "text": "This document describes biodiversity regulations and environmental guidelines in Australia.",
-        "metadata": {"source": "biodiversity_pdf", "topic": "biodiversity", "region": "Australia"}
+        "metadata": {"source": "biodiversity_pdf", "topic": "biodiversity", "region": "Australia"},
     },
     {
         "title": "Emissions HTML",
         "text": "<html><body><h1>Emissions</h1><p>Guidelines for energy and emissions reporting in coal mining and electricity.</p></body></html>",
-        "metadata": {"source": "emissions_html", "topic": "emissions_reporting", "region": "Australia"}
+        "metadata": {
+            "source": "emissions_html",
+            "topic": "emissions_reporting",
+            "region": "Australia",
+        },
     },
     {
         "title": "Planning PDF",
         "text": "Planning guidelines for urban development in New South Wales.",
-        "metadata": {"source": "planning_pdf", "topic": "planning", "region": "NSW"}
-    }
+        "metadata": {"source": "planning_pdf", "topic": "planning", "region": "NSW"},
+    },
 ]
+
 
 # -----------------------------
 # Helper: fake HTML parser
 # -----------------------------
 def fake_html_parse(html):
     return utils.clean_text(html)
+
 
 # -----------------------------
 # End-to-End Pipeline Test with multiple files
@@ -58,7 +65,11 @@ def test_multiple_documents_pipeline():
         mock_embed.side_effect = lambda txt: [0.1] * 10  # fake 10-dim embedding
         embedder = embeddings.BedrockEmbedder()
         embedded_chunks = [
-            {"content": c["content"], "embedding": embedder.embed_text(c["content"]), "metadata": c["metadata"]}
+            {
+                "content": c["content"],
+                "embedding": embedder.embed_text(c["content"]),
+                "metadata": c["metadata"],
+            }
             for c in all_chunks
         ]
 

@@ -1,15 +1,26 @@
-import folium
-from streamlit_folium import st_folium
-import streamlit as st
-import geopandas as gpd
 import json
-from app.config import LGA_GEOJSON_PATH, MAP_CENTER, MAP_ZOOM_START, MAP_TILE
-from app.config import LGA_DEFAULT_COLOR, LGA_SELECTED_COLOR, LGA_DEFAULT_OPACITY, LGA_SELECTED_OPACITY
+
+import folium
+import geopandas as gpd
+import streamlit as st
+from app.config import (
+    LGA_DEFAULT_COLOR,
+    LGA_DEFAULT_OPACITY,
+    LGA_GEOJSON_PATH,
+    LGA_SELECTED_COLOR,
+    LGA_SELECTED_OPACITY,
+    MAP_CENTER,
+    MAP_TILE,
+    MAP_ZOOM_START,
+)
+from streamlit_folium import st_folium
+
 
 @st.cache_data
 def load_geojson(path=LGA_GEOJSON_PATH):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
 
 def create_map(selected_lgas=None):
     """
@@ -29,14 +40,14 @@ def create_map(selected_lgas=None):
                 "fillColor": LGA_SELECTED_COLOR,
                 "color": LGA_SELECTED_COLOR,
                 "weight": 2,
-                "fillOpacity": LGA_SELECTED_OPACITY
+                "fillOpacity": LGA_SELECTED_OPACITY,
             }
         else:
             return {
                 "fillColor": LGA_DEFAULT_COLOR,
                 "color": LGA_DEFAULT_COLOR,
                 "weight": 1,
-                "fillOpacity": LGA_DEFAULT_OPACITY
+                "fillOpacity": LGA_DEFAULT_OPACITY,
             }
 
     folium.GeoJson(
@@ -44,7 +55,7 @@ def create_map(selected_lgas=None):
         name="LGAs",
         style_function=style_function,
         tooltip=folium.GeoJsonTooltip(fields=["LGA_NAME"], aliases=["LGA:"], labels=True),
-        highlight_function=lambda x: {"weight": 3, "color": "yellow"}
+        highlight_function=lambda x: {"weight": 3, "color": "yellow"},
     ).add_to(m)
 
     return m

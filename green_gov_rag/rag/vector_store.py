@@ -21,11 +21,14 @@ Vector Store Wrapper for GreenGovRAG
 
 """
 
-from typing import List, Dict, Optional
-from langchain.vectorstores import FAISS
-from langchain.embeddings.base import Embeddings
+from typing import Dict, List, Optional
+
 from langchain.docstore.document import Document
+from langchain.embeddings.base import Embeddings
+from langchain.vectorstores import FAISS
+
 from .filters import filter_by_metadata
+
 
 class VectorStore:
     def __init__(self, embeddings: Embeddings, index_path: Optional[str] = None):
@@ -80,9 +83,13 @@ class VectorStore:
         """
         Return a list of metadata dictionaries for all stored embeddings.
         """
-        return [doc["metadata"] for doc in self.store]  # assuming `self.store` holds {'embedding': ..., 'metadata': ...}
+        return [
+            doc["metadata"] for doc in self.store
+        ]  # assuming `self.store` holds {'embedding': ..., 'metadata': ...}
 
-    def similarity_search(self, query: str, k: int = 4, metadata_filters: Optional[Dict] = None) -> List[Document]:
+    def similarity_search(
+        self, query: str, k: int = 4, metadata_filters: Optional[Dict] = None
+    ) -> List[Document]:
         """
         Perform similarity search with optional metadata filtering.
         :param query: Query string
@@ -99,11 +106,16 @@ class VectorStore:
         # If filters provided, apply them
         if metadata_filters:
             # Convert Document objects to dicts for filtering
-            docs_with_meta = [{"content": doc.page_content, "metadata": doc.metadata} for doc in results]
+            docs_with_meta = [
+                {"content": doc.page_content, "metadata": doc.metadata} for doc in results
+            ]
             filtered_docs_dict = filter_by_metadata(docs_with_meta, metadata_filters)
 
             # Convert back to Document objects
-            results = [Document(page_content=d["content"], metadata=d["metadata"]) for d in filtered_docs_dict]
+            results = [
+                Document(page_content=d["content"], metadata=d["metadata"])
+                for d in filtered_docs_dict
+            ]
 
         return results
 
@@ -148,19 +160,25 @@ if __name__ == "__main__":
 
     # sample chunks
     chunks = [
-        {"content": "This is a test document about SA native vegetation.", "metadata": {"region": "SA", "topic": "vegetation"}},
-        {"content": "NSW requires biodiversity offsets for land clearing.", "metadata": {"region": "NSW", "topic": "biodiversity"}}
+        {
+            "content": "This is a test document about SA native vegetation.",
+            "metadata": {"region": "SA", "topic": "vegetation"},
+        },
+        {
+            "content": "NSW requires biodiversity offsets for land clearing.",
+            "metadata": {"region": "NSW", "topic": "biodiversity"},
+        },
     ]
 
-    embeddings = ChunkEmbedder().embedder  # Initialize your embeddings provider (HuggingFace, Bedrock, etc.)
+    embeddings = (
+        ChunkEmbedder().embedder
+    )  # Initialize your embeddings provider (HuggingFace, Bedrock, etc.)
     store = VectorStore(embeddings=embeddings)
     store.build_store(chunks)
 
     # Retrieve chunks with optional metadata filtering
     results = store.similarity_search(
-        query="What are vegetation clearance rules in SA?",
-        k=3,
-        metadata_filters={"region": "SA"}
+        query="What are vegetation clearance rules in SA?", k=3, metadata_filters={"region": "SA"}
     )
 
     for r in results:

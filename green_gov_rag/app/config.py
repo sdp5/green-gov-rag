@@ -33,7 +33,9 @@ LGA_SELECTED_OPACITY = 0.5
 # ----------------------------
 # RAG / Embeddings Settings
 # ----------------------------
-EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "huggingface/sentence-transformers/all-MiniLM-L6-v2")
+EMBEDDING_MODEL = os.environ.get(
+    "EMBEDDING_MODEL", "huggingface/sentence-transformers/all-MiniLM-L6-v2"
+)
 LLM_MODEL = os.environ.get("LLM_MODEL", "openai/text-davinci-003")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
@@ -47,5 +49,5 @@ TOPIC_OPTIONS = [
     "planning",
     "standards",
     "land_use",
-    "sustainable_development"
+    "sustainable_development",
 ]

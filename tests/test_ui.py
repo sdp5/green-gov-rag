@@ -1,7 +1,9 @@
-import pytest
-from unittest.mock import patch, MagicMock
-from app import ui, map, config
+from unittest.mock import MagicMock, patch
+
 import folium
+import pytest
+from app import config, map, ui
+
 
 # -----------------------------
 # Config checks

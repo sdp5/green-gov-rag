@@ -14,7 +14,8 @@ based on metadata such as jurisdiction, region, category, or topic.
     - Can be imported in rag/agent_tools.py or directly in your RAG chain for pre-filtering.
 """
 
-from typing import List, Dict
+from typing import Dict, List
+
 
 def filter_by_metadata(documents: List[Dict], filters: Dict) -> List[Dict]:
     """
@@ -49,9 +50,18 @@ def filter_by_metadata(documents: List[Dict], filters: Dict) -> List[Dict]:
 # Example usage
 if __name__ == "__main__":
     documents = [
-        {"content": "Doc1 text", "metadata": {"jurisdiction": "state", "region": "SA", "topic": "biodiversity"}},
-        {"content": "Doc2 text", "metadata": {"jurisdiction": "federal", "region": "Australia", "topic": "emissions"}},
-        {"content": "Doc3 text", "metadata": {"jurisdiction": "state", "region": "NSW", "topic": "planning"}},
+        {
+            "content": "Doc1 text",
+            "metadata": {"jurisdiction": "state", "region": "SA", "topic": "biodiversity"},
+        },
+        {
+            "content": "Doc2 text",
+            "metadata": {"jurisdiction": "federal", "region": "Australia", "topic": "emissions"},
+        },
+        {
+            "content": "Doc3 text",
+            "metadata": {"jurisdiction": "state", "region": "NSW", "topic": "planning"},
+        },
     ]
 
     filters = {"jurisdiction": "state"}

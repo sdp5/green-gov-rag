@@ -10,18 +10,20 @@ using LangChain text splitters.
 4. Returns flat list of chunks for indexing or embeddings.
 """
 
+from typing import Any, Dict, List, Union
+
 from langchain.text_splitter import RecursiveCharacterTextSplitter, TokenTextSplitter
-from typing import List, Dict, Any, Union
 
 DEFAULT_CHUNK_SIZE = 1000
 DEFAULT_CHUNK_OVERLAP = 100
 
+
 class TextChunker:
     def __init__(
-            self,
-            chunk_size: int = DEFAULT_CHUNK_SIZE,
-            chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
-            splitter_type: str = "recursive"
+        self,
+        chunk_size: int = DEFAULT_CHUNK_SIZE,
+        chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
+        splitter_type: str = "recursive",
     ):
         """
         Initialize text chunker.
@@ -37,13 +39,10 @@ class TextChunker:
             self.splitter = RecursiveCharacterTextSplitter(
                 chunk_size=chunk_size,
                 chunk_overlap=chunk_overlap,
-                separators=["\n\n", "\n", " ", ""]
+                separators=["\n\n", "\n", " ", ""],
             )
         elif splitter_type == "token":
-            self.splitter = TokenTextSplitter(
-                chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap
-            )
+            self.splitter = TokenTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
         else:
             raise ValueError(f"Unsupported splitter_type: {splitter_type}")
 
@@ -63,8 +62,5 @@ class TextChunker:
 
             chunks = self.chunk_text(content)
             for i, chunk in enumerate(chunks):
-                chunked_docs.append({
-                    "content": chunk,
-                    "metadata": {**metadata, "chunk_id": i}
-                })
+                chunked_docs.append({"content": chunk, "metadata": {**metadata, "chunk_id": i}})
         return chunked_docs

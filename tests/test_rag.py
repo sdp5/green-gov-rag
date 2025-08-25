@@ -1,10 +1,11 @@
 import pytest
-from rag import embeddings, vector_store, rag_chain
+from rag import embeddings, rag_chain, vector_store
 
 SAMPLE_CHUNKS = [
     {"content": "Carbon emissions report for NSW", "metadata": {"region": "NSW"}},
     {"content": "Biodiversity conservation guidelines", "metadata": {"region": "SA"}},
 ]
+
 
 @pytest.fixture
 def embedded_chunks():

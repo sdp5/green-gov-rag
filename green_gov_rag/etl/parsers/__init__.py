@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from .pdf_parser import parse_pdf
 from .html_parser import parse_html
+from .pdf_parser import parse_pdf
 
 SUPPORTED_PARSERS = {
     ".pdf": parse_pdf,

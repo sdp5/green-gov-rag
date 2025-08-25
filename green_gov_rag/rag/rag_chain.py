@@ -13,24 +13,27 @@ Supports optional metadata filtering during retrieval.
 5. Extensible: Can add Bedrock or other LLMs later.
 """
 
-from typing import List, Dict, Optional
-from rag.vector_store import VectorStore
+# Optional: LLM client wrappers
+import os
+from typing import Dict, List, Optional
+
 import numpy as np
+import openai
 
 # Optional: HuggingFace / OpenAI embeddings
 from rag.embeddings import ChunkEmbedder
+from rag.vector_store import VectorStore
 
-# Optional: LLM client wrappers
-import os
-import openai
 
 class RAGChain:
-    def __init__(self,
-                 vector_store: VectorStore,
-                 embedder: Optional[ChunkEmbedder] = None,
-                 llm_provider: str = "openai",
-                 llm_model: str = "gpt-4",
-                 top_k: int = 5):
+    def __init__(
+        self,
+        vector_store: VectorStore,
+        embedder: Optional[ChunkEmbedder] = None,
+        llm_provider: str = "openai",
+        llm_model: str = "gpt-4",
+        top_k: int = 5,
+    ):
         """
         Initialize RAG Chain.
 
@@ -62,8 +65,12 @@ class RAGChain:
         Generate answer using retrieved context and LLM.
         """
         retrieved = self.retrieve(query)
-        context = "\n".join([r["metadata"].get("source", "") + ": " + r["metadata"].get("content", "")
-                             for r in retrieved])
+        context = "\n".join(
+            [
+                r["metadata"].get("source", "") + ": " + r["metadata"].get("content", "")
+                for r in retrieved
+            ]
+        )
 
         prompt = f"Answer the query based on the following context:\n{context}\n\nQuery: {query}\nAnswer:"
 
@@ -72,7 +79,7 @@ class RAGChain:
                 model=self.llm_model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.2,
-                max_tokens=500
+                max_tokens=500,
             )
             answer = response.choices[0].message["content"]
             return answer
@@ -86,11 +93,7 @@ class RAGChain:
         """
         retrieved = self.retrieve(query)
         answer = self.generate_answer(query)
-        return {
-            "query": query,
-            "answer": answer,
-            "sources": retrieved
-        }
+        return {"query": query, "answer": answer, "sources": retrieved}
 
     def query(self, question: str, metadata_filters: Optional[Dict] = None, k: int = 4):
         """
@@ -109,31 +112,29 @@ class RAGChain:
             retriever = self.vector_store.store.as_retriever(search_kwargs={"k": k})
 
         # Execute the chain
-        result = self.chain.run(
-            question,
-            callbacks=None,
-            return_only_outputs=True
-        )
+        result = self.chain.run(question, callbacks=None, return_only_outputs=True)
 
         # Attach filtered documents if applicable
-        source_docs = retriever(question) if metadata_filters else result.get("source_documents", [])
+        source_docs = (
+            retriever(question) if metadata_filters else result.get("source_documents", [])
+        )
 
         return {
             "result": result.get("result") if isinstance(result, dict) else result,
-            "source_documents": source_docs
+            "source_documents": source_docs,
         }
 
 
 if __name__ == "__main__":
-    from rag.vector_store import VectorStore
     from rag.embeddings import ChunkEmbedder
+    from rag.vector_store import VectorStore
 
     # Quick demo
     store = VectorStore(
         index_path="faiss_index",
         embeddings=ChunkEmbedder(
             provider="huggingface", model_name="sentence-transformers/all-MiniLM-L6-v2"
-        ).embedder
+        ).embedder,
     )
     embedder = ChunkEmbedder()
     rag_chain = RAGChain(vector_store=store, embedder=embedder)

@@ -5,16 +5,17 @@ Reads configs/documents_config.yml and downloads files into data/raw/,
 storing metadata alongside each file.
 """
 
-import os
-import yaml
-import json
-import time
 import hashlib
+import json
 import logging
-import requests
+import os
+import time
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
-from datetime import datetime
+
+import requests
+import yaml
 
 # Paths
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -60,7 +61,7 @@ def download_file(url, dest_path, retries=3, backoff=2):
         except Exception as e:
             attempt += 1
             logger.error(f"Error downloading {url}: {e} (attempt {attempt})")
-            time.sleep(backoff ** attempt)
+            time.sleep(backoff**attempt)
     return False
 
 

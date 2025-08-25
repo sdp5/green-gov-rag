@@ -14,14 +14,12 @@ AWS Bedrock LLM or HuggingFace embedding models.
 4. Easily integrated into your ETL pipeline after chunker.py.
 """
 
-from typing import List, Dict
 import os
+from typing import Dict, List
 
 # Optional: Hugging Face
-from langchain.embeddings import HuggingFaceEmbeddings
-
 # Optional: OpenAI-style API (for Bedrock, OpenAI API compatible)
-from langchain.embeddings import OpenAIEmbeddings
+from langchain.embeddings import HuggingFaceEmbeddings, OpenAIEmbeddings
 
 
 class ChunkEmbedder:
@@ -58,11 +56,7 @@ class ChunkEmbedder:
                 continue
 
             vector = self.embedder.embed_query(text)
-            embedded_chunks.append({
-                "content": text,
-                "metadata": metadata,
-                "embedding": vector
-            })
+            embedded_chunks.append({"content": text, "metadata": metadata, "embedding": vector})
         return embedded_chunks
 
 
@@ -77,7 +71,9 @@ if __name__ == "__main__":
     text_chunker = TextChunker()
     chunks = []
     for text in sample_texts:
-        chunks.extend([{"content": c, "metadata": {"source": "demo"}} for c in text_chunker.chunk_text(text)])
+        chunks.extend(
+            [{"content": c, "metadata": {"source": "demo"}} for c in text_chunker.chunk_text(text)]
+        )
 
     embedder = ChunkEmbedder(provider="huggingface")
     embedded = embedder.embed_chunks(chunks)

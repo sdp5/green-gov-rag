@@ -1,6 +1,7 @@
-import pytest
 from pathlib import Path
-from etl import utils, chunker, ingest, loader, validators
+
+import pytest
+from etl import chunker, ingest, loader, utils, validators
 
 RAW_DIR = Path("data/raw")
 PROCESSED_DIR = Path("data/processed")
@@ -49,11 +50,13 @@ def test_ingest_download(monkeypatch):
 
 def test_loader_yaml_parsing(tmp_path):
     yaml_file = tmp_path / "docs.yml"
-    yaml_file.write_text("""
+    yaml_file.write_text(
+        """
     documents:
       - title: Sample
         download_urls: [http://example.com/doc.pdf]
-    """)
+    """
+    )
     loaded = loader.load_yaml(str(yaml_file))
     assert "documents" in loaded
     assert len(loaded["documents"]) == 1

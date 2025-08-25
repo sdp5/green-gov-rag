@@ -7,12 +7,13 @@ python scripts/evaluate_model.py
 
 from rag.agent_tools import RAGAgent
 
+
 def run_sample_queries(agent: RAGAgent):
     sample_queries = [
         "What are the biodiversity offset requirements in NSW?",
         "Which regulations cover emissions reporting for coal mining?",
         "Show me the zoning rules for City of Adelaide parklands",
-        "What are the building standards under the National Construction Code?"
+        "What are the building standards under the National Construction Code?",
     ]
 
     for query in sample_queries:
@@ -25,9 +26,11 @@ def run_sample_queries(agent: RAGAgent):
             print(f"- {s['title']} ({s.get('region', 'Unknown')})")
         print("=" * 80, "\n")
 
+
 def main():
     agent = RAGAgent()  # Ensure vector store & embedder are preloaded
     run_sample_queries(agent)
+
 
 if __name__ == "__main__":
     main()

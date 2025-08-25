@@ -1,13 +1,14 @@
 # airflow/dags/greengovrag_pipeline.py
-from airflow import DAG
-from airflow.operators.python import PythonOperator
+import json
 from datetime import datetime
 from pathlib import Path
-import json
+
+from airflow import DAG
+from airflow.operators.python import PythonOperator
 
 # Import your project modules
-from etl import ingest, chunker, loader, utils
-from rag import embeddings, vector_store, rag_chain
+from etl import chunker, ingest, loader, utils
+from rag import embeddings, rag_chain, vector_store
 
 # --- DAG Default Arguments ---
 default_args = {
@@ -21,7 +22,7 @@ dag = DAG(
     start_date=datetime(2025, 8, 21),
     schedule_interval=None,  # Or '0 2 * * *' for daily at 2 AM
     default_args=default_args,
-    catchup=False
+    catchup=False,
 )
 
 # --- Paths & Config ---
@@ -88,7 +89,9 @@ ingest_task = PythonOperator(task_id="ingest_docs", python_callable=task_ingest_
 parse_task = PythonOperator(task_id="parse_docs", python_callable=task_parse_docs, dag=dag)
 chunk_task = PythonOperator(task_id="chunk_docs", python_callable=task_chunk_docs, dag=dag)
 embed_task = PythonOperator(task_id="embed_docs", python_callable=task_embed_docs, dag=dag)
-vector_task = PythonOperator(task_id="build_vector_store", python_callable=task_build_vector_store, dag=dag)
+vector_task = PythonOperator(
+    task_id="build_vector_store", python_callable=task_build_vector_store, dag=dag
+)
 test_rag_task = PythonOperator(task_id="test_rag_query", python_callable=task_test_rag, dag=dag)
 
 # --- Dependencies ---

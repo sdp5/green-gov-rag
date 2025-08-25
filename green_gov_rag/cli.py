@@ -1,10 +1,13 @@
 # cli.py
-import typer
-from etl import ingest, chunker, loader, utils, validators
-from rag import embeddings, vector_store, rag_chain, agent_tools
 from pathlib import Path
 
+import typer
+
+from green_gov_rag.etl import chunker, ingest, loader, utils, validators
+from green_gov_rag.rag import agent_tools, embeddings, rag_chain, vector_store
+
 app = typer.Typer(help="GreenGovRAG CLI: ETL + RAG pipeline management")
+
 
 @app.command()
 def ingest_docs(config_path: str = "configs/documents_config.yml", output_dir: str = "data/raw"):
@@ -15,6 +18,7 @@ def ingest_docs(config_path: str = "configs/documents_config.yml", output_dir: s
     docs = loader.load_documents_config(config_path)
     ingest.download_documents(docs, output_dir)
     typer.echo(f"Downloaded documents to {output_dir}")
+
 
 @app.command()
 def parse_docs(input_dir: str = "data/raw", parsed_dir: str = "data/processed"):
@@ -29,6 +33,7 @@ def parse_docs(input_dir: str = "data/raw", parsed_dir: str = "data/processed"):
         out_file.write_text(text)
     typer.echo(f"Parsed text saved to {parsed_dir}")
 
+
 @app.command()
 def chunk_docs(input_dir: str = "data/processed", chunked_dir: str = "data/processed/chunks"):
     """
@@ -41,17 +46,24 @@ def chunk_docs(input_dir: str = "data/processed", chunked_dir: str = "data/proce
         out_file = Path(chunked_dir) / (txt_file.stem + "_chunks.json")
         out_file.parent.mkdir(parents=True, exist_ok=True)
         import json
+
         json.dump(chunks, out_file)
     typer.echo(f"Chunked documents saved to {chunked_dir}")
 
+
 @app.command()
-def embed_docs(chunked_dir: str = "data/processed/chunks", embedding_cache_dir: str = "data/processed/embeddings", model_name: str = "amazon/bedrock"):
+def embed_docs(
+    chunked_dir: str = "data/processed/chunks",
+    embedding_cache_dir: str = "data/processed/embeddings",
+    model_name: str = "amazon/bedrock",
+):
     """
     Embed text chunks using RAG embeddings (Bedrock / HuggingFace)
     """
     typer.echo(f"Embedding chunks from {chunked_dir} using {model_name}...")
     for chunk_file in Path(chunked_dir).glob("*_chunks.json"):
         import json
+
         chunks = json.load(chunk_file)
         embedded = embeddings.embed_chunks(chunks, model_name=model_name)
         out_file = Path(embedding_cache_dir) / (chunk_file.stem + "_embeddings.json")
@@ -59,8 +71,12 @@ def embed_docs(chunked_dir: str = "data/processed/chunks", embedding_cache_dir: 
         json.dump(embedded, out_file)
     typer.echo(f"Embeddings saved to {embedding_cache_dir}")
 
+
 @app.command()
-def build_vector_store(embedding_dir: str = "data/processed/embeddings", store_path: str = "data/vector_store/faiss.index"):
+def build_vector_store(
+    embedding_dir: str = "data/processed/embeddings",
+    store_path: str = "data/vector_store/faiss.index",
+):
     """
     Build vector store (FAISS / Qdrant) from embeddings
     """
@@ -69,8 +85,11 @@ def build_vector_store(embedding_dir: str = "data/processed/embeddings", store_p
     vector_store.save_vector_store(store, store_path)
     typer.echo(f"Vector store saved to {store_path}")
 
+
 @app.command()
-def evaluate_query(query: str, store_path: str = "data/vector_store/faiss.index", metadata_filters: str = None):
+def evaluate_query(
+    query: str, store_path: str = "data/vector_store/faiss.index", metadata_filters: str = None
+):
     """
     Query RAG chain against the vector store
     """
@@ -80,6 +99,7 @@ def evaluate_query(query: str, store_path: str = "data/vector_store/faiss.index"
     filters = None
     if metadata_filters:
         import json
+
         filters = json.loads(metadata_filters)
 
     answer, sources = rag.query(query, metadata_filters=filters)
@@ -87,6 +107,7 @@ def evaluate_query(query: str, store_path: str = "data/vector_store/faiss.index"
     typer.echo("\nSources:")
     for src in sources:
         typer.echo(f"- {src}")
+
 
 if __name__ == "__main__":
     app()

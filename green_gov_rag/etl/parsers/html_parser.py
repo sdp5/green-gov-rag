@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 
+
 def parse_html(file_path: str) -> str:
     """
     Parse and extract clean text content from an HTML file.

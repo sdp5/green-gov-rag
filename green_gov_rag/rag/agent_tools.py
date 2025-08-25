@@ -8,7 +8,9 @@ supporting optional metadata filters and structured responses.
 """
 
 from typing import Dict, Optional
+
 from .rag_chain import RAGChain
+
 
 class RAGAgentTools:
     def __init__(self, rag_chain: RAGChain):
@@ -18,7 +20,9 @@ class RAGAgentTools:
         """
         self.rag_chain = rag_chain
 
-    def answer_question(self, question: str, metadata_filters: Optional[Dict] = None, top_k: int = 4):
+    def answer_question(
+        self, question: str, metadata_filters: Optional[Dict] = None, top_k: int = 4
+    ):
         """
         Query the RAG chain with optional metadata filtering.
         :param question: User query string
@@ -27,25 +31,22 @@ class RAGAgentTools:
         :return: dict containing 'answer' and 'sources'
         """
         response = self.rag_chain.query(
-            question=question,
-            metadata_filters=metadata_filters,
-            k=top_k
+            question=question, metadata_filters=metadata_filters, k=top_k
         )
 
         # Format sources nicely
         sources = []
         for doc in response.get("source_documents", []):
-            sources.append({
-                "title": doc.metadata.get("title", "Unknown"),
-                "url": doc.metadata.get("source_url", ""),
-                "topic": doc.metadata.get("topic", ""),
-                "region": doc.metadata.get("region", "")
-            })
+            sources.append(
+                {
+                    "title": doc.metadata.get("title", "Unknown"),
+                    "url": doc.metadata.get("source_url", ""),
+                    "topic": doc.metadata.get("topic", ""),
+                    "region": doc.metadata.get("region", ""),
+                }
+            )
 
-        return {
-            "answer": response.get("result", ""),
-            "sources": sources
-        }
+        return {"answer": response.get("result", ""), "sources": sources}
 
     def agent_tool_wrapper(self, question: str, context: Optional[Dict] = None):
         """
@@ -93,16 +94,16 @@ class RAGAgent:
 # Example usage
 # ------------------------------
 if __name__ == "__main__":
-    from rag.vector_store import VectorStore
-    from rag.rag_chain import RAGChain
     from rag.embeddings import ChunkEmbedder
+    from rag.rag_chain import RAGChain
+    from rag.vector_store import VectorStore
 
     # Initialize the vector store (load prebuilt FAISS or Qdrant store)
     vector_store = VectorStore(
         index_path="faiss_index",
         embeddings=ChunkEmbedder(
             provider="huggingface", model_name="sentence-transformers/all-MiniLM-L6-v2"
-        ).embedder
+        ).embedder,
     )
     # Load existing vector store from
     vector_store = vector_store.load(path="data/processed/faiss_index")
@@ -121,8 +122,7 @@ if __name__ == "__main__":
     # Example 2: Query with metadata filters
     filters = {"region": "South Australia", "topic": "vegetation_clearance"}
     response_filtered = agent_tools.answer_question(
-        "What approvals are required for land clearing?",
-        metadata_filters=filters
+        "What approvals are required for land clearing?", metadata_filters=filters
     )
     print("\nFiltered Answer:\n", response_filtered["answer"])
     print("Filtered Sources:\n", response_filtered["sources"])

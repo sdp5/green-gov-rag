@@ -1,5 +1,7 @@
-import yaml
 from pathlib import Path
+
+import yaml
+
 
 def load_documents_config(config_path: str = "configs/documents_config.yml"):
     """
@@ -14,6 +16,7 @@ def load_documents_config(config_path: str = "configs/documents_config.yml"):
 
     return config.get("documents", [])
 
+
 def get_document_sources():
     """
     Returns a list of all source URLs for ingestion.
@@ -24,6 +27,7 @@ def get_document_sources():
         urls = doc.get("download_urls", [])
         sources.extend(urls)
     return sources
+
 
 if __name__ == "__main__":
     docs = load_documents_config()

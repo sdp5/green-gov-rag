@@ -1,9 +1,10 @@
 # etl/parsers/pdf_parser.py
 from pathlib import Path
 from typing import List
-import fitz  # PyMuPDF
 
+import fitz  # PyMuPDF
 from etl.utils import clean_text
+
 
 class PDFParser:
     """Parser for extracting and cleaning text from PDF files."""
@@ -27,6 +28,7 @@ class PDFParser:
         raw_text = self.extract_text()
         cleaned = clean_text(raw_text)
         return [cleaned] if cleaned else []
+
 
 # Example usage:
 # from etl.parsers.pdf_parser import PDFParser

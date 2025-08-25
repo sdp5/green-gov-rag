@@ -3,10 +3,10 @@
 from pathlib import Path
 
 from .html_parser import parse_html
-from .pdf_parser import parse_pdf
+from .pdf_parser import PDFParser
 
 SUPPORTED_PARSERS = {
-    ".pdf": parse_pdf,
+    ".pdf": PDFParser,
     ".html": parse_html,
     ".htm": parse_html,
 }

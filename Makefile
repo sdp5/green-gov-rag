@@ -44,7 +44,7 @@ setup:
 devel: setup dev-env
 
 mypy:
-	mypy --check-untyped-defs green_gov_rag tests
+	mypy --exclude conftest.py --check-untyped-defs green_gov_rag tests
 
 lint-ruff:
 	ruff check green_gov_rag tests

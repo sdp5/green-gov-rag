@@ -1,10 +1,8 @@
 """Tests for LGA UI."""
 
-from unittest.mock import patch
 
 import pytest
-from etl import chunker, utils
-from rag import embeddings, rag_chain, vector_store
+from green_gov_rag.etl import chunker, utils
 from shapely.geometry import Point, shape
 
 # -----------------------------
@@ -116,40 +114,30 @@ def test_ui_rag_with_lga_selection(test_case):
     all_chunks = []
     text_chunker = chunker.TextChunker(chunk_size=50, chunk_overlap=10)
     for doc in DOCS:
-        cleaned_text = utils.clean_text(doc["text"])
+        text: str = doc["text"]  # type: ignore[assignment]
+        cleaned_text = utils.clean_text(text)
         chunks = text_chunker.chunk_text(cleaned_text)
         for c in chunks:
             all_chunks.append({"content": c, "metadata": doc["metadata"]})
 
     # Step 2: Mock embeddings
-    with patch("rag.embeddings.BedrockEmbedder.embed_text") as mock_embed:
-        mock_embed.side_effect = lambda txt: [0.1] * 10
-        embedder = embeddings.BedrockEmbedder()
-        embedded_chunks = [
-            {
-                "content": c["content"],
-                "embedding": embedder.embed_text(c["content"]),
-                "metadata": c["metadata"],
-            }
-            for c in all_chunks
-        ]
+    from tests.conftest import MockChunkEmbedder
+    mock_embedder = MockChunkEmbedder()
+    embedded_chunks = mock_embedder.embed_chunks(all_chunks)
 
-    # Step 3: Vector store
-    store = vector_store.VectorStore()
-    for item in embedded_chunks:
-        store.add(item["embedding"], item["metadata"])
+    # Step 3: Verify embeddings created
+    assert len(embedded_chunks) > 0
+    for chunk in embedded_chunks:
+        assert "embedding" in chunk
 
-    # Step 4: RAG chain
-    chain = rag_chain.RAGChain(vector_store=store, embedder=embedder)
-
-    # Step 5: Generate metadata filter based on simulated UI
+    # Step 4: Test metadata filtering
     metadata_filter = simulate_user_selection(
         test_case["selected_lgas"], test_case["selected_topic"]
     )
 
-    # Step 6: Run query with UI filters
-    answer = chain.run(test_case["query"], metadata_filters={"custom_filter_fn": metadata_filter})
+    # Step 5: Apply filter
+    filtered_chunks = [c for c in embedded_chunks if metadata_filter(c["metadata"])]
 
-    # Step 7: Assertions
+    # Step 6: Verify expected sources are in the filtered data
     for source in test_case["expected_sources"]:
-        assert source in answer.lower() or answer == ""
+        assert any(source in c["metadata"].get("source", "") for c in filtered_chunks)

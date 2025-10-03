@@ -4,7 +4,7 @@
 python scripts/evaluate_model.py
 """
 
-from rag.agent_tools import RAGAgent
+from green_gov_rag.rag.agent_tools import RAGAgent
 
 
 def run_sample_queries(agent: RAGAgent):

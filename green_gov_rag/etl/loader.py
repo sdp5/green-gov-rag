@@ -27,6 +27,20 @@ def get_document_sources():
     return sources
 
 
+def load_yaml(file_path: str) -> dict:
+    """Load YAML file and return as dictionary.
+
+    :param file_path: Path to YAML file
+    :return: Parsed YAML content as dictionary
+    """
+    yaml_file = Path(file_path)
+    if not yaml_file.exists():
+        raise FileNotFoundError(f"YAML file {file_path} not found.")
+
+    with open(yaml_file, encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
 if __name__ == "__main__":
     docs = load_documents_config()
     print(f"Found {len(docs)} documents in config.")

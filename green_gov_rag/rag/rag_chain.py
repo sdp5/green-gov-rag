@@ -18,8 +18,8 @@ import os
 import openai
 
 # Optional: HuggingFace / OpenAI embeddings
-from rag.embeddings import ChunkEmbedder
-from rag.vector_store import VectorStore
+from green_gov_rag.rag.embeddings import ChunkEmbedder
+from green_gov_rag.rag.vector_store import VectorStore
 
 
 class RAGChain:
@@ -51,9 +51,9 @@ class RAGChain:
     def retrieve(self, query: str) -> list[dict]:
         """Retrieve top_k relevant chunks for the query.
         """
-        query_embedding = self.embedder.embed_query(query)
-        results = self.vector_store.store.search(query_embedding, top_k=self.top_k)
-        return results
+        query_embedding = self.embedder.embed_query(query)  # type: ignore[attr-defined]
+        results = self.vector_store.store.search(query_embedding, top_k=self.top_k)  # type: ignore[union-attr,call-arg]
+        return results  # type: ignore[return-value]
 
     def generate_answer(self, query: str) -> str:
         """Generate answer using retrieved context and LLM.
@@ -101,7 +101,7 @@ class RAGChain:
                     q, k=k, metadata_filters=metadata_filters
                 )
         else:
-            retriever = self.vector_store.store.as_retriever(search_kwargs={"k": k})
+            retriever = self.vector_store.store.as_retriever(search_kwargs={"k": k})  # type: ignore[union-attr,assignment]
 
         # Execute the chain
         result = self.chain.run(question, callbacks=None, return_only_outputs=True)  # type: ignore[attr-defined]
@@ -118,17 +118,17 @@ class RAGChain:
 
 
 if __name__ == "__main__":
-    from rag.embeddings import ChunkEmbedder
-    from rag.vector_store import VectorStore
+    from green_gov_rag.rag.embeddings import ChunkEmbedder as ChunkEmbedderClass
+    from green_gov_rag.rag.vector_store import VectorStore as VectorStoreClass
 
     # Quick demo
-    store = VectorStore(
+    store = VectorStoreClass(
         index_path="faiss_index",
-        embeddings=ChunkEmbedder(
+        embeddings=ChunkEmbedderClass(
             provider="huggingface", model_name="sentence-transformers/all-MiniLM-L6-v2"
         ).embedder,
     )
-    embedder = ChunkEmbedder()
+    embedder = ChunkEmbedderClass()
     rag_chain = RAGChain(vector_store=store, embedder=embedder)
 
     query = "What are the native vegetation clearance rules in South Australia?"

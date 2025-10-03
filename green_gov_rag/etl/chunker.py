@@ -61,3 +61,17 @@ class TextChunker:
             for i, chunk in enumerate(chunks):
                 chunked_docs.append({"content": chunk, "metadata": {**metadata, "chunk_id": i}})
         return chunked_docs
+
+
+# Module-level convenience functions for backward compatibility
+def chunk_text(
+    text: str,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
+    splitter_type: str = "recursive"
+) -> list[str]:
+    """Convenience function to chunk text without creating a TextChunker instance."""
+    # Ensure chunk_overlap is not larger than chunk_size
+    actual_overlap = min(chunk_overlap, chunk_size - 1) if chunk_size > 1 else 0
+    chunker = TextChunker(chunk_size=chunk_size, chunk_overlap=actual_overlap, splitter_type=splitter_type)
+    return chunker.chunk_text(text)

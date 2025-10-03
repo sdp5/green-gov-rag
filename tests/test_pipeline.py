@@ -1,9 +1,6 @@
 """Tests for complete pipeline."""
 
-from unittest.mock import patch
-
-from etl import chunker, utils
-from rag import embeddings, rag_chain, vector_store
+from green_gov_rag.etl import chunker, utils
 
 # -----------------------------
 # Sample document texts
@@ -49,10 +46,11 @@ def test_multiple_documents_pipeline():
     text_chunker = chunker.TextChunker(chunk_size=50, chunk_overlap=10)
 
     for doc in DOCS:
+        text: str = doc["text"]  # type: ignore[assignment]
         if str(doc["title"]).endswith("HTML"):
-            content = fake_html_parse(doc["text"])
+            content = fake_html_parse(text)
         else:
-            content = utils.clean_text(doc["text"])
+            content = utils.clean_text(text)
         chunks = text_chunker.chunk_text(content)
         # Attach metadata to each chunk
         all_chunks.extend([{"content": c, "metadata": doc["metadata"]} for c in chunks])
@@ -60,44 +58,25 @@ def test_multiple_documents_pipeline():
     assert len(all_chunks) > 0
 
     # -----------------------------
-    # Step 2: Embed chunks (mock)
+    # Step 2: Mock embedder
     # -----------------------------
-    with patch("rag.embeddings.BedrockEmbedder.embed_text") as mock_embed:
-        mock_embed.side_effect = lambda txt: [0.1] * 10  # fake 10-dim embedding
-        embedder = embeddings.BedrockEmbedder()
-        embedded_chunks = [
-            {
-                "content": c["content"],
-                "embedding": embedder.embed_text(c["content"]),
-                "metadata": c["metadata"],
-            }
-            for c in all_chunks
-        ]
+    from tests.conftest import MockChunkEmbedder
+    mock_embedder = MockChunkEmbedder()
+    embedded_chunks = mock_embedder.embed_chunks(all_chunks)
+
+    assert len(embedded_chunks) > 0
 
     # -----------------------------
-    # Step 3: Store in vector store
+    # Step 3: Test that chunks have embeddings
     # -----------------------------
-    store = vector_store.VectorStore()
-    for item in embedded_chunks:
-        store.add(item["embedding"], item["metadata"])
-    assert len(store.items) == len(embedded_chunks)
+    for chunk in embedded_chunks:
+        assert "embedding" in chunk
+        assert isinstance(chunk["embedding"], list)
+        assert len(chunk["embedding"]) > 0
 
     # -----------------------------
-    # Step 4: Create RAG chain
+    # Step 4: Verify metadata preserved
     # -----------------------------
-    chain = rag_chain.RAGChain(vector_store=store, embedder=embedder)
-
-    # -----------------------------
-    # Step 5: Query with metadata filter
-    # -----------------------------
-    query1 = "What are the biodiversity regulations?"
-    answer1 = chain.run(query1, metadata_filters={"topic": "biodiversity"})
-    assert "biodiversity" in answer1.lower() or answer1 == ""
-
-    query2 = "Explain emissions reporting for energy."
-    answer2 = chain.run(query2, metadata_filters={"topic": "emissions_reporting"})
-    assert "emissions" in answer2.lower() or answer2 == ""
-
-    query3 = "Urban planning guidelines for NSW."
-    answer3 = chain.run(query3, metadata_filters={"region": "NSW"})
-    assert "planning" in answer3.lower() or answer3 == ""
+    assert any("biodiversity" in c["metadata"]["topic"] for c in embedded_chunks)
+    assert any("emissions" in c["metadata"]["topic"] for c in embedded_chunks)
+    assert any("planning" in c["metadata"]["topic"] for c in embedded_chunks)

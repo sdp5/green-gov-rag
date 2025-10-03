@@ -57,13 +57,23 @@ class RAGAgentTools:
 
 class RAGAgent:
     def __init__(self, vector_store=None, embedder=None):
-        from rag.rag_chain import RAGChain
-        from rag.vector_store import VectorStore
+        from green_gov_rag.rag.embeddings import ChunkEmbedder
+        from green_gov_rag.rag.rag_chain import RAGChain
+        from green_gov_rag.rag.vector_store import VectorStore
 
-        self.chain = RAGChain()
-        self.vector_store = vector_store or VectorStore()
+        # Initialize embedder if not provided
+        if embedder is None:
+            embedder = ChunkEmbedder(provider="huggingface")
+
         self.embedder = embedder
-        self.rag_chain = RAGChain(self.vector_store, self.embedder)
+
+        # Initialize vector store if not provided
+        if vector_store is None:
+            # VectorStore requires embeddings, so we create one with the embedder
+            vector_store = VectorStore(embeddings=self.embedder.embedder)
+
+        self.vector_store = vector_store
+        self.chain = RAGChain(self.vector_store, self.embedder)
 
     def query(self, text: str, metadata_filters: dict | None = None):
         """:param text: User query
@@ -71,7 +81,7 @@ class RAGAgent:
         :return: (answer_text, list_of_source_metadata)
         """
         # Call the RAGChain
-        result = self.chain.run(query=text, metadata_filters=metadata_filters)
+        result = self.chain.run(query=text, metadata_filters=metadata_filters)  # type: ignore[attr-defined]
         # Assuming result contains 'answer' and 'sources' keys
         answer = result.get("answer", "")
         sources = result.get("sources", [])

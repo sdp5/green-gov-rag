@@ -3,7 +3,7 @@
 # Route handlers
 
 from fastapi import APIRouter, Query
-from rag.agent_tools import RAGAgent
+from green_gov_rag.rag.agent_tools import RAGAgent
 
 router = APIRouter()
 agent = RAGAgent()  # initialize with default vector store and embedder
@@ -35,7 +35,7 @@ async def query_rag(
     if region:
         metadata_filters["region"] = region
 
-    result = agent.query(query=q, metadata_filters=metadata_filters)
+    result = agent.query(text=q, metadata_filters=metadata_filters)
     return {"query": q, "filters": metadata_filters, "result": result}
 
 

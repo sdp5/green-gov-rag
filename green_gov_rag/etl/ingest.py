@@ -108,6 +108,34 @@ def process_document(doc):
             print(f"❌ Failed to download: {url}")
 
 
+def download_documents(docs: list[dict], output_dir: str) -> list[str]:
+    """Download multiple documents to output directory.
+
+    :param docs: List of document dicts with 'download_urls' key
+    :param output_dir: Directory to save downloaded files
+    :return: List of downloaded file paths
+    """
+    import os
+    os.makedirs(output_dir, exist_ok=True)
+
+    downloaded_files = []
+    for doc in docs:
+        title = doc.get("title", "untitled")
+        urls = doc.get("download_urls", [])
+
+        for url in urls:
+            filename = safe_filename(url)
+            dest_path = os.path.join(output_dir, filename)
+
+            if download_file(url, dest_path):
+                print(f"✅ Downloaded: {title} -> {filename}")
+                downloaded_files.append(dest_path)
+            else:
+                print(f"❌ Failed: {title} from {url}")
+
+    return downloaded_files
+
+
 def main():
     config = load_config()
     documents = config.get("documents", [])

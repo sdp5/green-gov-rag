@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from etl import chunker, ingest, loader, utils, validators
+from green_gov_rag.etl import chunker, ingest, loader, utils, validators
 
 RAW_DIR = Path("data/raw")
 PROCESSED_DIR = Path("data/processed")
@@ -44,7 +44,7 @@ def test_ingest_download(monkeypatch):
 
     monkeypatch.setattr(ingest, "download_documents", fake_download)
     docs = [{"title": "Test Doc", "download_urls": ["http://example.com"]}]
-    result = ingest.download_documents(docs, RAW_DIR)
+    result = ingest.download_documents(docs, str(RAW_DIR))
     assert called.get("yes") is True
     assert isinstance(result, list)
 

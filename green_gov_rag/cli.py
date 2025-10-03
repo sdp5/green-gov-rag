@@ -17,7 +17,7 @@ def ingest_docs(config_path: str = "configs/documents_config.yml", output_dir: s
     """
     typer.echo(f"Loading config from {config_path}...")
     docs = loader.load_documents_config(config_path)
-    ingest.download_documents(docs, output_dir)  # type: ignore[attr-defined]
+    ingest.download_documents(docs, output_dir)
     typer.echo(f"Downloaded documents to {output_dir}")
 
 
@@ -41,7 +41,7 @@ def chunk_docs(input_dir: str = "data/processed", chunked_dir: str = "data/proce
     typer.echo(f"Chunking documents from {input_dir}...")
     for txt_file in Path(input_dir).glob("*.txt"):
         text = txt_file.read_text()
-        chunks = chunker.chunk_text(text)  # type: ignore[attr-defined]
+        chunks = chunker.chunk_text(text)
         out_file = Path(chunked_dir) / (txt_file.stem + "_chunks.json")
         out_file.parent.mkdir(parents=True, exist_ok=True)
         import json

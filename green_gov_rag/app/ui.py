@@ -5,16 +5,19 @@ from pathlib import Path
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-from app.config import APP_DESCRIPTION, APP_TITLE, TOPIC_OPTIONS
-from app.map import create_map
+from green_gov_rag.app.config import APP_DESCRIPTION, APP_TITLE, TOPIC_OPTIONS
+from green_gov_rag.app.map import create_map
 
 # Import RAG agent
-from rag.agent_tools import RAGAgent
+from green_gov_rag.rag.agent_tools import RAGAgent
 from streamlit_folium import st_folium
 
-# Initialize RAG Agent (singleton for app session)
-if "rag_agent" not in st.session_state:
-    st.session_state.rag_agent = RAGAgent()
+# Initialize RAG Agent (singleton for app session) - lazy initialization
+def get_rag_agent():
+    """Get or create RAG agent."""
+    if "rag_agent" not in st.session_state:
+        st.session_state.rag_agent = RAGAgent()
+    return st.session_state.rag_agent
 
 
 def render_ui():
@@ -47,7 +50,8 @@ def render_ui():
                         metadata_filters["topic"] = topic_filter  # list of topics
 
                     # Get answer
-                    answer, sources = st.session_state.rag_agent.query(
+                    rag_agent = get_rag_agent()
+                    answer, sources = rag_agent.query(
                         query_text, metadata_filters=metadata_filters
                     )
 
@@ -164,3 +168,20 @@ def render_ui():
                 st.markdown("---")
         else:
             st.info("No documents match the selected filters.")
+
+
+def run_query(query: str, metadata_filters: dict | None = None) -> str:
+    """Query the RAG system and return answer.
+
+    :param query: User question
+    :param metadata_filters: Optional metadata filters
+    :return: Answer string
+    """
+    rag_agent = get_rag_agent()
+    answer, _ = rag_agent.query(query, metadata_filters=metadata_filters)
+    return answer
+
+
+def main():
+    """Main entry point for the UI."""
+    render_ui()

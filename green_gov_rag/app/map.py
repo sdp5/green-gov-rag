@@ -4,7 +4,7 @@ import json
 
 import folium
 import streamlit as st
-from app.config import (
+from green_gov_rag.app.config import (
     LGA_DEFAULT_COLOR,
     LGA_DEFAULT_OPACITY,
     LGA_GEOJSON_PATH,
@@ -57,3 +57,40 @@ def create_map(selected_lgas=None):
     ).add_to(m)
 
     return m
+
+
+def add_geojson_layer(map_obj, geojson_data: dict, layer_name: str = "GeoJSON Layer",
+                      style_function=None, tooltip_fields=None):
+    """Add a GeoJSON layer to a Folium map.
+
+    :param map_obj: Folium Map object
+    :param geojson_data: GeoJSON data dictionary
+    :param layer_name: Name for the layer
+    :param style_function: Optional styling function
+    :param tooltip_fields: Optional list of fields to show in tooltip
+    :return: The map object with layer added
+    """
+    if tooltip_fields is None:
+        tooltip_fields = []
+
+    def default_style(x):
+        return {
+            "fillColor": LGA_DEFAULT_COLOR,
+            "color": LGA_DEFAULT_COLOR,
+            "weight": 1,
+            "fillOpacity": LGA_DEFAULT_OPACITY,
+        }
+
+    style_fn = style_function or default_style
+
+    layer = folium.GeoJson(
+        geojson_data,
+        name=layer_name,
+        style_function=style_fn,
+    )
+
+    if tooltip_fields:
+        layer.add_child(folium.GeoJsonTooltip(fields=tooltip_fields))
+
+    layer.add_to(map_obj)
+    return map_obj

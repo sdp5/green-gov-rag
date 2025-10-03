@@ -2,7 +2,7 @@
 from pathlib import Path
 
 import fitz  # PyMuPDF
-from etl.utils import clean_text
+from green_gov_rag.etl.utils import clean_text
 
 
 class PDFParser:

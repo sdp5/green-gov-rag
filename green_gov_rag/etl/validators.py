@@ -32,6 +32,25 @@ def validate_metadata(document: dict) -> bool:
     return all(field in document for field in required_fields)
 
 
+def validate_document(document: dict) -> bool:
+    """Validate that document has required structure and metadata.
+
+    :param document: Document dictionary to validate
+    :return: True if document is valid, False otherwise
+    """
+    # Check basic required fields
+    basic_required = ["title", "sovereign", "download_urls"]
+    if not all(field in document for field in basic_required):
+        return False
+
+    # Check for download_urls validity
+    urls = document.get("download_urls")
+    if not isinstance(urls, list) or len(urls) == 0:
+        return False
+
+    return True
+
+
 if __name__ == "__main__":
     # Example usage
     sample_file = "data/raw/demo.pdf"

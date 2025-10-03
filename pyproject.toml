@@ -7,7 +7,7 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-where = ["green_gov_rag"]
+where = ["."]
 namespaces = false
 
 [tool.setuptools.package-data]
@@ -53,7 +53,9 @@ dependencies = [
     "typer ~= 0.16.1",
     "psycopg2-binary ~= 2.9.10",
     "boto3 ~= 1.39.4",
-    "python-dotenv ~= 1.1.1"
+    "python-dotenv ~= 1.1.1",
+    "shapely ~= 2.0.0",
+    "sentence-transformers ~= 2.2.2"
 ]
 requires-python = "~=3.12.3"
 
@@ -65,6 +67,8 @@ dev = [
     "mypy-extensions",
     "pytest-cov",
     "pytest",
+    "pytest-mock",
+    "pytest-asyncio",
     "sphinx",
     "sphinx-markdown-tables",
     "types-PyYAML",
@@ -282,3 +286,49 @@ allow_untyped_calls = true
 [[tool.mypy.overrides]]
 module = "green_gov_rag.airflow.*"
 allow_untyped_calls = true
+
+### PYTEST ###
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--showlocals",
+]
+
+# Test markers
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests (require real services)",
+    "e2e: marks tests as end-to-end tests",
+    "unit: marks tests as unit tests (default)",
+]
+
+# Coverage settings
+[tool.coverage.run]
+source = ["green_gov_rag"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+    "*/.venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if __name__ == .__main__.:",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if False:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]

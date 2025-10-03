@@ -3,6 +3,7 @@
 # Route handlers
 
 from fastapi import APIRouter, Query
+
 from green_gov_rag.rag.agent_tools import RAGAgent
 
 router = APIRouter()
@@ -41,7 +42,6 @@ async def query_rag(
 
 @router.get("/documents")
 async def list_documents():
-    """List all ingested documents and their metadata.
-    """
+    """List all ingested documents and their metadata."""
     docs = agent.list_documents()
     return {"documents": docs}

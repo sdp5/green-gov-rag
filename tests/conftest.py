@@ -7,10 +7,10 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-
 # =============================================================================
 # Mock External Services
 # =============================================================================
+
 
 @pytest.fixture(autouse=True)
 def mock_env_vars(monkeypatch):
@@ -20,6 +20,25 @@ def mock_env_vars(monkeypatch):
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test-access-key")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "test-secret-key")
     monkeypatch.setenv("AZURE_STORAGE_CONNECTION_STRING", "test-connection-string")
+
+
+@pytest.fixture()
+def reload_settings(monkeypatch):
+    """Fixture to reload settings after monkeypatching environment variables.
+
+    Usage:
+        def test_something(monkeypatch, reload_settings):
+            monkeypatch.setenv("CLOUD_PROVIDER", "azure")
+            new_settings = reload_settings()
+            # new_settings will have the updated values
+    """
+
+    def _reload():
+        from green_gov_rag.config import Settings
+
+        return Settings()
+
+    return _reload
 
 
 @pytest.fixture()
@@ -62,11 +81,7 @@ def mock_openai_chat():
     with patch("openai.ChatCompletion.create") as mock:
         mock.return_value = {
             "choices": [
-                {
-                    "message": {
-                        "content": "This is a test response from the mocked LLM."
-                    }
-                }
+                {"message": {"content": "This is a test response from the mocked LLM."}}
             ]
         }
         yield mock
@@ -112,6 +127,7 @@ def mock_azure_blob():
 # Test Database Fixtures
 # =============================================================================
 
+
 @pytest.fixture()
 def temp_vector_store():
     """Create a temporary FAISS vector store for testing."""
@@ -123,8 +139,8 @@ def temp_vector_store():
 @pytest.fixture()
 def in_memory_faiss():
     """Create an in-memory FAISS index for testing."""
-    from langchain_community.vectorstores import FAISS
     from langchain.schema import Document
+    from langchain_community.vectorstores import FAISS
     from langchain_core.embeddings import Embeddings
 
     # Create a simple mock embeddings function
@@ -184,6 +200,7 @@ def mock_postgres_connection():
 # =============================================================================
 # Test Data Fixtures
 # =============================================================================
+
 
 @pytest.fixture()
 def sample_chunks():
@@ -253,6 +270,7 @@ def temp_data_dir():
 # Mock Embeddings and Vector Store
 # =============================================================================
 
+
 class MockChunkEmbedder:
     """Mock embedder for testing without external API calls."""
 
@@ -266,12 +284,16 @@ class MockChunkEmbedder:
         embedded = []
         for i, chunk in enumerate(chunks):
             # Create deterministic embeddings based on content hash
-            embedding = [hash(chunk.get("content", "")) % 1000 / 1000.0] * self.embedding_dim
-            embedded.append({
-                "content": chunk.get("content"),
-                "metadata": chunk.get("metadata", {}),
-                "embedding": embedding,
-            })
+            embedding = [
+                hash(chunk.get("content", "")) % 1000 / 1000.0
+            ] * self.embedding_dim
+            embedded.append(
+                {
+                    "content": chunk.get("content"),
+                    "metadata": chunk.get("metadata", {}),
+                    "embedding": embedding,
+                }
+            )
         return embedded
 
     def embed_query(self, text: str) -> list[float]:
@@ -288,6 +310,7 @@ def mock_embedder():
 # =============================================================================
 # Auto-use Fixtures for All Tests
 # =============================================================================
+
 
 @pytest.fixture(autouse=True)
 def disable_external_requests(monkeypatch):
@@ -310,11 +333,12 @@ def disable_external_requests(monkeypatch):
 def clean_import_cache():
     """Clean import cache between tests to ensure isolation."""
     import sys
+
     before = set(sys.modules.keys())
     yield
     # Don't remove pytest or core modules
     after = set(sys.modules.keys())
     to_remove = after - before
     for module in to_remove:
-        if not module.startswith(('_pytest', 'pytest', 'py.')):
+        if not module.startswith(("_pytest", "pytest", "py.")):
             sys.modules.pop(module, None)

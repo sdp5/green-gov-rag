@@ -1,6 +1,7 @@
 import os
 
 import requests
+
 from configs.documents_config import DOCUMENT_SOURCES
 
 RAW_DIR = "data/raw"

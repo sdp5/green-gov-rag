@@ -11,13 +11,15 @@ AWS Bedrock LLM or HuggingFace embedding models.
 2. Takes chunk dicts with content + metadata.
 3. Returns dicts with embedding included.
 4. Easily integrated into your ETL pipeline after chunker.py.
-"""
 
-import os
+Now uses centralized settings from green_gov_rag.config
+"""
 
 # Optional: Hugging Face
 # Optional: OpenAI-style API (for Bedrock, OpenAI API compatible)
 from langchain.embeddings import HuggingFaceEmbeddings, OpenAIEmbeddings
+
+from green_gov_rag.config import settings
 
 
 class ChunkEmbedder:
@@ -29,10 +31,12 @@ class ChunkEmbedder:
         """
         self.provider = provider.lower()
         if self.provider == "huggingface":
-            self.model_name = model_name or "sentence-transformers/all-MiniLM-L6-v2"
-            self.embedder: HuggingFaceEmbeddings | OpenAIEmbeddings = HuggingFaceEmbeddings(model_name=self.model_name)
+            self.model_name = model_name or settings.embedding_model
+            self.embedder: HuggingFaceEmbeddings | OpenAIEmbeddings = (
+                HuggingFaceEmbeddings(model_name=self.model_name)
+            )
         elif self.provider == "bedrock":
-            bedrock_model = model_name or os.getenv("BEDROCK_MODEL_ID")
+            bedrock_model = model_name or settings.bedrock_model_id
             self.model_name = bedrock_model if bedrock_model else "anthropic.claude-v2"
             self.embedder = OpenAIEmbeddings(model=self.model_name)
         else:
@@ -53,7 +57,9 @@ class ChunkEmbedder:
                 continue
 
             vector = self.embedder.embed_query(text)
-            embedded_chunks.append({"content": text, "metadata": metadata, "embedding": vector})
+            embedded_chunks.append(
+                {"content": text, "metadata": metadata, "embedding": vector}
+            )
         return embedded_chunks
 
 
@@ -69,7 +75,10 @@ if __name__ == "__main__":
     chunks = []
     for text in sample_texts:
         chunks.extend(
-            [{"content": c, "metadata": {"source": "demo"}} for c in text_chunker.chunk_text(text)]
+            [
+                {"content": c, "metadata": {"source": "demo"}}
+                for c in text_chunker.chunk_text(text)
+            ]
         )
 
     embedder = ChunkEmbedder(provider="huggingface")

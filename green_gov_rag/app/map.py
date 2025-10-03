@@ -4,6 +4,7 @@ import json
 
 import folium
 import streamlit as st
+
 from green_gov_rag.app.config import (
     LGA_DEFAULT_COLOR,
     LGA_DEFAULT_OPACITY,
@@ -33,7 +34,9 @@ def create_map(selected_lgas=None):
     geojson_data = load_geojson()
 
     def style_function(feature):
-        name = feature["properties"].get("LGA_NAME") or feature["properties"].get("NAME")
+        name = feature["properties"].get("LGA_NAME") or feature["properties"].get(
+            "NAME"
+        )
         if name in selected_lgas:
             return {
                 "fillColor": LGA_SELECTED_COLOR,
@@ -52,15 +55,22 @@ def create_map(selected_lgas=None):
         geojson_data,
         name="LGAs",
         style_function=style_function,
-        tooltip=folium.GeoJsonTooltip(fields=["LGA_NAME"], aliases=["LGA:"], labels=True),
+        tooltip=folium.GeoJsonTooltip(
+            fields=["LGA_NAME"], aliases=["LGA:"], labels=True
+        ),
         highlight_function=lambda x: {"weight": 3, "color": "yellow"},
     ).add_to(m)
 
     return m
 
 
-def add_geojson_layer(map_obj, geojson_data: dict, layer_name: str = "GeoJSON Layer",
-                      style_function=None, tooltip_fields=None):
+def add_geojson_layer(
+    map_obj,
+    geojson_data: dict,
+    layer_name: str = "GeoJSON Layer",
+    style_function=None,
+    tooltip_fields=None,
+):
     """Add a GeoJSON layer to a Folium map.
 
     :param map_obj: Folium Map object

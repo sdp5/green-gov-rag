@@ -5,12 +5,14 @@ from pathlib import Path
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+from streamlit_folium import st_folium
+
 from green_gov_rag.app.config import APP_DESCRIPTION, APP_TITLE, TOPIC_OPTIONS
 from green_gov_rag.app.map import create_map
 
 # Import RAG agent
 from green_gov_rag.rag.agent_tools import RAGAgent
-from streamlit_folium import st_folium
+
 
 # Initialize RAG Agent (singleton for app session) - lazy initialization
 def get_rag_agent():
@@ -33,8 +35,12 @@ def render_ui():
     with tabs[0]:
         st.subheader("Ask a Policy Question")
         query_text = st.text_area("Type your question here", height=150)
-        region_filter = st.selectbox("Select region", ["All", "Federal", "State", "Local"])
-        topic_filter: list = st.multiselect("Select topics", TOPIC_OPTIONS, default=TOPIC_OPTIONS)
+        region_filter = st.selectbox(
+            "Select region", ["All", "Federal", "State", "Local"]
+        )
+        topic_filter: list = st.multiselect(
+            "Select topics", TOPIC_OPTIONS, default=TOPIC_OPTIONS
+        )
 
         if st.button("Get Answer"):
             if st.button("Get Answer"):
@@ -98,17 +104,26 @@ def render_ui():
 
             # Count documents per jurisdiction
             doc_count = df.groupby("jurisdiction").size().reset_index(name="count")
-            fig1 = px.bar(doc_count, x="jurisdiction", y="count", title="Documents by Jurisdiction")
+            fig1 = px.bar(
+                doc_count,
+                x="jurisdiction",
+                y="count",
+                title="Documents by Jurisdiction",
+            )
             st.plotly_chart(fig1, use_container_width=True)
 
             # Count documents per topic
             topic_count = df.groupby("topic").size().reset_index(name="count")
-            fig2 = px.pie(topic_count, names="topic", values="count", title="Documents by Topic")
+            fig2 = px.pie(
+                topic_count, names="topic", values="count", title="Documents by Topic"
+            )
             st.plotly_chart(fig2, use_container_width=True)
 
             # Example: Count documents per region (if geo info available)
             region_count = df.groupby("region").size().reset_index(name="count")
-            fig3 = px.bar(region_count, x="region", y="count", title="Documents by Region")
+            fig3 = px.bar(
+                region_count, x="region", y="count", title="Documents by Region"
+            )
             st.plotly_chart(fig3, use_container_width=True)
 
         else:
@@ -138,7 +153,9 @@ def render_ui():
         # Sidebar filters
         st.sidebar.markdown("### Filter Sources")
         jurisdictions = st.sidebar.multiselect(
-            "Jurisdiction", options=df["jurisdiction"].unique(), default=df["jurisdiction"].unique()
+            "Jurisdiction",
+            options=df["jurisdiction"].unique(),
+            default=df["jurisdiction"].unique(),
         )
         topics = st.sidebar.multiselect(
             "Topic", options=df["topic"].unique(), default=df["topic"].unique()
@@ -162,7 +179,9 @@ def render_ui():
                     f"**Jurisdiction:** {row['jurisdiction']} | **Topic:** {row['topic']} | **Region:** {row['region']}"
                 )
                 if "download_urls" in row and pd.notna(row["download_urls"]):
-                    urls = eval(row["download_urls"])  # convert string representation of list
+                    urls = eval(
+                        row["download_urls"]
+                    )  # convert string representation of list
                     for i, url in enumerate(urls, 1):
                         st.markdown(f"[Download Part {i}]({url})")
                 st.markdown("---")

@@ -30,9 +30,7 @@ def test_rag_chain_basic(in_memory_faiss, mock_embedder):
 def test_rag_chain_with_filters(in_memory_faiss, mock_embedder):
     """Test RAG with metadata filters."""
     results = in_memory_faiss.similarity_search(
-        "Biodiversity",
-        k=2,
-        filter={"region": "SA"}
+        "Biodiversity", k=2, filter={"region": "SA"}
     )
     assert isinstance(results, list)
 

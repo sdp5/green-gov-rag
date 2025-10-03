@@ -1,10 +1,12 @@
 """Cloud configuration management for GreenGovRAG.
 
 Provides environment-driven configuration for cloud resources.
+Now uses centralized settings from green_gov_rag.config
 """
 
-import os
 from dataclasses import dataclass
+
+from green_gov_rag.config import settings
 
 
 @dataclass
@@ -18,28 +20,16 @@ class CloudConfig:
 
     @classmethod
     def from_env(cls) -> "CloudConfig":
-        """Load cloud configuration from environment variables.
-
-        Environment variables:
-            CLOUD_PROVIDER: Cloud provider ('aws', 'azure', 'local')
-            CLOUD_REGION: Cloud region/location
-            STORAGE_CONTAINER: Default storage container/bucket name
-            AZURE_STORAGE_CONNECTION_STRING: Azure storage connection string (Azure only)
-            LOCAL_STORAGE_PATH: Local storage base path (local only)
+        """Load cloud configuration from centralized settings.
 
         Returns:
             CloudConfig instance
         """
-        provider = os.getenv("CLOUD_PROVIDER", "local")
-        region = os.getenv("CLOUD_REGION")
-        storage_container = os.getenv("STORAGE_CONTAINER", "greengovrag-documents")
-        storage_connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
-
         return cls(
-            provider=provider,
-            region=region,
-            storage_container=storage_container,
-            storage_connection_string=storage_connection_string,
+            provider=settings.cloud_provider,
+            region=settings.cloud_region or settings.aws_region,
+            storage_container=settings.storage_container,
+            storage_connection_string=settings.azure_storage_connection_string,
         )
 
     def validate(self) -> None:

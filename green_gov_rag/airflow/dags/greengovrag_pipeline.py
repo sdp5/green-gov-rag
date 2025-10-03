@@ -88,14 +88,24 @@ def task_test_rag():
 
 
 # --- Operators ---
-ingest_task = PythonOperator(task_id="ingest_docs", python_callable=task_ingest_docs, dag=dag)
-parse_task = PythonOperator(task_id="parse_docs", python_callable=task_parse_docs, dag=dag)
-chunk_task = PythonOperator(task_id="chunk_docs", python_callable=task_chunk_docs, dag=dag)
-embed_task = PythonOperator(task_id="embed_docs", python_callable=task_embed_docs, dag=dag)
+ingest_task = PythonOperator(
+    task_id="ingest_docs", python_callable=task_ingest_docs, dag=dag
+)
+parse_task = PythonOperator(
+    task_id="parse_docs", python_callable=task_parse_docs, dag=dag
+)
+chunk_task = PythonOperator(
+    task_id="chunk_docs", python_callable=task_chunk_docs, dag=dag
+)
+embed_task = PythonOperator(
+    task_id="embed_docs", python_callable=task_embed_docs, dag=dag
+)
 vector_task = PythonOperator(
     task_id="build_vector_store", python_callable=task_build_vector_store, dag=dag
 )
-test_rag_task = PythonOperator(task_id="test_rag_query", python_callable=task_test_rag, dag=dag)
+test_rag_task = PythonOperator(
+    task_id="test_rag_query", python_callable=task_test_rag, dag=dag
+)
 
 # --- Dependencies ---
 ingest_task >> parse_task >> chunk_task >> embed_task >> vector_task >> test_rag_task

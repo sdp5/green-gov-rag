@@ -14,7 +14,6 @@ based on metadata such as jurisdiction, region, category, or topic.
 """
 
 
-
 def filter_by_metadata(documents: list[dict], filters: dict) -> list[dict]:
     """Filters a list of document chunks based on metadata criteria.
 
@@ -48,11 +47,19 @@ if __name__ == "__main__":
     documents = [
         {
             "content": "Doc1 text",
-            "metadata": {"jurisdiction": "state", "region": "SA", "topic": "biodiversity"},
+            "metadata": {
+                "jurisdiction": "state",
+                "region": "SA",
+                "topic": "biodiversity",
+            },
         },
         {
             "content": "Doc2 text",
-            "metadata": {"jurisdiction": "federal", "region": "Australia", "topic": "emissions"},
+            "metadata": {
+                "jurisdiction": "federal",
+                "region": "Australia",
+                "topic": "emissions",
+            },
         },
         {
             "content": "Doc3 text",

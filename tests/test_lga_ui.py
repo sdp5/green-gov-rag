@@ -2,8 +2,9 @@
 
 
 import pytest
-from green_gov_rag.etl import chunker, utils
 from shapely.geometry import Point, shape
+
+from green_gov_rag.etl import chunker, utils
 
 # -----------------------------
 # Sample documents with metadata
@@ -66,8 +67,7 @@ def point_in_lga(lat, lon, polygon_geojson):
 # Mock Streamlit UI selections
 # -----------------------------
 def simulate_user_selection(selected_lgas, selected_topic):
-    """Return metadata filter function for RAG chain based on map selection.
-    """
+    """Return metadata filter function for RAG chain based on map selection."""
 
     def metadata_filter(metadata):
         # LGA filter
@@ -92,7 +92,10 @@ def simulate_user_selection(selected_lgas, selected_topic):
 USER_TESTS = [
     {
         "query": "Biodiversity policies in Adelaide and Port Adelaide",
-        "selected_lgas": [{"lat": -34.935, "lon": 138.575}, {"lat": -34.825, "lon": 138.525}],
+        "selected_lgas": [
+            {"lat": -34.935, "lon": 138.575},
+            {"lat": -34.825, "lon": 138.525},
+        ],
         "selected_topic": "biodiversity",
         "expected_sources": ["adelaide_biodiversity"],
     },
@@ -122,6 +125,7 @@ def test_ui_rag_with_lga_selection(test_case):
 
     # Step 2: Mock embeddings
     from tests.conftest import MockChunkEmbedder
+
     mock_embedder = MockChunkEmbedder()
     embedded_chunks = mock_embedder.embed_chunks(all_chunks)
 

@@ -101,7 +101,9 @@ def process_document(doc):
                 "filename": filename,
                 "sha256": sha256sum(dest_path),
             }
-            with open(dest_dir / f"{filename}.metadata.json", "w", encoding="utf-8") as mf:
+            with open(
+                dest_dir / f"{filename}.metadata.json", "w", encoding="utf-8"
+            ) as mf:
                 json.dump(metadata, mf, indent=2)
             print(f"✅ Downloaded: {url}")
         else:
@@ -116,6 +118,7 @@ def download_documents(docs: list[dict], output_dir: str) -> list[str]:
     :return: List of downloaded file paths
     """
     import os
+
     os.makedirs(output_dir, exist_ok=True)
 
     downloaded_files = []

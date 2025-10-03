@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import folium
+
 from green_gov_rag.app import config, map, ui
 
 
@@ -58,7 +59,9 @@ def test_run_query_with_metadata_filters():
         mock_get_agent.return_value = mock_agent
         filters = {"region": "NSW"}
         answer = ui.run_query("Emissions report", metadata_filters=filters)
-        mock_agent.query.assert_called_with("Emissions report", metadata_filters=filters)
+        mock_agent.query.assert_called_with(
+            "Emissions report", metadata_filters=filters
+        )
         assert answer == "Filtered answer"
 
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import aws_cdk as cdk
+
 from deploy.greengovrag_stack import GreenGovRAGStack
 
 app = cdk.App()

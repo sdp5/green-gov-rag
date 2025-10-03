@@ -22,7 +22,9 @@ class TestLocalBackend:
         """Create local backend instance."""
         return LocalBackend(base_path=temp_storage_path)
 
-    def test_upload_and_download_file(self, backend: LocalBackend, tmp_path: Path) -> None:
+    def test_upload_and_download_file(
+        self, backend: LocalBackend, tmp_path: Path
+    ) -> None:
         """Test uploading and downloading a file."""
         # Create test file
         test_file = tmp_path / "test.txt"
@@ -119,7 +121,9 @@ class TestStorageClient:
         return storage_path
 
     @pytest.fixture(autouse=True)
-    def setup_env(self, temp_storage_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def setup_env(
+        self, temp_storage_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Set up environment for tests."""
         monkeypatch.setenv("CLOUD_PROVIDER", "local")
         monkeypatch.setenv("LOCAL_STORAGE_PATH", str(temp_storage_path))
@@ -172,20 +176,39 @@ class TestStorageClient:
 class TestCloudConfig:
     """Test cloud configuration."""
 
-    def test_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_from_env(self, monkeypatch: pytest.MonkeyPatch, reload_settings) -> None:
         """Test loading config from environment."""
-        from green_gov_rag.cloud.config import CloudConfig
+        import importlib
 
         monkeypatch.setenv("CLOUD_PROVIDER", "azure")
         monkeypatch.setenv("CLOUD_REGION", "australiaeast")
         monkeypatch.setenv("STORAGE_CONTAINER", "my-container")
-        monkeypatch.setenv("AZURE_STORAGE_CONNECTION_STRING", "DefaultEndpointsProtocol=https;...")
+        monkeypatch.setenv(
+            "AZURE_STORAGE_CONNECTION_STRING", "DefaultEndpointsProtocol=https;..."
+        )
 
-        config = CloudConfig.from_env()
+        # Reload settings with monkeypatched environment and temporarily replace global settings
+        import green_gov_rag.cloud.config
+        import green_gov_rag.config
 
-        assert config.provider == "azure"
-        assert config.region == "australiaeast"
-        assert config.storage_container == "my-container"
+        original_settings = green_gov_rag.config.settings
+        green_gov_rag.config.settings = reload_settings()
+
+        # Reload cloud.config module so it picks up the new settings
+        importlib.reload(green_gov_rag.cloud.config)
+
+        try:
+            from green_gov_rag.cloud.config import CloudConfig
+
+            config = CloudConfig.from_env()
+
+            assert config.provider == "azure"
+            assert config.region == "australiaeast"
+            assert config.storage_container == "my-container"
+        finally:
+            # Restore original settings and reload cloud.config again
+            green_gov_rag.config.settings = original_settings
+            importlib.reload(green_gov_rag.cloud.config)
 
     def test_validate_invalid_provider(self) -> None:
         """Test validation with invalid provider."""
@@ -202,7 +225,9 @@ class TestCloudConfig:
 
         config = CloudConfig(provider="azure", storage_connection_string=None)
 
-        with pytest.raises(ValueError, match="AZURE_STORAGE_CONNECTION_STRING is required"):
+        with pytest.raises(
+            ValueError, match="AZURE_STORAGE_CONNECTION_STRING is required"
+        ):
             config.validate()
 
 
@@ -242,7 +267,9 @@ class TestCloudIntegration:
         # Cleanup
         client.delete_file(container, "integration/aws_test.txt")
 
-    @pytest.mark.skipif(os.getenv("TEST_AZURE") != "true", reason="Azure tests not enabled")
+    @pytest.mark.skipif(
+        os.getenv("TEST_AZURE") != "true", reason="Azure tests not enabled"
+    )
     def test_azure_operations(self, tmp_path: Path) -> None:
         """Test Azure Blob Storage operations."""
         client = StorageClient(provider="azure")

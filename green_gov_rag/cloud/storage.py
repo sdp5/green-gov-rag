@@ -1,13 +1,14 @@
 """Cloud-agnostic storage abstraction layer for GreenGovRAG.
 
 Supports AWS S3, Azure Blob Storage, and local filesystem storage.
-Provider is selected via CLOUD_PROVIDER environment variable.
+Provider is selected via centralized settings.
 """
 
-import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import BinaryIO
+
+from green_gov_rag.config import settings
 
 
 class StorageBackend(ABC):
@@ -145,9 +146,9 @@ class AzureBackend(StorageBackend):
             msg = "azure-storage-blob is required for Azure backend. Install with: pip install azure-storage-blob"
             raise ImportError(msg) from e
 
-        conn_str = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+        conn_str = settings.azure_storage_connection_string
         if not conn_str:
-            msg = "AZURE_STORAGE_CONNECTION_STRING environment variable is required"
+            msg = "AZURE_STORAGE_CONNECTION_STRING is required for Azure backend"
             raise ValueError(msg)
 
         self.blob_service = BlobServiceClient.from_connection_string(conn_str)
@@ -177,7 +178,9 @@ class AzureBackend(StorageBackend):
     def list_files(self, container: str, prefix: str = "") -> list[str]:
         """List files in Azure container."""
         container_client = self.blob_service.get_container_client(container)
-        return [blob.name for blob in container_client.list_blobs(name_starts_with=prefix)]
+        return [
+            blob.name for blob in container_client.list_blobs(name_starts_with=prefix)
+        ]
 
     def delete_file(self, container: str, key: str) -> None:
         """Delete a file from Azure Blob Storage."""
@@ -283,16 +286,16 @@ class StorageClient:
 
         Args:
             provider: Cloud provider ('aws', 'azure', 'local').
-                     If None, reads from CLOUD_PROVIDER env var (defaults to 'local')
+                     If None, uses centralized settings (defaults to 'local')
         """
-        self.provider = provider or os.getenv("CLOUD_PROVIDER", "local")
+        self.provider = provider or settings.cloud_provider
 
         if self.provider == "aws":
             self.backend: StorageBackend = AWSBackend()
         elif self.provider == "azure":
             self.backend = AzureBackend()
         elif self.provider == "local":
-            base_path = os.getenv("LOCAL_STORAGE_PATH", "./data/storage")
+            base_path = settings.local_storage_path
             self.backend = LocalBackend(base_path=base_path)
         else:
             msg = f"Unsupported cloud provider: {self.provider}. Use 'aws', 'azure', or 'local'"

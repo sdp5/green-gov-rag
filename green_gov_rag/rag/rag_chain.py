@@ -10,14 +10,15 @@ Supports optional metadata filtering during retrieval.
 3. Generate: Pass context + query to LLM (OpenAI/Bedrock) for answer generation.
 4. Query with sources: Returns answer + metadata for transparency.
 5. Extensible: Can add Bedrock or other LLMs later.
+
+Now uses centralized settings from green_gov_rag.config
 """
 
 # Optional: LLM client wrappers
-import os
-
 import openai
 
 # Optional: HuggingFace / OpenAI embeddings
+from green_gov_rag.config import settings
 from green_gov_rag.rag.embeddings import ChunkEmbedder
 from green_gov_rag.rag.vector_store import VectorStore
 
@@ -46,22 +47,22 @@ class RAGChain:
         self.top_k = top_k
 
         if llm_provider == "openai":
-            openai.api_key = os.environ.get("OPENAI_API_KEY")
+            openai.api_key = settings.openai_api_key
 
     def retrieve(self, query: str) -> list[dict]:
-        """Retrieve top_k relevant chunks for the query.
-        """
+        """Retrieve top_k relevant chunks for the query."""
         query_embedding = self.embedder.embed_query(query)  # type: ignore[attr-defined]
         results = self.vector_store.store.search(query_embedding, top_k=self.top_k)  # type: ignore[union-attr,call-arg]
         return results  # type: ignore[return-value]
 
     def generate_answer(self, query: str) -> str:
-        """Generate answer using retrieved context and LLM.
-        """
+        """Generate answer using retrieved context and LLM."""
         retrieved = self.retrieve(query)
         context = "\n".join(
             [
-                r["metadata"].get("source", "") + ": " + r["metadata"].get("content", "")
+                r["metadata"].get("source", "")
+                + ": "
+                + r["metadata"].get("content", "")
                 for r in retrieved
             ]
         )
@@ -81,8 +82,7 @@ class RAGChain:
         return "LLM provider not implemented."
 
     def query_with_sources(self, query: str) -> dict:
-        """Return both the answer and the retrieved sources for transparency.
-        """
+        """Return both the answer and the retrieved sources for transparency."""
         retrieved = self.retrieve(query)
         answer = self.generate_answer(query)
         return {"query": query, "answer": answer, "sources": retrieved}
@@ -96,6 +96,7 @@ class RAGChain:
         """
         # If filters are provided, create a filtered retriever
         if metadata_filters:
+
             def retriever(q):  # noqa: ANN202
                 return self.vector_store.similarity_search(
                     q, k=k, metadata_filters=metadata_filters
@@ -108,7 +109,9 @@ class RAGChain:
 
         # Attach filtered documents if applicable
         source_docs = (
-            retriever(question) if metadata_filters else result.get("source_documents", [])
+            retriever(question)
+            if metadata_filters
+            else result.get("source_documents", [])
         )
 
         return {

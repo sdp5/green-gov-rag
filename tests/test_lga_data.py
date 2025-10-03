@@ -2,8 +2,9 @@
 
 
 import pytest
-from green_gov_rag.etl import chunker, utils
 from shapely.geometry import Point, shape
+
+from green_gov_rag.etl import chunker, utils
 
 # -----------------------------
 # Sample documents with metadata
@@ -64,7 +65,11 @@ DOCS = [
     {
         "title": "NSW Biodiversity Offsets Scheme",
         "text": "Biodiversity offset rules and documentation for NSW.",
-        "metadata": {"source": "nsw_offsets", "topic": "biodiversity", "region": "New South Wales"},
+        "metadata": {
+            "source": "nsw_offsets",
+            "topic": "biodiversity",
+            "region": "New South Wales",
+        },
     },
     {
         "title": "National Construction Code",
@@ -74,7 +79,11 @@ DOCS = [
     {
         "title": "Planning and Design Code SA",
         "text": "Land-use and planning regulations in South Australia.",
-        "metadata": {"source": "sa_planning", "topic": "land_use", "region": "South Australia"},
+        "metadata": {
+            "source": "sa_planning",
+            "topic": "land_use",
+            "region": "South Australia",
+        },
     },
 ]
 
@@ -139,6 +148,7 @@ def test_rag_chain_with_multiple_documents(test_case):
 
     # Step 2: Mock embeddings
     from tests.conftest import MockChunkEmbedder
+
     mock_embedder = MockChunkEmbedder()
     embedded_chunks = mock_embedder.embed_chunks(all_chunks)
 
@@ -156,4 +166,7 @@ def test_rag_chain_with_multiple_documents(test_case):
         assert len(filtered) >= 0  # Could be empty depending on filter
 
     # Verify expected topic exists in some chunk
-    assert any(test_case["expected_topic"] in c["metadata"].get("topic", "") for c in embedded_chunks)
+    assert any(
+        test_case["expected_topic"] in c["metadata"].get("topic", "")
+        for c in embedded_chunks
+    )

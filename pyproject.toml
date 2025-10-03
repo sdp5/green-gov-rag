@@ -55,7 +55,9 @@ dependencies = [
     "boto3 ~= 1.39.4",
     "python-dotenv ~= 1.1.1",
     "shapely ~= 2.0.0",
-    "sentence-transformers ~= 2.2.2"
+    "sentence-transformers ~= 2.2.2",
+    "pydantic ~= 2.0",
+    "pydantic-settings ~= 2.0"
 ]
 requires-python = "~=3.12.3"
 

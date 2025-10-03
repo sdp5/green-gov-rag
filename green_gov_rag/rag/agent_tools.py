@@ -88,8 +88,7 @@ class RAGAgent:
         return answer, sources
 
     def list_documents(self):
-        """Return all document metadata stored in the vector store.
-        """
+        """Return all document metadata stored in the vector store."""
         return self.vector_store.list_metadata()
 
 
@@ -118,7 +117,9 @@ if __name__ == "__main__":
     agent_tools = RAGAgentTools(rag_chain)
 
     # Example 1: Simple query without filters
-    response = agent_tools.answer_question("What are native vegetation clearance rules in SA?")
+    response = agent_tools.answer_question(
+        "What are native vegetation clearance rules in SA?"
+    )
     print("Answer:\n", response["answer"])
     print("Sources:\n", response["sources"])
 

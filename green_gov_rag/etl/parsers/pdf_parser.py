@@ -2,6 +2,7 @@
 from pathlib import Path
 
 import fitz  # PyMuPDF
+
 from green_gov_rag.etl.utils import clean_text
 
 

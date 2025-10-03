@@ -34,13 +34,17 @@ class TextChunker:
         self.chunk_overlap = chunk_overlap
 
         if splitter_type == "recursive":
-            self.splitter: RecursiveCharacterTextSplitter | TokenTextSplitter = RecursiveCharacterTextSplitter(
-                chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap,
-                separators=["\n\n", "\n", " ", ""],
+            self.splitter: RecursiveCharacterTextSplitter | TokenTextSplitter = (
+                RecursiveCharacterTextSplitter(
+                    chunk_size=chunk_size,
+                    chunk_overlap=chunk_overlap,
+                    separators=["\n\n", "\n", " ", ""],
+                )
             )
         elif splitter_type == "token":
-            self.splitter = TokenTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+            self.splitter = TokenTextSplitter(
+                chunk_size=chunk_size, chunk_overlap=chunk_overlap
+            )
         else:
             raise ValueError(f"Unsupported splitter_type: {splitter_type}")
 
@@ -59,7 +63,9 @@ class TextChunker:
 
             chunks = self.chunk_text(content)
             for i, chunk in enumerate(chunks):
-                chunked_docs.append({"content": chunk, "metadata": {**metadata, "chunk_id": i}})
+                chunked_docs.append(
+                    {"content": chunk, "metadata": {**metadata, "chunk_id": i}}
+                )
         return chunked_docs
 
 
@@ -68,10 +74,12 @@ def chunk_text(
     text: str,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
-    splitter_type: str = "recursive"
+    splitter_type: str = "recursive",
 ) -> list[str]:
     """Convenience function to chunk text without creating a TextChunker instance."""
     # Ensure chunk_overlap is not larger than chunk_size
     actual_overlap = min(chunk_overlap, chunk_size - 1) if chunk_size > 1 else 0
-    chunker = TextChunker(chunk_size=chunk_size, chunk_overlap=actual_overlap, splitter_type=splitter_type)
+    chunker = TextChunker(
+        chunk_size=chunk_size, chunk_overlap=actual_overlap, splitter_type=splitter_type
+    )
     return chunker.chunk_text(text)

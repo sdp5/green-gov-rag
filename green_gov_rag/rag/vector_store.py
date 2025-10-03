@@ -55,20 +55,20 @@ class VectorStore:
         self.store = FAISS.from_documents(documents, self.embeddings)
 
     def add_chunks(self, chunks: list[dict]):
-        """Add more chunks to existing store.
-        """
+        """Add more chunks to existing store."""
         if self.store is None:
             self.build_store(chunks)
         else:
             documents = [
-                Document(page_content=chunk["content"], metadata=chunk.get("metadata", {}))
+                Document(
+                    page_content=chunk["content"], metadata=chunk.get("metadata", {})
+                )
                 for chunk in chunks
             ]
             self.store.add_documents(documents)
 
     def list_metadata(self):
-        """Return a list of metadata dictionaries for all stored embeddings.
-        """
+        """Return a list of metadata dictionaries for all stored embeddings."""
         if self.store is None:
             return []
         # FAISS doesn't support direct iteration; this method needs implementation
@@ -94,7 +94,8 @@ class VectorStore:
         if metadata_filters:
             # Convert Document objects to dicts for filtering
             docs_with_meta = [
-                {"content": doc.page_content, "metadata": doc.metadata} for doc in results
+                {"content": doc.page_content, "metadata": doc.metadata}
+                for doc in results
             ]
             filtered_docs_dict = filter_by_metadata(docs_with_meta, metadata_filters)
 
@@ -107,8 +108,7 @@ class VectorStore:
         return results
 
     def persist(self, path: str | None = None):
-        """Persist FAISS index locally
-        """
+        """Persist FAISS index locally"""
         if self.store is None:
             raise ValueError("Vector store not initialized. Nothing to persist.")
         save_path = path or self.index_path
@@ -166,7 +166,9 @@ if __name__ == "__main__":
 
     # Retrieve chunks with optional metadata filtering
     results = store.similarity_search(
-        query="What are vegetation clearance rules in SA?", k=3, metadata_filters={"region": "SA"}
+        query="What are vegetation clearance rules in SA?",
+        k=3,
+        metadata_filters={"region": "SA"},
     )
 
     for r in results:

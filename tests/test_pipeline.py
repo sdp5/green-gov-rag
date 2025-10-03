@@ -9,7 +9,11 @@ DOCS = [
     {
         "title": "Biodiversity PDF",
         "text": "This document describes biodiversity regulations and environmental guidelines in Australia.",
-        "metadata": {"source": "biodiversity_pdf", "topic": "biodiversity", "region": "Australia"},
+        "metadata": {
+            "source": "biodiversity_pdf",
+            "topic": "biodiversity",
+            "region": "Australia",
+        },
     },
     {
         "title": "Emissions HTML",
@@ -61,6 +65,7 @@ def test_multiple_documents_pipeline():
     # Step 2: Mock embedder
     # -----------------------------
     from tests.conftest import MockChunkEmbedder
+
     mock_embedder = MockChunkEmbedder()
     embedded_chunks = mock_embedder.embed_chunks(all_chunks)
 

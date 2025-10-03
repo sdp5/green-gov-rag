@@ -79,6 +79,10 @@ def process_document(doc):
     topic = doc.get("topic", "general").replace(" ", "_")
     urls = doc.get("download_urls", [])
 
+    # Extract ESG metadata if present (NGER/ISSB compliance)
+    esg_metadata = doc.get("esg_metadata", {})
+    spatial_metadata = doc.get("spatial_metadata", {})
+
     for url in urls:
         filename = safe_filename(url)
         dest_dir = RAW_DATA_DIR / jurisdiction / category / topic
@@ -101,6 +105,15 @@ def process_document(doc):
                 "filename": filename,
                 "sha256": sha256sum(dest_path),
             }
+
+            # Add ESG metadata if present
+            if esg_metadata:
+                metadata["esg_metadata"] = esg_metadata
+
+            # Add spatial metadata if present
+            if spatial_metadata:
+                metadata["spatial_metadata"] = spatial_metadata
+
             with open(
                 dest_dir / f"{filename}.metadata.json", "w", encoding="utf-8"
             ) as mf:

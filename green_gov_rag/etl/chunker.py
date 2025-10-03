@@ -68,6 +68,45 @@ class TextChunker:
                 )
         return chunked_docs
 
+    def chunk_with_hierarchy(
+        self, hierarchical_chunks: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Chunk hierarchical documents while preserving section metadata.
+
+        For documents parsed with HierarchicalPDFParser, this preserves
+        section hierarchy, page numbers, and structural context.
+
+        Args:
+            hierarchical_chunks: Chunks from HierarchicalPDFParser with metadata
+
+        Returns:
+            List of smaller chunks with preserved hierarchical metadata
+        """
+        chunked_docs = []
+
+        for doc_chunk in hierarchical_chunks:
+            content = doc_chunk.get("content", "")
+            metadata = doc_chunk.get("metadata", {})
+
+            # Split content into smaller chunks
+            text_chunks = self.chunk_text(content)
+
+            # Preserve hierarchical metadata for each sub-chunk
+            for i, text_chunk in enumerate(text_chunks):
+                chunked_docs.append(
+                    {
+                        "content": text_chunk,
+                        "metadata": {
+                            **metadata,  # Preserve all hierarchical metadata
+                            "sub_chunk_id": i,  # Track sub-chunks within section
+                            # Update chunk_id to be unique across all chunks
+                            "chunk_id": f"{metadata.get('chunk_id', 0)}_{i}",
+                        },
+                    }
+                )
+
+        return chunked_docs
+
 
 # Module-level convenience functions for backward compatibility
 def chunk_text(

@@ -11,30 +11,117 @@ documents:
     region: Australia
     sovereign: true
 
-  - title: Clean Energy Regulator
+  - title: Clean Energy Regulator - Scope 1 Coal Mining Guideline
     source_url: https://cer.gov.au/
     download_urls:
       - https://cer.gov.au/document/estimating-emissions-and-energy-coal-mining-guideline
-      - https://cer.gov.au/document/estimating-emissions-and-energy-electricity-production-and-consumption-guideline
-      - https://cer.gov.au/document/estimating-emissions-and-energy-industrial-processes-guidance
-      - https://cer.gov.au/document/estimating-emissions-and-energy-industrial-processes-guidance
-      - https://cer.gov.au/document/estimating-emissions-and-energy-wastewater-handling-domestic-commercial-and-industrial-guideline
-      - https://cer.gov.au/document/voluntary-market-based-scope-2-emissions-guideline
-      - https://cer.gov.au/document/guidance-aggregated-facility-reporting-percentage-estimates-and-incidental-emissions-and-energy-0
-      - https://cer.gov.au/document/reporting-blended-fuels-other-fuel-mixes-bitumen-and-explosives-guideline
-      - https://cer.gov.au/document/estimating-emissions-and-energy-fuel-combustion-guideline
-      - https://cer.gov.au/document/landfill-site-plan-and-verification-requirements-methods-2-and-3
-      - https://cer.gov.au/document/reporting-energy-production-and-consumption-guideline-1
-      - https://cer.gov.au/document/reporting-hydrofluorocarbons-and-sulphur-hexafluoride-gases-guideline
-      - https://cer.gov.au/document/methods-and-measurement-criteria-guideline
-      - https://cer.gov.au/document/reporting-petroleum-based-oils-and-greases-other-petroleum-based-oils-and-greases-used-fuel-0
-      - https://cer.gov.au/document/reporting-uncertainty-guideline
-      - https://cer.gov.au/document/nger-quick-help-topics
     jurisdiction: federal
     category: environment
     topic: emissions_reporting
     region: Australia
     sovereign: true
+    esg_metadata:
+      frameworks: [NGER, GHG_Protocol]
+      emission_scopes: [scope_1]
+      greenhouse_gases: [CO2, CH4, N2O]
+      consolidation_method: operational_control
+      methodology_type: calculation
+      reportable_under_nger: true
+      scope_3_reportable: false
+      regulator: Clean Energy Regulator
+      regulation_type: guideline
+      activity_types: [fuel_combustion, fugitive_emissions]
+      facility_types: [coal_mine]
+      industry_codes: [B0600]  # ANZSIC: Coal Mining
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      applies_to_point: false
+
+  - title: Clean Energy Regulator - Scope 2 Emissions Guideline
+    source_url: https://cer.gov.au/
+    download_urls:
+      - https://cer.gov.au/document/voluntary-market-based-scope-2-emissions-guideline
+    jurisdiction: federal
+    category: environment
+    topic: emissions_reporting
+    region: Australia
+    sovereign: true
+    esg_metadata:
+      frameworks: [NGER, ISSB, GHG_Protocol]
+      emission_scopes: [scope_2]
+      greenhouse_gases: [CO2, CH4, N2O, SF6]
+      consolidation_method: operational_control
+      methodology_type: calculation
+      reportable_under_nger: true
+      scope_3_reportable: false
+      regulator: Clean Energy Regulator
+      regulation_type: guideline
+      activity_types: [electricity_consumption, market_based_accounting]
+      facility_types: [all]
+      industry_codes: []  # Applies to all industries
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      applies_to_point: false
+
+  - title: Clean Energy Regulator - Fuel Combustion Guideline
+    source_url: https://cer.gov.au/
+    download_urls:
+      - https://cer.gov.au/document/estimating-emissions-and-energy-fuel-combustion-guideline
+    jurisdiction: federal
+    category: environment
+    topic: emissions_reporting
+    region: Australia
+    sovereign: true
+    esg_metadata:
+      frameworks: [NGER, GHG_Protocol]
+      emission_scopes: [scope_1]
+      greenhouse_gases: [CO2, CH4, N2O]
+      consolidation_method: operational_control
+      methodology_type: calculation
+      reportable_under_nger: true
+      scope_3_reportable: false
+      regulator: Clean Energy Regulator
+      regulation_type: guideline
+      activity_types: [fuel_combustion, stationary_energy]
+      facility_types: [all]
+      industry_codes: []
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      applies_to_point: false
+
+  - title: Clean Energy Regulator - HFC & SF6 Gases Guideline
+    source_url: https://cer.gov.au/
+    download_urls:
+      - https://cer.gov.au/document/reporting-hydrofluorocarbons-and-sulphur-hexafluoride-gases-guideline
+    jurisdiction: federal
+    category: environment
+    topic: emissions_reporting
+    region: Australia
+    sovereign: true
+    esg_metadata:
+      frameworks: [NGER, GHG_Protocol]
+      emission_scopes: [scope_1]
+      greenhouse_gases: [HFCs, SF6]
+      consolidation_method: operational_control
+      methodology_type: reporting
+      reportable_under_nger: true
+      scope_3_reportable: false
+      regulator: Clean Energy Regulator
+      regulation_type: guideline
+      activity_types: [refrigerant_use, electrical_equipment]
+      facility_types: [all]
+      industry_codes: []
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      applies_to_point: false
 
   - title: ABS LGA Boundaries (GeoJSON)
     source_url: https://www.abs.gov.au/statistics/mapping/geo-boundaries

@@ -355,6 +355,100 @@ class HybridGeospatialSearch:
 
         return self.search(query=query, metadata_filters=metadata_filters, k=k)
 
+    def search_scope_3(
+        self,
+        query: str,
+        scope_3_categories: list[str] | None = None,
+        frameworks: list[str] | None = None,
+        include_issb: bool = True,
+        k: int = 10,
+    ) -> list[Document]:
+        """Search for Scope 3 emissions guidance.
+
+        Args:
+            query: User query string
+            scope_3_categories: List of Scope 3 categories to filter by:
+                - purchased_goods_services (Cat 1)
+                - capital_goods (Cat 2)
+                - fuel_energy_activities (Cat 3)
+                - upstream_transport (Cat 4)
+                - waste_generated (Cat 5)
+                - business_travel (Cat 6)
+                - employee_commuting (Cat 7)
+                - upstream_leased_assets (Cat 8)
+                - downstream_transport (Cat 9)
+                - processing_sold_products (Cat 10)
+                - use_of_sold_products (Cat 11)
+                - end_of_life_treatment (Cat 12)
+                - downstream_leased_assets (Cat 13)
+                - franchises (Cat 14)
+                - investments (Cat 15)
+            frameworks: ESG frameworks (e.g., ["ISSB", "GHG_Protocol", "GRI"])
+            include_issb: Whether to include ISSB standards (default: True)
+            k: Number of results to return
+
+        Returns:
+            List of Scope 3 Document objects
+        """
+        metadata_filters: dict[str, object] = {
+            "esg_metadata.emission_scopes": ["scope_3"]
+        }
+
+        if scope_3_categories:
+            metadata_filters["esg_metadata.scope_3_categories"] = scope_3_categories
+
+        if frameworks:
+            metadata_filters["esg_metadata.frameworks"] = frameworks
+        elif include_issb:
+            # Default to ISSB if no frameworks specified
+            metadata_filters["esg_metadata.frameworks"] = ["ISSB"]
+
+        return self.search(query=query, metadata_filters=metadata_filters, k=k)
+
+    def search_scope_3_by_type(
+        self,
+        query: str,
+        scope_type: str = "upstream",
+        k: int = 10,
+    ) -> list[Document]:
+        """Search Scope 3 emissions by upstream or downstream type.
+
+        Args:
+            query: User query string
+            scope_type: Either "upstream" (categories 1-8) or "downstream" (categories 9-15)
+            k: Number of results to return
+
+        Returns:
+            List of Scope 3 Document objects filtered by type
+        """
+        if scope_type.lower() == "upstream":
+            categories = [
+                "purchased_goods_services",
+                "capital_goods",
+                "fuel_energy_activities",
+                "upstream_transport",
+                "waste_generated",
+                "business_travel",
+                "employee_commuting",
+                "upstream_leased_assets",
+            ]
+        elif scope_type.lower() == "downstream":
+            categories = [
+                "downstream_transport",
+                "processing_sold_products",
+                "use_of_sold_products",
+                "end_of_life_treatment",
+                "downstream_leased_assets",
+                "franchises",
+                "investments",
+            ]
+        else:
+            raise ValueError(
+                f"Invalid scope_type: {scope_type}. Must be 'upstream' or 'downstream'"
+            )
+
+        return self.search_scope_3(query=query, scope_3_categories=categories, k=k)
+
     def advanced_search(
         self,
         query: str,

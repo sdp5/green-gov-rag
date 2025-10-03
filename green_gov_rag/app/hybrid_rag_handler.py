@@ -140,6 +140,42 @@ class GeospatialRAGHandler:
 
         return self._format_results(results)
 
+    def search_scope_3(
+        self,
+        query: str,
+        scope_3_categories: Optional[list[str]] = None,
+        scope_type: Optional[str] = None,
+        frameworks: Optional[list[str]] = None,
+        k: int = 10,
+    ) -> list[dict]:
+        """Search for Scope 3 emissions guidance.
+
+        Args:
+            query: User query string
+            scope_3_categories: Specific Scope 3 categories to filter by
+            scope_type: Filter by "upstream" (1-8) or "downstream" (9-15) categories
+            frameworks: ESG frameworks (e.g., ["ISSB", "GHG_Protocol"])
+            k: Number of results
+
+        Returns:
+            List of formatted Scope 3 results
+        """
+        if scope_type:
+            # Use type-based search (upstream/downstream)
+            results = self.hybrid_search.search_scope_3_by_type(
+                query=query, scope_type=scope_type, k=k
+            )
+        else:
+            # Use category-based search
+            results = self.hybrid_search.search_scope_3(
+                query=query,
+                scope_3_categories=scope_3_categories,
+                frameworks=frameworks,
+                k=k,
+            )
+
+        return self._format_results(results)
+
     def _format_results(self, results: list) -> list[dict]:
         """Format Document results for UI display.
 
@@ -388,6 +424,88 @@ if esg_query:
                 st.write(f"**Greenhouse Gases:** {', '.join(result['greenhouse_gases'][:5])}...")
             if result.get('regulator'):
                 st.write(f"**Regulator:** {result['regulator']}")
+
+            if result['source_url']:
+                st.write(f"[Source]({result['source_url']})")
+
+# Scope 3 Emissions Search Tab
+st.write("## Scope 3 Emissions Search")
+
+col1, col2 = st.columns(2)
+with col1:
+    scope_type = st.selectbox(
+        "Scope Type",
+        ["All Categories", "Upstream (1-8)", "Downstream (9-15)"]
+    )
+with col2:
+    scope_3_frameworks = st.multiselect(
+        "Frameworks",
+        ["ISSB", "GHG_Protocol", "GRI"],
+        default=["ISSB"]
+    )
+
+# Specific category selection (optional, if not using scope_type)
+scope_3_categories = st.multiselect(
+    "Specific Scope 3 Categories (optional)",
+    [
+        "purchased_goods_services",      # Cat 1
+        "capital_goods",                 # Cat 2
+        "fuel_energy_activities",        # Cat 3
+        "upstream_transport",            # Cat 4
+        "waste_generated",               # Cat 5
+        "business_travel",               # Cat 6
+        "employee_commuting",            # Cat 7
+        "upstream_leased_assets",        # Cat 8
+        "downstream_transport",          # Cat 9
+        "processing_sold_products",      # Cat 10
+        "use_of_sold_products",          # Cat 11
+        "end_of_life_treatment",         # Cat 12
+        "downstream_leased_assets",      # Cat 13
+        "franchises",                    # Cat 14
+        "investments",                   # Cat 15
+    ],
+    default=[]
+)
+
+scope_3_query = st.text_input(
+    "Scope 3 Query:",
+    placeholder="What are upstream transport emission calculation methods?"
+)
+
+if scope_3_query:
+    with st.spinner("Searching Scope 3 guidance..."):
+        # Determine scope type parameter
+        scope_type_param = None
+        if scope_type == "Upstream (1-8)":
+            scope_type_param = "upstream"
+        elif scope_type == "Downstream (9-15)":
+            scope_type_param = "downstream"
+
+        scope_3_results = geo_rag.search_scope_3(
+            query=scope_3_query,
+            scope_3_categories=scope_3_categories if scope_3_categories else None,
+            scope_type=scope_type_param,
+            frameworks=scope_3_frameworks if scope_3_frameworks else None,
+            k=10
+        )
+
+    st.write(f"### Scope 3 Results ({len(scope_3_results)} documents)")
+
+    for i, result in enumerate(scope_3_results, 1):
+        with st.expander(f"{i}. {result['title']}"):
+            st.write(result['content'])
+
+            # Display Scope 3 specific metadata
+            esg_meta = result.get('metadata', {}).get('esg_metadata', {})
+
+            if esg_meta.get('scope_3_categories'):
+                st.write(f"**Scope 3 Categories:** {', '.join(esg_meta['scope_3_categories'])}")
+
+            if result.get('frameworks'):
+                st.write(f"**Frameworks:** {', '.join(result['frameworks'])}")
+
+            if esg_meta.get('measurement_standard'):
+                st.write(f"**Measurement Standard:** {esg_meta['measurement_standard']}")
 
             if result['source_url']:
                 st.write(f"[Source]({result['source_url']})")

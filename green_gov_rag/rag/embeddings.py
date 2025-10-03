@@ -21,7 +21,7 @@ from langchain.embeddings import HuggingFaceEmbeddings, OpenAIEmbeddings
 
 
 class ChunkEmbedder:
-    def __init__(self, provider: str = "bedrock", model_name: str = None):
+    def __init__(self, provider: str = "bedrock", model_name: str | None = None):
         """Initialize embedding generator.
 
         :param provider: "bedrock" or "huggingface"
@@ -30,7 +30,7 @@ class ChunkEmbedder:
         self.provider = provider.lower()
         if self.provider == "huggingface":
             self.model_name = model_name or "sentence-transformers/all-MiniLM-L6-v2"
-            self.embedder = HuggingFaceEmbeddings(model_name=self.model_name)
+            self.embedder: HuggingFaceEmbeddings | OpenAIEmbeddings = HuggingFaceEmbeddings(model_name=self.model_name)
         elif self.provider == "bedrock":
             bedrock_model = model_name or os.getenv("BEDROCK_MODEL_ID")
             self.model_name = bedrock_model if bedrock_model else "anthropic.claude-v2"

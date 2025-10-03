@@ -65,7 +65,7 @@ class RAGAgent:
         self.embedder = embedder
         self.rag_chain = RAGChain(self.vector_store, self.embedder)
 
-    def query(self, text: str, metadata_filters: dict = None):
+    def query(self, text: str, metadata_filters: dict | None = None):
         """:param text: User query
         :param metadata_filters: dict of metadata to filter retrieved documents (e.g., region, topic)
         :return: (answer_text, list_of_source_metadata)

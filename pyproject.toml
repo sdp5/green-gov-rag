@@ -38,6 +38,7 @@ keywords = [
 ]
 dependencies = [
     "langchain ~= 0.3.26",
+    "langchain-community ~= 0.3.26",
     "openai ~= 1.95.0",
     "faiss-cpu ~= 1.11.0",
     "plotly ~= 6.3.0",
@@ -263,11 +264,12 @@ allow_untyped_globals = "no"
 warn_redundant_casts = "yes"
 allow_redefinition = "no"
 strict_optional = "yes"
-disallow_untyped_defs = "no"  # Temporarily disabled - enable incrementally
+disallow_untyped_defs = "no"
 warn_unreachable = "yes"
-no_implicit_optional = "false"  # Allow implicit Optional for gradual typing
+no_implicit_optional = "yes"
+check_untyped_defs = "yes"
 
-# Per-module options
+# Per-module options - relaxed rules only for tests and scripts
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
@@ -275,15 +277,8 @@ allow_untyped_calls = true
 
 [[tool.mypy.overrides]]
 module = "green_gov_rag.scripts.*"
-disallow_untyped_defs = false
 allow_untyped_calls = true
-check_untyped_defs = false
 
 [[tool.mypy.overrides]]
 module = "green_gov_rag.airflow.*"
-disallow_untyped_defs = false
 allow_untyped_calls = true
-
-[[tool.mypy.overrides]]
-module = "green_gov_rag.cli"
-disallow_incomplete_defs = false

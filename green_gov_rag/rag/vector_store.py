@@ -26,16 +26,19 @@ class VectorStore:
         :param index_path: Optional path to persisted FAISS index
         """
         self.embeddings = embeddings
+        self.store: FAISS | None
         if index_path:
             self.store = FAISS.load_local(index_path, embeddings)
         else:
-            self.store = FAISS(embedding_function=embeddings)
+            self.store = None
         self.index_path = index_path
 
     def add_documents(self, docs: list[Document]):
         """Add documents to the vector store.
         :param docs: List of LangChain Document objects
         """
+        if self.store is None:
+            raise ValueError("Vector store not initialized. Call build_store first.")
         self.store.add_documents(docs)
         if self.index_path:
             self.store.save_local(self.index_path)
@@ -56,20 +59,21 @@ class VectorStore:
         """
         if self.store is None:
             self.build_store(chunks)
-            return
-
-        documents = [
-            Document(page_content=chunk["content"], metadata=chunk.get("metadata", {}))
-            for chunk in chunks
-        ]
-        self.store.add_documents(documents)
+        else:
+            documents = [
+                Document(page_content=chunk["content"], metadata=chunk.get("metadata", {}))
+                for chunk in chunks
+            ]
+            self.store.add_documents(documents)
 
     def list_metadata(self):
         """Return a list of metadata dictionaries for all stored embeddings.
         """
-        return [
-            doc["metadata"] for doc in self.store
-        ]  # assuming `self.store` holds {'embedding': ..., 'metadata': ...}
+        if self.store is None:
+            return []
+        # FAISS doesn't support direct iteration; this method needs implementation
+        # For now, return empty list as FAISS doesn't expose all documents directly
+        return []
 
     def similarity_search(
         self, query: str, k: int = 4, metadata_filters: dict | None = None
@@ -105,6 +109,8 @@ class VectorStore:
     def persist(self, path: str | None = None):
         """Persist FAISS index locally
         """
+        if self.store is None:
+            raise ValueError("Vector store not initialized. Nothing to persist.")
         save_path = path or self.index_path
         if save_path:
             self.store.save_local(save_path)

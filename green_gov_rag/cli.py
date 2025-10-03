@@ -88,7 +88,7 @@ def build_vector_store(
 
 @app.command()
 def evaluate_query(
-    query: str, store_path: str = "data/vector_store/faiss.index", metadata_filters: str = None
+    query: str, store_path: str = "data/vector_store/faiss.index", metadata_filters: str | None = None
 ):
     """Query RAG chain against the vector store
     """

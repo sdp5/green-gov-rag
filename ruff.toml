@@ -26,8 +26,6 @@
 
 "green_gov_rag/app/*" = [
     "D103",    # Missing docstring - UI code
-    "ANN001",  # Missing type annotation - Streamlit
-    "ANN201",  # Missing return type annotation
     "C901",    # Function too complex - UI code
     "PLR0915", # Too many statements
     "PLR0914", # Too many local variables
@@ -36,8 +34,6 @@
 
 "green_gov_rag/scripts/*" = [
     "D103",    # Missing docstring
-    "ANN001",  # Missing type annotation
-    "ANN201",  # Missing return type annotation
     "T201",    # print found - acceptable in scripts
 ]
 

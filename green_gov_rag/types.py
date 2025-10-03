@@ -4,6 +4,8 @@ This module centralizes all type definitions, enums, and constants used througho
 the application, replacing hardcoded strings and static dictionaries.
 """
 
+from __future__ import annotations
+
 from enum import Enum
 from typing import NamedTuple
 
@@ -29,13 +31,17 @@ class AustralianState(str, Enum):
         """Get state from full name or abbreviation.
 
         Args:
+        ----
             name: State name (case-insensitive)
 
         Returns:
+        -------
             AustralianState enum value
 
         Raises:
+        ------
             ValueError: If name doesn't match any state
+
         """
         name_lower = name.lower().strip()
 
@@ -73,7 +79,8 @@ class AustralianState(str, Enum):
         if name_lower in name_mappings:
             return name_mappings[name_lower]
 
-        raise ValueError(f"Unknown state name: {name}")
+        msg = f"Unknown state name: {name}"
+        raise ValueError(msg)
 
     @property
     def full_name(self) -> str:
@@ -106,10 +113,14 @@ class KnownLGA:
     # South Australia - Adelaide Metro
     ADELAIDE = LGAInfo("City of Adelaide", "40070", AustralianState.SA)
     PORT_ADELAIDE_ENFIELD = LGAInfo(
-        "Port Adelaide Enfield", "40280", AustralianState.SA
+        "Port Adelaide Enfield",
+        "40280",
+        AustralianState.SA,
     )
     NORWOOD_PAYNEHAM_ST_PETERS = LGAInfo(
-        "Norwood Payneham and St Peters", "40340", AustralianState.SA
+        "Norwood Payneham and St Peters",
+        "40340",
+        AustralianState.SA,
     )
     UNLEY = LGAInfo("Unley", "40370", AustralianState.SA)
     BURNSIDE = LGAInfo("Burnside", "40070", AustralianState.SA)
@@ -127,8 +138,10 @@ class KnownLGA:
     def get_all(cls) -> dict[str, LGAInfo]:
         """Get all known LGAs as a dictionary.
 
-        Returns:
+        Returns
+        -------
             Dict mapping lowercase LGA names (with variants) to LGAInfo
+
         """
         lgas = {}
 
@@ -388,8 +401,10 @@ class RegulatoryAuthority(str, Enum):
 def get_state_mapping() -> dict[str, AustralianState]:
     """Get state name to AustralianState enum mapping.
 
-    Returns:
+    Returns
+    -------
         Dict with various state name formats as keys
+
     """
     mapping = {}
 
@@ -419,8 +434,10 @@ def get_state_mapping() -> dict[str, AustralianState]:
 def get_lga_mappings() -> dict[str, LGAInfo]:
     """Get LGA name to LGAInfo mapping.
 
-    Returns:
+    Returns
+    -------
         Dict with various LGA name formats as keys
+
     """
     return KnownLGA.get_all()
 

@@ -60,7 +60,8 @@ def test_run_query_with_metadata_filters():
         filters = {"region": "NSW"}
         answer = ui.run_query("Emissions report", metadata_filters=filters)
         mock_agent.query.assert_called_with(
-            "Emissions report", metadata_filters=filters
+            "Emissions report",
+            metadata_filters=filters,
         )
         assert answer == "Filtered answer"
 

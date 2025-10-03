@@ -8,6 +8,8 @@ This module provides advanced RAG response formatting with:
 5. Confidence scoring for cited passages
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 from langchain.docstore.document import Document
@@ -26,10 +28,12 @@ class Citation:
         """Initialize citation.
 
         Args:
+        ----
             source_number: Citation number (1, 2, 3, etc.)
             document: Source Document object
             text_snippet: Text excerpt that was cited
             confidence: Confidence score for this citation (0-1)
+
         """
         self.source_number = source_number
         self.document = document
@@ -40,8 +44,10 @@ class Citation:
     def get_deep_link(self) -> str | None:
         """Generate deep link to specific page/section in PDF.
 
-        Returns:
+        Returns
+        -------
             URL with fragment identifier for PDF page
+
         """
         source_url = self.metadata.get("source_url")
         if not source_url:
@@ -63,8 +69,10 @@ class Citation:
     def get_section_path(self) -> str | None:
         """Get hierarchical section path (e.g., 'Section 2.1.3').
 
-        Returns:
+        Returns
+        -------
             Formatted section path string
+
         """
         # Check for hierarchical metadata from LayoutPDFReader
         section_path = self.metadata.get("section_path")
@@ -87,8 +95,10 @@ class Citation:
     def format_citation_markdown(self) -> str:
         """Format citation as markdown with link.
 
-        Returns:
+        Returns
+        -------
             Markdown-formatted citation string
+
         """
         title = self.metadata.get("title", "Untitled Document")
         deep_link = self.get_deep_link()
@@ -115,8 +125,10 @@ class Citation:
     def to_dict(self) -> dict[str, Any]:
         """Convert citation to dictionary.
 
-        Returns:
+        Returns
+        -------
             Dict representation of citation
+
         """
         return {
             "source_number": self.source_number,
@@ -138,9 +150,11 @@ class EnhancedResponse:
         """Initialize enhanced response.
 
         Args:
+        ----
             answer: Generated answer text
             sources: List of source Documents used
             query: Original user query
+
         """
         self.answer = answer
         self.sources = sources
@@ -169,8 +183,10 @@ class EnhancedResponse:
     def format_answer_with_inline_citations(self) -> str:
         """Format answer with inline citation markers.
 
-        Returns:
+        Returns
+        -------
             Answer text with inline [1], [2], etc. citations
+
         """
         # In a production system, this would use NLP to identify
         # which parts of the answer come from which sources
@@ -182,7 +198,7 @@ class EnhancedResponse:
         if not any(f"[{i}]" in self.answer for i in range(1, len(self.sources) + 1)):
             # Append source indicators
             citation_markers = ", ".join(
-                [f"[{i}]" for i in range(1, len(self.sources) + 1)]
+                [f"[{i}]" for i in range(1, len(self.sources) + 1)],
             )
             answer_with_citations = f"{self.answer} {citation_markers}"
 
@@ -191,8 +207,10 @@ class EnhancedResponse:
     def format_sources_markdown(self) -> str:
         """Format sources as markdown list with deep links.
 
-        Returns:
+        Returns
+        -------
             Markdown-formatted sources section
+
         """
         sources_md = ["## Sources\n"]
 
@@ -205,8 +223,10 @@ class EnhancedResponse:
     def format_full_response_markdown(self) -> str:
         """Format complete response with answer and sources.
 
-        Returns:
+        Returns
+        -------
             Complete markdown response
+
         """
         parts = [
             f"**Query:** {self.query}\n",
@@ -221,8 +241,10 @@ class EnhancedResponse:
     def to_dict(self) -> dict[str, Any]:
         """Convert response to dictionary format.
 
-        Returns:
+        Returns
+        -------
             Dict representation for API/JSON responses
+
         """
         return {
             "query": self.query,
@@ -245,12 +267,15 @@ class ResponseFormatter:
         """Create an enhanced response with citations.
 
         Args:
+        ----
             query: User query
             answer: Generated answer
             sources: Source documents
 
         Returns:
+        -------
             EnhancedResponse object
+
         """
         return EnhancedResponse(answer=answer, sources=sources, query=query)
 
@@ -261,10 +286,13 @@ class ResponseFormatter:
         """Format sources with hierarchical section context.
 
         Args:
+        ----
             sources: List of source documents
 
         Returns:
+        -------
             List of formatted source dictionaries
+
         """
         formatted_sources = []
 
@@ -301,10 +329,13 @@ class ResponseFormatter:
         """Build deep link to specific section/page.
 
         Args:
+        ----
             metadata: Document metadata dict
 
         Returns:
+        -------
             Deep link URL or None
+
         """
         source_url = metadata.get("source_url")
         if not source_url:
@@ -327,10 +358,13 @@ class ResponseFormatter:
         """Build hierarchical breadcrumb (e.g., 'Document > Section 2 > Subsection 2.1').
 
         Args:
+        ----
             metadata: Document metadata dict
 
         Returns:
+        -------
             Breadcrumb string or None
+
         """
         parts = []
 
@@ -420,6 +454,6 @@ if __name__ == "__main__":
     print("Hierarchical Sources")
     print("=" * 70)
     hierarchical_sources = ResponseFormatter.format_with_hierarchical_context(
-        sample_sources
+        sample_sources,
     )
     print(json.dumps(hierarchical_sources, indent=2))

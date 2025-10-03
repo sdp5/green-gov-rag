@@ -8,6 +8,8 @@ This module provides an end-to-end ETL pipeline that:
 5. Builds embeddings and vector store
 """
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
 from typing import Any
@@ -32,9 +34,11 @@ class EnhancedETLPipeline:
         """Initialize ETL pipeline.
 
         Args:
+        ----
             enable_auto_tagging: Whether to auto-tag documents with ESG metadata
             chunk_size: Size of text chunks
             chunk_overlap: Overlap between chunks
+
         """
         self.enable_auto_tagging = enable_auto_tagging
         self.chunker = TextChunker(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
@@ -43,15 +47,19 @@ class EnhancedETLPipeline:
         self.tagger = ESGOpenAITagger() if enable_auto_tagging else None
 
     def load_and_parse_documents(
-        self, config_path: str = "configs/documents_config.yml"
+        self,
+        config_path: str = "configs/documents_config.yml",
     ) -> list[Document]:
         """Load documents from config and parse them.
 
         Args:
+        ----
             config_path: Path to documents config YAML
 
         Returns:
+        -------
             List of parsed Document objects with metadata
+
         """
         # Load document configs
         doc_configs = load_documents_config(config_path)
@@ -80,7 +88,7 @@ class EnhancedETLPipeline:
             # Download URLs
             urls = doc_config.get("download_urls", [])
 
-            for url in urls:
+            for _url in urls:
                 # For now, assume PDFs are already downloaded
                 # In production, integrate with download_documents()
                 # Create document with config metadata
@@ -96,10 +104,13 @@ class EnhancedETLPipeline:
         """Auto-tag documents with ESG/NGER metadata using LLM.
 
         Args:
+        ----
             documents: List of Document objects
 
         Returns:
+        -------
             Documents with enriched metadata
+
         """
         if not self.tagger:
             return documents
@@ -114,10 +125,13 @@ class EnhancedETLPipeline:
         """Chunk documents while preserving metadata.
 
         Args:
+        ----
             documents: List of Document objects
 
         Returns:
+        -------
             List of chunked documents with metadata
+
         """
         chunked_docs = []
 
@@ -141,11 +155,14 @@ class EnhancedETLPipeline:
         """Run the complete ETL pipeline.
 
         Args:
+        ----
             config_path: Path to documents config
             output_path: Optional path to save processed chunks
 
         Returns:
+        -------
             List of processed and chunked documents
+
         """
         print("=" * 60)
         print("Enhanced ETL Pipeline - With Auto-Tagging")
@@ -181,17 +198,22 @@ class EnhancedETLPipeline:
 
 
 def process_pdf_with_tagging(
-    pdf_path: str, base_metadata: dict[str, Any] | None = None, auto_tag: bool = True
+    pdf_path: str,
+    base_metadata: dict[str, Any] | None = None,
+    auto_tag: bool = True,
 ) -> list[dict[str, Any]]:
     """Process a single PDF with optional auto-tagging.
 
     Args:
+    ----
         pdf_path: Path to PDF file
         base_metadata: Base metadata from config
         auto_tag: Whether to auto-tag with ESG metadata
 
     Returns:
+    -------
         List of chunked documents with metadata
+
     """
     # Load PDF
     loader = PyPDFLoader(pdf_path)

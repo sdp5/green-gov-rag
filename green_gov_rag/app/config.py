@@ -3,6 +3,8 @@
 Now uses centralized settings from green_gov_rag.config
 """
 
+from __future__ import annotations
+
 from green_gov_rag.config import settings
 
 # Application title and description

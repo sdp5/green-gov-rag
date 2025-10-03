@@ -5,10 +5,13 @@ def parse_html(file_path: str) -> str:
     """Parse and extract clean text content from an HTML file.
 
     Args:
+    ----
         file_path (str): Path to the HTML file.
 
     Returns:
+    -------
         str: Extracted and cleaned text from the HTML.
+
     """
     try:
         with open(file_path, encoding="utf-8") as f:
@@ -24,11 +27,11 @@ def parse_html(file_path: str) -> str:
         text = soup.get_text(separator=" ")
 
         # Clean up whitespace
-        cleaned_text = " ".join(text.split())
-        return cleaned_text
+        return " ".join(text.split())
 
     except Exception as e:
-        raise RuntimeError(f"Error parsing HTML file {file_path}: {e}")
+        msg = f"Error parsing HTML file {file_path}: {e}"
+        raise RuntimeError(msg)
 
 
 # Example Usage

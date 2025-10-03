@@ -1,7 +1,7 @@
 # rag/embeddings.py
 
-"""Embeddings module
------------------
+"""Embeddings module.
+
 Generate vector embeddings for document chunks using either
 AWS Bedrock LLM or HuggingFace embedding models.
 
@@ -14,6 +14,8 @@ AWS Bedrock LLM or HuggingFace embedding models.
 
 Now uses centralized settings from green_gov_rag.config
 """
+
+from __future__ import annotations
 
 # Optional: Hugging Face
 # Optional: OpenAI-style API (for Bedrock, OpenAI API compatible)
@@ -40,7 +42,8 @@ class ChunkEmbedder:
             self.model_name = bedrock_model if bedrock_model else "anthropic.claude-v2"
             self.embedder = OpenAIEmbeddings(model=self.model_name)
         else:
-            raise ValueError("provider must be 'bedrock' or 'huggingface'")
+            msg = "provider must be 'bedrock' or 'huggingface'"
+            raise ValueError(msg)
 
     def embed_chunks(self, chunks: list[dict]) -> list[dict]:
         """Generate embeddings for a list of chunk dictionaries.
@@ -58,7 +61,7 @@ class ChunkEmbedder:
 
             vector = self.embedder.embed_query(text)
             embedded_chunks.append(
-                {"content": text, "metadata": metadata, "embedding": vector}
+                {"content": text, "metadata": metadata, "embedding": vector},
             )
         return embedded_chunks
 
@@ -69,7 +72,7 @@ if __name__ == "__main__":
     # Demo
     sample_texts = [
         "LangChain simplifies building AI applications with LLMs. "
-        "You can chain prompts, models, and outputs easily."
+        "You can chain prompts, models, and outputs easily.",
     ]
     text_chunker = TextChunker()
     chunks = []
@@ -78,7 +81,7 @@ if __name__ == "__main__":
             [
                 {"content": c, "metadata": {"source": "demo"}}
                 for c in text_chunker.chunk_text(text)
-            ]
+            ],
         )
 
     embedder = ChunkEmbedder(provider="huggingface")

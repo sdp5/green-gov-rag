@@ -4,10 +4,9 @@ This module provides LLM-powered metadata extraction for ESG/NGER documents,
 automating the tagging process to ensure consistent categorization.
 """
 
-from typing import TYPE_CHECKING, Any
+from __future__ import annotations
 
-if TYPE_CHECKING:
-    pass
+from typing import Any
 
 from langchain.chains import create_tagging_chain_pydantic
 from langchain.docstore.document import Document
@@ -149,8 +148,10 @@ class MetadataTagger:
         """Initialize metadata tagger.
 
         Args:
+        ----
             model_name: OpenAI model to use for tagging
             temperature: Model temperature (0 for deterministic)
+
         """
         from langchain.chat_models import ChatOpenAI
 
@@ -164,10 +165,13 @@ class MetadataTagger:
         """Extract ESG metadata from document text.
 
         Args:
+        ----
             text: Document text to analyze
 
         Returns:
+        -------
             Dict of ESG metadata
+
         """
         result = self.esg_tagger.run(text)
         return result.dict(exclude_none=True)
@@ -176,10 +180,13 @@ class MetadataTagger:
         """Extract general document metadata from text.
 
         Args:
+        ----
             text: Document text to analyze
 
         Returns:
+        -------
             Dict of document metadata
+
         """
         result = self.doc_tagger.run(text)
         return result.dict(exclude_none=True)
@@ -188,11 +195,14 @@ class MetadataTagger:
         """Tag a LangChain Document with metadata.
 
         Args:
+        ----
             document: LangChain Document to tag
             include_esg: Whether to extract ESG metadata
 
         Returns:
+        -------
             Document with enriched metadata
+
         """
         text = document.page_content
 
@@ -213,16 +223,21 @@ class MetadataTagger:
         return document
 
     def tag_documents(
-        self, documents: list[Document], include_esg: bool = True
+        self,
+        documents: list[Document],
+        include_esg: bool = True,
     ) -> list[Document]:
         """Tag multiple documents with metadata.
 
         Args:
+        ----
             documents: List of LangChain Documents
             include_esg: Whether to extract ESG metadata
 
         Returns:
+        -------
             List of Documents with enriched metadata
+
         """
         return [self.tag_document(doc, include_esg) for doc in documents]
 
@@ -234,8 +249,10 @@ class CustomPromptTagger:
         """Initialize custom prompt tagger.
 
         Args:
+        ----
             model_name: OpenAI model to use
             temperature: Model temperature
+
         """
         from langchain.chat_models import ChatOpenAI
 
@@ -245,10 +262,13 @@ class CustomPromptTagger:
         """Extract Scope 3 categories from text using custom prompt.
 
         Args:
+        ----
             text: Document text
 
         Returns:
+        -------
             List of Scope 3 category names
+
         """
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -279,24 +299,26 @@ class CustomPromptTagger:
                     "Text: {text}\n\n"
                     "Return only the category names as a comma-separated list.",
                 ),
-            ]
+            ],
         )
 
         chain: Any = prompt | self.llm
         response = chain.invoke({"text": text})
 
         # Parse response
-        categories = [cat.strip() for cat in response.content.split(",") if cat.strip()]
-        return categories
+        return [cat.strip() for cat in response.content.split(",") if cat.strip()]
 
     def identify_regulatory_framework(self, text: str) -> dict[str, Any]:
         """Identify regulatory framework and compliance requirements.
 
         Args:
+        ----
             text: Document text
 
         Returns:
+        -------
             Dict with framework, regulator, and compliance info
+
         """
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -315,7 +337,7 @@ class CustomPromptTagger:
                     "Format your response as JSON with keys: frameworks, regulator, "
                     "reportable_under_nger, emission_scopes",
                 ),
-            ]
+            ],
         )
 
         chain: Any = prompt | self.llm
@@ -456,10 +478,13 @@ class ESGOpenAITagger:
         """Tag documents with ESG metadata.
 
         Args:
+        ----
             documents: List of LangChain Documents
 
         Returns:
+        -------
             Documents with ESG metadata added
+
         """
         return list(self.esg_tagger.transform_documents(documents))
 
@@ -467,10 +492,13 @@ class ESGOpenAITagger:
         """Tag documents with general metadata.
 
         Args:
+        ----
             documents: List of LangChain Documents
 
         Returns:
+        -------
             Documents with general metadata added
+
         """
         return list(self.doc_tagger.transform_documents(documents))
 
@@ -478,18 +506,19 @@ class ESGOpenAITagger:
         """Tag documents with both ESG and general metadata.
 
         Args:
+        ----
             documents: List of LangChain Documents
 
         Returns:
+        -------
             Fully tagged documents
+
         """
         # First tag with general metadata
         docs = self.tag_document_metadata(documents)
 
         # Then tag with ESG metadata
-        docs = self.tag_esg_metadata(docs)
-
-        return docs
+        return self.tag_esg_metadata(docs)
 
 
 # Example usage

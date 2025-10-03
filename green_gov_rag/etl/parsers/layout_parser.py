@@ -6,6 +6,8 @@ for improved RAG retrieval and citation quality.
 Based on industry best practices from LlamaIndex/LLMSherpa (2025).
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any
 
@@ -23,18 +25,22 @@ class HierarchicalPDFParser:
     - Context-aware chunking that preserves document structure
 
     Example:
+    -------
         >>> parser = HierarchicalPDFParser()
         >>> chunks = parser.parse_with_structure("policy.pdf")
         >>> print(chunks[0]["metadata"]["section_hierarchy"])
         ["Chapter 3", "Section 3.2", "3.2.1 Calculation Methods"]
+
     """
 
     def __init__(self, api_url: str | None = None) -> None:
         """Initialize hierarchical PDF parser.
 
         Args:
+        ----
             api_url: LLMSherpa API endpoint. Defaults to public API.
                     For production, consider self-hosting.
+
         """
         self.api_url = api_url or (
             "https://readers.llmsherpa.com/api/document/developer/"
@@ -43,18 +49,23 @@ class HierarchicalPDFParser:
         self.reader = LayoutPDFReader(self.api_url)
 
     def parse_with_structure(
-        self, pdf_path: str | Path, base_metadata: dict[str, Any] | None = None
+        self,
+        pdf_path: str | Path,
+        base_metadata: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """Extract chunks with hierarchical metadata from PDF.
 
         Args:
+        ----
             pdf_path: Path to PDF file
             base_metadata: Base metadata to include in all chunks (e.g., jurisdiction, topic)
 
         Returns:
+        -------
             List of chunk dictionaries with rich metadata including:
             - content: Chunk text with contextual headers
             - metadata: Enhanced metadata with section hierarchy, page numbers, etc.
+
         """
         pdf_path = Path(pdf_path)
         base_metadata = base_metadata or {}
@@ -101,11 +112,14 @@ class HierarchicalPDFParser:
         """Extract section hierarchy from chunk.
 
         Args:
+        ----
             chunk: LLMSherpa chunk object
 
         Returns:
+        -------
             List of section titles from top-level to current section
             e.g., ["Chapter 3", "Section 3.2", "3.2.1 Methods"]
+
         """
         hierarchy = []
 
@@ -133,10 +147,13 @@ class HierarchicalPDFParser:
         """Extract current section title from chunk.
 
         Args:
+        ----
             chunk: LLMSherpa chunk object
 
         Returns:
+        -------
             Section title or empty string if not available
+
         """
         # Try multiple methods to extract section title
         if hasattr(chunk, "section_title"):
@@ -156,10 +173,13 @@ class HierarchicalPDFParser:
         """Determine chunk type (paragraph, table, list, header).
 
         Args:
+        ----
             chunk: LLMSherpa chunk object
 
         Returns:
+        -------
             Chunk type string
+
         """
         if hasattr(chunk, "tag"):
             tag = str(chunk.tag).lower()
@@ -177,10 +197,13 @@ class HierarchicalPDFParser:
         """Simple extraction without hierarchy (fallback method).
 
         Args:
+        ----
             pdf_path: Path to PDF file
 
         Returns:
+        -------
             List of basic chunks with minimal metadata
+
         """
         pdf_path = Path(pdf_path)
         doc = self.reader.read_pdf(str(pdf_path))
@@ -196,7 +219,7 @@ class HierarchicalPDFParser:
                         "chunk_id": chunk_idx,
                         "source": pdf_path.name,
                     },
-                }
+                },
             )
 
         return chunks

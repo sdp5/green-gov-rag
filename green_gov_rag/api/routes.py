@@ -1,7 +1,8 @@
 """API routes for GreenGovRAG."""
 
-# Route handlers
+from __future__ import annotations
 
+# Route handlers
 from fastapi import APIRouter, Query
 
 from green_gov_rag.rag.agent_tools import RAGAgent
@@ -24,7 +25,9 @@ async def query_rag(
     region: str | None = Query(None, description="Filter by region"),
 ):
     """Query RAG with optional metadata filters.
-    Returns an answer + source documents.
+
+    from __future__ import annotations
+        Returns an answer + source documents.
     """
     metadata_filters = {}
     if jurisdiction:

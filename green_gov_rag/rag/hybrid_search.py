@@ -11,6 +11,8 @@ Key Features:
 5. Re-ranking by relevance
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Optional
 
@@ -38,8 +40,10 @@ class HybridGeospatialSearch:
         """Initialize hybrid search with vector store.
 
         Args:
+        ----
             vector_store: VectorStore instance for similarity search
             enable_ner: Whether to enable NER for automatic location extraction
+
         """
         self.vector_store = vector_store
         self.ner = LocationNER(use_llm=False) if enable_ner else None
@@ -54,13 +58,16 @@ class HybridGeospatialSearch:
         """Hybrid search combining vector, spatial, and metadata filtering.
 
         Args:
+        ----
             query: User query string
             spatial_query: Optional SpatialQuery for location-based filtering
             metadata_filters: Optional dict for metadata filtering
             k: Number of initial results to retrieve (before filtering)
 
         Returns:
+        -------
             List of Document objects ranked by relevance
+
         """
         # Step 1: Vector similarity search
         # Retrieve more results initially to account for filtering
@@ -77,12 +84,12 @@ class HybridGeospatialSearch:
 
         # Step 4: Re-rank by relevance (already ordered by similarity)
         # Keep top k results
-        results = results[:k]
-
-        return results
+        return results[:k]
 
     def _filter_by_spatial(
-        self, results: list[Document], spatial_query: SpatialQuery
+        self,
+        results: list[Document],
+        spatial_query: SpatialQuery,
     ) -> list[Document]:
         """Filter results by spatial criteria using hierarchical filtering.
 
@@ -92,11 +99,14 @@ class HybridGeospatialSearch:
         3. Local documents (spatial_scope=local) → included if LGA code matches
 
         Args:
+        ----
             results: List of Document objects from vector search
             spatial_query: SpatialQuery with location criteria
 
         Returns:
+        -------
             Filtered list of Document objects
+
         """
         filtered = []
 
@@ -135,7 +145,9 @@ class HybridGeospatialSearch:
         return filtered
 
     def _filter_by_metadata(
-        self, results: list[Document], metadata_filters: dict
+        self,
+        results: list[Document],
+        metadata_filters: dict,
     ) -> list[Document]:
         """Filter results by metadata criteria.
 
@@ -146,11 +158,14 @@ class HybridGeospatialSearch:
         - ESG metadata (emission_scopes, frameworks, etc.)
 
         Args:
+        ----
             results: List of Document objects
             metadata_filters: Dict of metadata key-value pairs to filter on
 
         Returns:
+        -------
             Filtered list of Document objects
+
         """
         filtered = []
 
@@ -211,6 +226,7 @@ class HybridGeospatialSearch:
         """Convenience method for LGA-based search.
 
         Args:
+        ----
             query: User query string
             lga_name: Name of the LGA (e.g., "City of Adelaide")
             lga_code: ABS LGA code (e.g., "40070")
@@ -218,7 +234,9 @@ class HybridGeospatialSearch:
             k: Number of results to return
 
         Returns:
+        -------
             List of Document objects relevant to the LGA
+
         """
         spatial_query = SpatialQuery(
             location_name=lga_name,
@@ -245,6 +263,7 @@ class HybridGeospatialSearch:
         """Convenience method for ESG-filtered search.
 
         Args:
+        ----
             query: User query string
             emission_scopes: List of emission scopes (e.g., ["scope_1", "scope_2"])
             frameworks: List of frameworks (e.g., ["NGER", "ISSB", "GHG_Protocol"])
@@ -258,7 +277,9 @@ class HybridGeospatialSearch:
             k: Number of results to return
 
         Returns:
+        -------
             List of Document objects matching ESG criteria
+
         """
         metadata_filters: dict[str, object] = {}
 
@@ -298,15 +319,19 @@ class HybridGeospatialSearch:
         performs spatial filtering automatically.
 
         Args:
+        ----
             query: User query text (e.g., "What are tree rules in Adelaide?")
             k: Number of results to return
 
         Returns:
+        -------
             List of Document objects matching query and extracted locations
 
         Example:
+        -------
             >>> search_with_auto_location("emission rules in Port Adelaide Enfield", k=5)
             # Automatically extracts LGA code "40280" and state "SA"
+
         """
         if not self.ner:
             # NER disabled, fall back to regular search
@@ -341,6 +366,7 @@ class HybridGeospatialSearch:
         """Search filtered by jurisdiction, category, and topic.
 
         Args:
+        ----
             query: User query string
             jurisdiction: Jurisdiction level (e.g., "federal", "state", "local")
             category: Document category (e.g., "environment", "planning", "legislation")
@@ -349,7 +375,9 @@ class HybridGeospatialSearch:
             k: Number of results to return
 
         Returns:
+        -------
             List of Document objects matching criteria
+
         """
         metadata_filters: dict[str, object] = {}
 
@@ -377,16 +405,19 @@ class HybridGeospatialSearch:
         """Search for NGER-compliant documents.
 
         Args:
+        ----
             query: User query string
             reportable_under_nger: Filter for NGER reportability
             nger_threshold_tonnes: Filter by NGER threshold (e.g., 25000, 100000)
             k: Number of results to return
 
         Returns:
+        -------
             List of NGER-compliant Document objects
+
         """
         metadata_filters: dict[str, object] = {
-            "esg_metadata.reportable_under_nger": reportable_under_nger
+            "esg_metadata.reportable_under_nger": reportable_under_nger,
         }
 
         if nger_threshold_tonnes:
@@ -407,6 +438,7 @@ class HybridGeospatialSearch:
         """Search for Scope 3 emissions guidance.
 
         Args:
+        ----
             query: User query string
             scope_3_categories: List of Scope 3 categories to filter by:
                 - purchased_goods_services (Cat 1)
@@ -429,10 +461,12 @@ class HybridGeospatialSearch:
             k: Number of results to return
 
         Returns:
+        -------
             List of Scope 3 Document objects
+
         """
         metadata_filters: dict[str, object] = {
-            "esg_metadata.emission_scopes": ["scope_3"]
+            "esg_metadata.emission_scopes": ["scope_3"],
         }
 
         if scope_3_categories:
@@ -455,12 +489,15 @@ class HybridGeospatialSearch:
         """Search Scope 3 emissions by upstream or downstream type.
 
         Args:
+        ----
             query: User query string
             scope_type: Either "upstream" (categories 1-8) or "downstream" (categories 9-15)
             k: Number of results to return
 
         Returns:
+        -------
             List of Scope 3 Document objects filtered by type
+
         """
         if scope_type.lower() == "upstream":
             categories = [
@@ -484,8 +521,11 @@ class HybridGeospatialSearch:
                 "investments",
             ]
         else:
-            raise ValueError(
+            msg = (
                 f"Invalid scope_type: {scope_type}. Must be 'upstream' or 'downstream'"
+            )
+            raise ValueError(
+                msg,
             )
 
         return self.search_scope_3(query=query, scope_3_categories=categories, k=k)
@@ -515,6 +555,7 @@ class HybridGeospatialSearch:
         Combines spatial, metadata, and ESG filters for precise retrieval.
 
         Args:
+        ----
             query: User query string
             lga_codes: List of LGA codes for spatial filtering
             state: State code for spatial filtering
@@ -530,7 +571,9 @@ class HybridGeospatialSearch:
             k: Number of results to return
 
         Returns:
+        -------
             List of filtered and ranked Document objects
+
         """
         # Build spatial query
         spatial_query = None

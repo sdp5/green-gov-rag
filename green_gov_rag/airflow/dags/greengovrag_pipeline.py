@@ -36,13 +36,13 @@ MODEL_NAME = "amazon/bedrock"  # or HF model
 
 
 # --- Tasks ---
-def task_ingest_docs():
+def task_ingest_docs() -> None:
     docs = loader.load_documents_config(CONFIG_PATH)
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     ingest.download_documents(docs, RAW_DIR)
 
 
-def task_parse_docs():
+def task_parse_docs() -> None:
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     for doc_file in RAW_DIR.glob("*"):
         text = ingest.dispatch_parser(str(doc_file))
@@ -50,7 +50,7 @@ def task_parse_docs():
         out_file.write_text(text)
 
 
-def task_chunk_docs():
+def task_chunk_docs() -> None:
     CHUNK_DIR.mkdir(parents=True, exist_ok=True)
     for txt_file in PROCESSED_DIR.glob("*.txt"):
         text = txt_file.read_text()
@@ -60,7 +60,7 @@ def task_chunk_docs():
             json.dump(chunks, f)
 
 
-def task_embed_docs():
+def task_embed_docs() -> None:
     EMBED_DIR.mkdir(parents=True, exist_ok=True)
     for chunk_file in CHUNK_DIR.glob("*_chunks.json"):
         with open(chunk_file) as f:
@@ -71,13 +71,13 @@ def task_embed_docs():
             json.dump(embedded, f)
 
 
-def task_build_vector_store():
+def task_build_vector_store() -> None:
     VECTOR_STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
     store = vector_store.build_vector_store_from_folder(EMBED_DIR)
     vector_store.save_vector_store(store, VECTOR_STORE_PATH)
 
 
-def task_test_rag():
+def task_test_rag() -> None:
     # Example: test RAG with metadata filter
     store = vector_store.load_vector_store(VECTOR_STORE_PATH)
     rag = rag_chain.RAGChain(store, model_name=MODEL_NAME)
@@ -89,22 +89,34 @@ def task_test_rag():
 
 # --- Operators ---
 ingest_task = PythonOperator(
-    task_id="ingest_docs", python_callable=task_ingest_docs, dag=dag
+    task_id="ingest_docs",
+    python_callable=task_ingest_docs,
+    dag=dag,
 )
 parse_task = PythonOperator(
-    task_id="parse_docs", python_callable=task_parse_docs, dag=dag
+    task_id="parse_docs",
+    python_callable=task_parse_docs,
+    dag=dag,
 )
 chunk_task = PythonOperator(
-    task_id="chunk_docs", python_callable=task_chunk_docs, dag=dag
+    task_id="chunk_docs",
+    python_callable=task_chunk_docs,
+    dag=dag,
 )
 embed_task = PythonOperator(
-    task_id="embed_docs", python_callable=task_embed_docs, dag=dag
+    task_id="embed_docs",
+    python_callable=task_embed_docs,
+    dag=dag,
 )
 vector_task = PythonOperator(
-    task_id="build_vector_store", python_callable=task_build_vector_store, dag=dag
+    task_id="build_vector_store",
+    python_callable=task_build_vector_store,
+    dag=dag,
 )
 test_rag_task = PythonOperator(
-    task_id="test_rag_query", python_callable=task_test_rag, dag=dag
+    task_id="test_rag_query",
+    python_callable=task_test_rag,
+    dag=dag,
 )
 
 # --- Dependencies ---

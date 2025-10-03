@@ -1,7 +1,7 @@
 # rag/rag_chain.py
 
-"""RAG Chain for GreenGovRAG
--------------------------
+"""RAG Chain for GreenGovRAG.
+
 Retrieval-Augmented Generation pipeline using FAISS + LLM (OpenAI / Bedrock)
 Supports optional metadata filtering during retrieval.
 
@@ -13,6 +13,8 @@ Supports optional metadata filtering during retrieval.
 
 Now uses centralized settings from green_gov_rag.config
 """
+
+from __future__ import annotations
 
 # Optional: LLM client wrappers
 import openai
@@ -53,8 +55,7 @@ class RAGChain:
     def retrieve(self, query: str) -> list[dict]:
         """Retrieve top_k relevant chunks for the query."""
         query_embedding = self.embedder.embed_query(query)  # type: ignore[attr-defined]
-        results = self.vector_store.store.search(query_embedding, top_k=self.top_k)  # type: ignore[union-attr,call-arg]
-        return results  # type: ignore[return-value]
+        return self.vector_store.store.search(query_embedding, top_k=self.top_k)  # type: ignore[union-attr,call-arg,return-value]
 
     def generate_answer(self, query: str) -> str:
         """Generate answer using retrieved context and LLM."""
@@ -65,7 +66,7 @@ class RAGChain:
                 + ": "
                 + r["metadata"].get("content", "")
                 for r in retrieved
-            ]
+            ],
         )
 
         prompt = f"Answer the query based on the following context:\n{context}\n\nQuery: {query}\nAnswer:"
@@ -77,8 +78,7 @@ class RAGChain:
                 temperature=0.2,
                 max_tokens=500,
             )
-            answer = response.choices[0].message["content"]
-            return answer
+            return response.choices[0].message["content"]
         # Placeholder for Bedrock or other LLMs
         return "LLM provider not implemented."
 
@@ -92,11 +92,14 @@ class RAGChain:
         """Query with enhanced citations and deep links.
 
         Args:
+        ----
             query: User question
             k: Number of sources to retrieve
 
         Returns:
+        -------
             EnhancedResponse with inline citations and hierarchical metadata
+
         """
         from langchain.docstore.document import Document
 
@@ -113,27 +116,27 @@ class RAGChain:
         answer = self.generate_answer(query)
 
         # Create enhanced response
-        enhanced_response = ResponseFormatter.create_enhanced_response(
+        return ResponseFormatter.create_enhanced_response(
             query=query,
             answer=answer,
             sources=documents,
         )
-
-        return enhanced_response
 
     def query(self, question: str, metadata_filters: dict | None = None, k: int = 4):
         """Query the RAG chain with optional metadata filtering.
         :param question: User query string
         :param metadata_filters: Optional dictionary of metadata filters
         :param k: Number of top documents to retrieve
-        :return: dict with 'result' and 'source_documents'
+        :return: dict with 'result' and 'source_documents'.
         """
         # If filters are provided, create a filtered retriever
         if metadata_filters:
 
             def retriever(q):  # noqa: ANN202
                 return self.vector_store.similarity_search(
-                    q, k=k, metadata_filters=metadata_filters
+                    q,
+                    k=k,
+                    metadata_filters=metadata_filters,
                 )
         else:
             retriever = self.vector_store.store.as_retriever(search_kwargs={"k": k})  # type: ignore[union-attr,assignment]
@@ -162,7 +165,8 @@ if __name__ == "__main__":
     store = VectorStoreClass(
         index_path="faiss_index",
         embeddings=ChunkEmbedderClass(
-            provider="huggingface", model_name="sentence-transformers/all-MiniLM-L6-v2"
+            provider="huggingface",
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
         ).embedder,
     )
     embedder = ChunkEmbedderClass()

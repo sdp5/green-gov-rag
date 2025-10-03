@@ -1,13 +1,14 @@
 # etl/chunker.py
 
-"""Chunker module for splitting documents into smaller text chunks
-using LangChain text splitters.
+"""Chunker module for splitting documents into smaller text chunks using LangChain text splitters.
 
 1. Uses RecursiveCharacterTextSplitter (handles paragraphs → sentences → words).
 2. Configurable chunk_size, chunk_overlap, and separators.
 3. Skips empty/whitespace-only texts.
 4. Returns flat list of chunks for indexing or embeddings.
 """
+
+from __future__ import annotations
 
 from typing import Any
 
@@ -27,7 +28,7 @@ class TextChunker:
         """Initialize text chunker.
         :param chunk_size: Max characters or tokens per chunk
         :param chunk_overlap: Overlap between chunks
-        :param splitter_type: "recursive" or "token"
+        :param splitter_type: "recursive" or "token".
         """
         self.splitter_type = splitter_type
         self.chunk_size = chunk_size
@@ -43,10 +44,12 @@ class TextChunker:
             )
         elif splitter_type == "token":
             self.splitter = TokenTextSplitter(
-                chunk_size=chunk_size, chunk_overlap=chunk_overlap
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
             )
         else:
-            raise ValueError(f"Unsupported splitter_type: {splitter_type}")
+            msg = f"Unsupported splitter_type: {splitter_type}"
+            raise ValueError(msg)
 
     def chunk_text(self, text: str) -> list[str]:
         """Split raw text into chunks."""
@@ -54,7 +57,7 @@ class TextChunker:
 
     def chunk_docs(self, docs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Split list of documents into smaller chunks.
-        Each doc should have: {"content": str, "metadata": dict}
+        Each doc should have: {"content": str, "metadata": dict}.
         """
         chunked_docs = []
         for doc in docs:
@@ -64,12 +67,13 @@ class TextChunker:
             chunks = self.chunk_text(content)
             for i, chunk in enumerate(chunks):
                 chunked_docs.append(
-                    {"content": chunk, "metadata": {**metadata, "chunk_id": i}}
+                    {"content": chunk, "metadata": {**metadata, "chunk_id": i}},
                 )
         return chunked_docs
 
     def chunk_with_hierarchy(
-        self, hierarchical_chunks: list[dict[str, Any]]
+        self,
+        hierarchical_chunks: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
         """Chunk hierarchical documents while preserving section metadata.
 
@@ -77,10 +81,13 @@ class TextChunker:
         section hierarchy, page numbers, and structural context.
 
         Args:
+        ----
             hierarchical_chunks: Chunks from HierarchicalPDFParser with metadata
 
         Returns:
+        -------
             List of smaller chunks with preserved hierarchical metadata
+
         """
         chunked_docs = []
 
@@ -102,7 +109,7 @@ class TextChunker:
                             # Update chunk_id to be unique across all chunks
                             "chunk_id": f"{metadata.get('chunk_id', 0)}_{i}",
                         },
-                    }
+                    },
                 )
 
         return chunked_docs
@@ -119,6 +126,8 @@ def chunk_text(
     # Ensure chunk_overlap is not larger than chunk_size
     actual_overlap = min(chunk_overlap, chunk_size - 1) if chunk_size > 1 else 0
     chunker = TextChunker(
-        chunk_size=chunk_size, chunk_overlap=actual_overlap, splitter_type=splitter_type
+        chunk_size=chunk_size,
+        chunk_overlap=actual_overlap,
+        splitter_type=splitter_type,
     )
     return chunker.chunk_text(text)

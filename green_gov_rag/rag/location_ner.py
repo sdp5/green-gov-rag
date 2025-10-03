@@ -6,11 +6,10 @@ and maps them to standardized codes for geospatial filtering.
 Uses both rule-based matching and LLM-based extraction for robustness.
 """
 
-import re
-from typing import TYPE_CHECKING, Any
+from __future__ import annotations
 
-if TYPE_CHECKING:
-    pass
+import re
+from typing import Any
 
 from langchain.prompts import ChatPromptTemplate
 
@@ -24,8 +23,10 @@ class LocationNER:
         """Initialize location NER.
 
         Args:
+        ----
             use_llm: Whether to use LLM for extraction (more accurate)
             llm_model: OpenAI model to use for LLM-based extraction
+
         """
         self.use_llm = use_llm
         self.llm: Any = None
@@ -42,15 +43,18 @@ class LocationNER:
         """Extract locations from text using both rule-based and LLM methods.
 
         Args:
+        ----
             text: Query text to extract locations from
 
         Returns:
+        -------
             Dict with extracted locations:
             {
                 "states": ["SA", "NSW"],
                 "lgas": [{"name": "Adelaide", "code": "40070", "state": "SA"}],
                 "raw_locations": ["Adelaide", "South Australia"]
             }
+
         """
         # Rule-based extraction
         rule_based = self._extract_rule_based(text)
@@ -67,10 +71,13 @@ class LocationNER:
         """Extract locations using rule-based pattern matching.
 
         Args:
+        ----
             text: Query text
 
         Returns:
+        -------
             Dict with extracted locations
+
         """
         text_lower = text.lower()
         results: dict[str, Any] = {
@@ -109,10 +116,13 @@ class LocationNER:
         """Extract locations using LLM.
 
         Args:
+        ----
             text: Query text
 
         Returns:
+        -------
             Dict with extracted locations
+
         """
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -139,7 +149,7 @@ Output: {{"states": ["SA"], "lgas": ["Adelaide"], "cities": ["Adelaide"]}}
 
 Only return the JSON object, nothing else.""",
                 ),
-            ]
+            ],
         )
 
         chain: Any = prompt | self.llm
@@ -173,23 +183,28 @@ Only return the JSON object, nothing else.""",
             return {"states": [], "lgas": [], "raw_locations": []}
 
     def _merge_results(
-        self, rule_based: dict[str, Any], llm_based: dict[str, Any]
+        self,
+        rule_based: dict[str, Any],
+        llm_based: dict[str, Any],
     ) -> dict[str, Any]:
         """Merge rule-based and LLM results.
 
         Args:
+        ----
             rule_based: Results from rule-based extraction
             llm_based: Results from LLM extraction
 
         Returns:
+        -------
             Merged results
+
         """
         merged: dict[str, Any] = {
             "states": list(set(rule_based["states"] + llm_based["states"])),
             "lgas": rule_based["lgas"]
             + [lga for lga in llm_based["lgas"] if lga not in rule_based["lgas"]],
             "raw_locations": list(
-                set(rule_based["raw_locations"] + llm_based["raw_locations"])
+                set(rule_based["raw_locations"] + llm_based["raw_locations"]),
             ),
         }
 
@@ -199,10 +214,13 @@ Only return the JSON object, nothing else.""",
         """Extract LGA codes from text (convenience method).
 
         Args:
+        ----
             text: Query text
 
         Returns:
+        -------
             List of LGA codes
+
         """
         locations = self.extract_locations(text)
         return [lga["code"] for lga in locations["lgas"]]
@@ -211,24 +229,33 @@ Only return the JSON object, nothing else.""",
         """Extract state codes from text (convenience method).
 
         Args:
+        ----
             text: Query text
 
         Returns:
+        -------
             List of state codes
+
         """
         locations = self.extract_locations(text)
         return locations["states"]
 
     def add_lga_mapping(
-        self, name: str, lga_code: str, state: str, official_name: str | None = None
+        self,
+        name: str,
+        lga_code: str,
+        state: str,
+        official_name: str | None = None,
     ) -> None:
         """Add a new LGA mapping.
 
         Args:
+        ----
             name: Common name (e.g., "adelaide")
             lga_code: ABS LGA code
             state: State code (e.g., "NSW", "VIC")
             official_name: Official LGA name (defaults to capitalized name)
+
         """
         from green_gov_rag.types import AustralianState, LGAInfo
 
@@ -237,7 +264,9 @@ Only return the JSON object, nothing else.""",
 
         # Create LGAInfo and add to mappings
         lga_info = LGAInfo(
-            name=official_name or name.title(), code=lga_code, state=state_enum
+            name=official_name or name.title(),
+            code=lga_code,
+            state=state_enum,
         )
         self._lga_mappings[name.lower()] = lga_info
 
@@ -249,7 +278,9 @@ class QueryLocationProcessor:
         """Initialize processor.
 
         Args:
+        ----
             ner: LocationNER instance (creates one if not provided)
+
         """
         self.ner = ner or LocationNER(use_llm=True)
 
@@ -257,10 +288,13 @@ class QueryLocationProcessor:
         """Process query and extract location metadata.
 
         Args:
+        ----
             query: User query text
 
         Returns:
+        -------
             Dict with query and location metadata
+
         """
         locations = self.ner.extract_locations(query)
 

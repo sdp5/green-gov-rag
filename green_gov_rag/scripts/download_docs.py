@@ -8,7 +8,7 @@ RAW_DIR = "data/raw"
 os.makedirs(RAW_DIR, exist_ok=True)
 
 
-def download_file(name, url):
+def download_file(name, url) -> None:
     local_filename = os.path.join(RAW_DIR, f"{name}.pdf")
     response = requests.get(url)
     with open(local_filename, "wb") as f:

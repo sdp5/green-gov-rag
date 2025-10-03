@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 import yaml
@@ -7,7 +9,8 @@ def load_documents_config(config_path: str = "configs/documents_config.yml"):
     """Load document metadata from YAML config."""
     config_file = Path(config_path)
     if not config_file.exists():
-        raise FileNotFoundError(f"Config file {config_path} not found.")
+        msg = f"Config file {config_path} not found."
+        raise FileNotFoundError(msg)
 
     with open(config_file, encoding="utf-8") as f:
         config = yaml.safe_load(f)
@@ -33,7 +36,8 @@ def load_yaml(file_path: str) -> dict:
     """
     yaml_file = Path(file_path)
     if not yaml_file.exists():
-        raise FileNotFoundError(f"YAML file {file_path} not found.")
+        msg = f"YAML file {file_path} not found."
+        raise FileNotFoundError(msg)
 
     with open(yaml_file, encoding="utf-8") as f:
         return yaml.safe_load(f)

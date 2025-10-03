@@ -9,6 +9,8 @@ This module provides a comprehensive search handler that integrates:
 Coordinates between the UI layer and the HybridGeospatialSearch backend.
 """
 
+from __future__ import annotations
+
 from typing import Optional
 
 from green_gov_rag.rag.enhanced_response import ResponseFormatter
@@ -22,7 +24,9 @@ class GeospatialRAGHandler:
         """Initialize with hybrid search instance.
 
         Args:
+        ----
             hybrid_search: HybridGeospatialSearch instance
+
         """
         self.hybrid_search = hybrid_search
 
@@ -35,18 +39,22 @@ class GeospatialRAGHandler:
         """Handle LGA click event from map and return relevant policies.
 
         Args:
+        ----
             lga_properties: GeoJSON properties from clicked LGA
                 Expected keys: LGA_NAME, LGA_CODE, STATE_CODE/STATE
             user_question: User's question about the LGA
             k: Number of results to return
 
         Returns:
+        -------
             List of dicts containing document content and metadata
+
         """
         # Extract LGA information from GeoJSON properties
         lga_name = lga_properties.get("LGA_NAME") or lga_properties.get("NAME", "")
         lga_code = lga_properties.get("LGA_CODE") or lga_properties.get(
-            "LGA_CODE25", ""
+            "LGA_CODE25",
+            "",
         )
         state = lga_properties.get("STATE_CODE") or lga_properties.get("STE_NAME", "")
 
@@ -89,7 +97,7 @@ class GeospatialRAGHandler:
                     "source_url": doc.metadata.get("source_url", ""),
                     "jurisdiction": doc.metadata.get("jurisdiction", ""),
                     "spatial_scope": doc.metadata.get("spatial_scope", ""),
-                }
+                },
             )
 
         return formatted_results
@@ -105,17 +113,21 @@ class GeospatialRAGHandler:
         the query, then performs location-filtered search.
 
         Args:
+        ----
             query: User query text (e.g., "What are tree rules in Adelaide?")
             k: Number of results to return
 
         Returns:
+        -------
             List of formatted results with location context
 
         Example:
+        -------
             >>> handler.search_with_auto_location(
             ...     "emission reporting in Port Adelaide Enfield"
             ... )
             # Automatically extracts LGA and state, performs spatial search
+
         """
         results = self.hybrid_search.search_with_auto_location(query=query, k=k)
         return self._format_results(results)
@@ -138,6 +150,7 @@ class GeospatialRAGHandler:
         """Search with ESG/NGER-specific filters.
 
         Args:
+        ----
             query: User query string
             frameworks: ESG frameworks (e.g., ["NGER", "ISSB", "GHG_Protocol"])
             emission_scopes: Emission scopes (e.g., ["scope_1", "scope_2"])
@@ -150,7 +163,9 @@ class GeospatialRAGHandler:
             k: Number of results
 
         Returns:
+        -------
             List of formatted results
+
         """
         results = self.hybrid_search.search_with_esg_filters(
             query=query,
@@ -178,6 +193,7 @@ class GeospatialRAGHandler:
         """Search for Scope 3 emissions guidance.
 
         Args:
+        ----
             query: User query string
             scope_3_categories: Specific Scope 3 categories to filter by
             scope_type: Filter by "upstream" (1-8) or "downstream" (9-15) categories
@@ -185,12 +201,16 @@ class GeospatialRAGHandler:
             k: Number of results
 
         Returns:
+        -------
             List of formatted Scope 3 results
+
         """
         if scope_type:
             # Use type-based search (upstream/downstream)
             results = self.hybrid_search.search_scope_3_by_type(
-                query=query, scope_type=scope_type, k=k
+                query=query,
+                scope_type=scope_type,
+                k=k,
             )
         else:
             # Use category-based search
@@ -207,10 +227,13 @@ class GeospatialRAGHandler:
         """Format Document results for UI display.
 
         Args:
+        ----
             results: List of Document objects
 
         Returns:
+        -------
             List of formatted result dicts
+
         """
         formatted_results = []
         for doc in results:
@@ -230,7 +253,7 @@ class GeospatialRAGHandler:
                     "emission_scopes": esg_meta.get("emission_scopes", []),
                     "greenhouse_gases": esg_meta.get("greenhouse_gases", []),
                     "regulator": esg_meta.get("regulator", ""),
-                }
+                },
             )
 
         return formatted_results
@@ -248,6 +271,7 @@ class GeospatialRAGHandler:
         """Advanced search with both spatial and metadata filters.
 
         Args:
+        ----
             query: User query string
             lga_code: Optional LGA code for spatial filtering
             state: Optional state code for spatial filtering
@@ -257,7 +281,9 @@ class GeospatialRAGHandler:
             k: Number of results
 
         Returns:
+        -------
             List of formatted results
+
         """
         spatial_query = None
         if lga_code or state:
@@ -291,7 +317,7 @@ class GeospatialRAGHandler:
                     "metadata": doc.metadata,
                     "title": doc.metadata.get("title", "Untitled"),
                     "source_url": doc.metadata.get("source_url", ""),
-                }
+                },
             )
 
         return formatted_results
@@ -309,13 +335,16 @@ class GeospatialRAGHandler:
         specific PDF pages/sections, and hierarchical breadcrumbs.
 
         Args:
+        ----
             query: User query string
             spatial_query: Optional spatial filtering
             metadata_filters: Optional metadata filtering
             k: Number of results
 
         Returns:
+        -------
             Dict with answer, citations, and hierarchical context
+
         """
         # Perform hybrid search
         results = self.hybrid_search.search(
@@ -327,7 +356,7 @@ class GeospatialRAGHandler:
 
         # Format with hierarchical context
         hierarchical_sources = ResponseFormatter.format_with_hierarchical_context(
-            results
+            results,
         )
 
         return {

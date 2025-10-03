@@ -1,5 +1,7 @@
 """Streamlit UI module."""
 
+from __future__ import annotations
+
 from pathlib import Path
 
 import pandas as pd
@@ -22,7 +24,7 @@ def get_rag_agent():
     return st.session_state.rag_agent
 
 
-def render_ui():
+def render_ui() -> None:
     st.set_page_config(page_title=APP_TITLE, layout="wide")
     st.title(APP_TITLE)
     st.markdown(APP_DESCRIPTION)
@@ -36,10 +38,13 @@ def render_ui():
         st.subheader("Ask a Policy Question")
         query_text = st.text_area("Type your question here", height=150)
         region_filter = st.selectbox(
-            "Select region", ["All", "Federal", "State", "Local"]
+            "Select region",
+            ["All", "Federal", "State", "Local"],
         )
         topic_filter: list = st.multiselect(
-            "Select topics", TOPIC_OPTIONS, default=TOPIC_OPTIONS
+            "Select topics",
+            TOPIC_OPTIONS,
+            default=TOPIC_OPTIONS,
         )
 
         if st.button("Get Answer"):
@@ -58,7 +63,8 @@ def render_ui():
                     # Get answer
                     rag_agent = get_rag_agent()
                     answer, sources = rag_agent.query(
-                        query_text, metadata_filters=metadata_filters
+                        query_text,
+                        metadata_filters=metadata_filters,
                     )
 
                     # Display results
@@ -115,14 +121,20 @@ def render_ui():
             # Count documents per topic
             topic_count = df.groupby("topic").size().reset_index(name="count")
             fig2 = px.pie(
-                topic_count, names="topic", values="count", title="Documents by Topic"
+                topic_count,
+                names="topic",
+                values="count",
+                title="Documents by Topic",
             )
             st.plotly_chart(fig2, use_container_width=True)
 
             # Example: Count documents per region (if geo info available)
             region_count = df.groupby("region").size().reset_index(name="count")
             fig3 = px.bar(
-                region_count, x="region", y="count", title="Documents by Region"
+                region_count,
+                x="region",
+                y="count",
+                title="Documents by Region",
             )
             st.plotly_chart(fig3, use_container_width=True)
 
@@ -158,10 +170,14 @@ def render_ui():
             default=df["jurisdiction"].unique(),
         )
         topics = st.sidebar.multiselect(
-            "Topic", options=df["topic"].unique(), default=df["topic"].unique()
+            "Topic",
+            options=df["topic"].unique(),
+            default=df["topic"].unique(),
         )
         regions = st.sidebar.multiselect(
-            "Region", options=df["region"].unique(), default=df["region"].unique()
+            "Region",
+            options=df["region"].unique(),
+            default=df["region"].unique(),
         )
 
         # Apply filters
@@ -173,14 +189,14 @@ def render_ui():
 
         if not filtered_df.empty:
             st.write(f"Displaying {len(filtered_df)} documents")
-            for idx, row in filtered_df.iterrows():
+            for _idx, row in filtered_df.iterrows():
                 st.markdown(f"**Title:** {row['title']}")
                 st.markdown(
-                    f"**Jurisdiction:** {row['jurisdiction']} | **Topic:** {row['topic']} | **Region:** {row['region']}"
+                    f"**Jurisdiction:** {row['jurisdiction']} | **Topic:** {row['topic']} | **Region:** {row['region']}",
                 )
                 if "download_urls" in row and pd.notna(row["download_urls"]):
                     urls = eval(
-                        row["download_urls"]
+                        row["download_urls"],
                     )  # convert string representation of list
                     for i, url in enumerate(urls, 1):
                         st.markdown(f"[Download Part {i}]({url})")
@@ -201,6 +217,6 @@ def run_query(query: str, metadata_filters: dict | None = None) -> str:
     return answer
 
 
-def main():
+def main() -> None:
     """Main entry point for the UI."""
     render_ui()

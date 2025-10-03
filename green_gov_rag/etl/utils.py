@@ -2,6 +2,8 @@
 
 # etl/utils.py
 
+from __future__ import annotations
+
 import re
 import unicodedata
 
@@ -28,13 +30,12 @@ def collapse_whitespace(text: str) -> str:
 
 def clean_text(text: str) -> str:
     """Apply all cleaning steps to a single text string.
-    Order matters: normalize → remove urls → clean chars → collapse spaces
+    Order matters: normalize → remove urls → clean chars → collapse spaces.
     """
     text = normalize_unicode(text)
     text = remove_urls(text)
     text = remove_non_alphanumeric(text)
-    text = collapse_whitespace(text)
-    return text
+    return collapse_whitespace(text)
 
 
 def batch_clean(texts: list[str]) -> list[str]:

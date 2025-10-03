@@ -4,6 +4,8 @@ A comprehensive command-line interface for managing ETL pipelines,
 RAG operations, and metadata tagging for Australian ESG/NGER documents.
 """
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
 from typing import Optional
@@ -52,14 +54,16 @@ def etl_ingest(
         "-o",
         help="Output directory for downloaded documents",
     ),
-):
+) -> None:
     """Download documents listed in the configuration file.
 
     Fetches ESG/NGER documents from URLs specified in the config and saves
     them to the output directory with appropriate metadata.
 
     Example:
+    -------
         green-gov-rag-cli etl ingest --config configs/my_docs.yml
+
     """
     from green_gov_rag.etl import ingest, loader
 
@@ -69,14 +73,17 @@ def etl_ingest(
 
     ingest.download_documents(docs, output_dir)
     console.print(
-        f"[bold green]✓ Downloaded {len(docs)} documents to {output_dir}[/bold green]"
+        f"[bold green]✓ Downloaded {len(docs)} documents to {output_dir}[/bold green]",
     )
 
 
 @etl_app.command("parse")
 def etl_parse(
     input_dir: str = typer.Option(
-        "data/raw", "--input", "-i", help="Directory containing raw documents"
+        "data/raw",
+        "--input",
+        "-i",
+        help="Directory containing raw documents",
     ),
     output_dir: str = typer.Option(
         "data/processed",
@@ -90,7 +97,7 @@ def etl_parse(
         "-p",
         help="Parser type: auto, pdf, html (auto detects from extension)",
     ),
-):
+) -> None:
     """Parse PDFs and HTML files into plain text.
 
     Extracts text content from various document formats while preserving
@@ -98,7 +105,9 @@ def etl_parse(
     and HTML documents.
 
     Example:
+    -------
         green-gov-rag-cli etl parse --input data/raw --output data/processed
+
     """
     from green_gov_rag.etl.parsers import get_parser
 
@@ -121,7 +130,7 @@ def etl_parse(
                 console.print(f"  ✗ Failed to parse {doc_file.name}: {e}", style="red")
 
     console.print(
-        f"[bold green]✓ Parsed {parsed_count} documents to {output_dir}[/bold green]"
+        f"[bold green]✓ Parsed {parsed_count} documents to {output_dir}[/bold green]",
     )
 
 
@@ -134,22 +143,32 @@ def etl_chunk(
         help="Directory containing parsed text files",
     ),
     output_dir: str = typer.Option(
-        "data/chunks", "--output", "-o", help="Output directory for chunked documents"
+        "data/chunks",
+        "--output",
+        "-o",
+        help="Output directory for chunked documents",
     ),
     chunk_size: int = typer.Option(
-        1000, "--chunk-size", "-s", help="Size of text chunks in characters"
+        1000,
+        "--chunk-size",
+        "-s",
+        help="Size of text chunks in characters",
     ),
     chunk_overlap: int = typer.Option(
-        100, "--overlap", help="Overlap between chunks in characters"
+        100,
+        "--overlap",
+        help="Overlap between chunks in characters",
     ),
-):
+) -> None:
     """Chunk parsed documents into smaller text segments.
 
     Splits documents into manageable chunks for embedding and retrieval,
     preserving context through overlapping windows.
 
     Example:
+    -------
         green-gov-rag-cli etl chunk --chunk-size 1000 --overlap 100
+
     """
     from green_gov_rag.etl.chunker import TextChunker
 
@@ -176,7 +195,7 @@ def etl_chunk(
             console.print(f"  ✗ Failed to chunk {txt_file.name}: {e}", style="red")
 
     console.print(
-        f"[bold green]✓ Chunked {chunked_count} documents to {output_dir}[/bold green]"
+        f"[bold green]✓ Chunked {chunked_count} documents to {output_dir}[/bold green]",
     )
 
 
@@ -189,19 +208,27 @@ def etl_tag_metadata(
         help="Directory containing documents to tag",
     ),
     output_dir: str = typer.Option(
-        "data/tagged", "--output", "-o", help="Output directory for tagged documents"
+        "data/tagged",
+        "--output",
+        "-o",
+        help="Output directory for tagged documents",
     ),
     model: str = typer.Option(
-        "gpt-4", "--model", "-m", help="LLM model for metadata extraction"
+        "gpt-4",
+        "--model",
+        "-m",
+        help="LLM model for metadata extraction",
     ),
-):
+) -> None:
     """Auto-tag documents with ESG/NGER metadata using LLM.
 
     Automatically extracts and tags documents with relevant ESG metadata
     including emission scopes, frameworks, and regulatory information.
 
     Example:
+    -------
         green-gov-rag-cli etl tag-metadata --model gpt-4
+
     """
     from green_gov_rag.etl.metadata_tagger import MetadataTagger
 
@@ -238,7 +265,7 @@ def etl_tag_metadata(
             console.print(f"  ✗ Failed to tag {txt_file.name}: {e}", style="red")
 
     console.print(
-        f"[bold green]✓ Tagged {tagged_count} documents to {output_dir}[/bold green]"
+        f"[bold green]✓ Tagged {tagged_count} documents to {output_dir}[/bold green]",
     )
 
 
@@ -251,16 +278,20 @@ def etl_pipeline(
         help="Path to ETL pipeline configuration",
     ),
     enable_tagging: bool = typer.Option(
-        True, "--tag/--no-tag", help="Enable automated metadata tagging"
+        True,
+        "--tag/--no-tag",
+        help="Enable automated metadata tagging",
     ),
-):
+) -> None:
     """Run the complete ETL pipeline end-to-end.
 
     Executes all ETL stages: document loading, parsing, metadata tagging,
     chunking, and embedding generation.
 
     Example:
+    -------
         green-gov-rag-cli etl pipeline --config configs/etl_config.yml
+
     """
     from green_gov_rag.etl.pipeline import EnhancedETLPipeline
 
@@ -292,7 +323,10 @@ def etl_pipeline(
 @rag_app.command("build-index")
 def rag_build_index(
     chunks_dir: str = typer.Option(
-        "data/chunks", "--chunks", "-c", help="Directory containing chunked documents"
+        "data/chunks",
+        "--chunks",
+        "-c",
+        help="Directory containing chunked documents",
     ),
     index_path: str = typer.Option(
         "data/vector_store/faiss.index",
@@ -306,14 +340,16 @@ def rag_build_index(
         "-m",
         help="Embedding model to use",
     ),
-):
+) -> None:
     """Build vector search index from document chunks.
 
     Creates a vector store (FAISS) from chunked documents with embeddings
     for semantic similarity search.
 
     Example:
+    -------
         green-gov-rag-cli rag build-index --chunks data/chunks
+
     """
     from green_gov_rag.rag.embeddings import ChunkEmbedder
     from green_gov_rag.rag.vector_store import VectorStore
@@ -344,7 +380,7 @@ def rag_build_index(
     vector_store.persist(index_path)
 
     console.print(
-        f"[bold green]✓ Vector index built and saved to {index_path}[/bold green]"
+        f"[bold green]✓ Vector index built and saved to {index_path}[/bold green]",
     )
 
 
@@ -365,19 +401,27 @@ def rag_query(
         help="Filter by jurisdiction (federal/state/local)",
     ),
     region: Optional[str] = typer.Option(
-        None, "--region", "-r", help="Filter by region/state (e.g., SA, NSW)"
+        None,
+        "--region",
+        "-r",
+        help="Filter by region/state (e.g., SA, NSW)",
     ),
     topic: Optional[str] = typer.Option(
-        None, "--topic", "-t", help="Filter by topic (e.g., emissions_reporting)"
+        None,
+        "--topic",
+        "-t",
+        help="Filter by topic (e.g., emissions_reporting)",
     ),
-):
+) -> None:
     """Query the RAG system with semantic search.
 
     Performs hybrid search combining vector similarity with metadata filtering
     for precise, context-aware document retrieval.
 
     Example:
+    -------
         green-gov-rag-cli rag query "What are NGER reporting requirements?" --region SA
+
     """
     from green_gov_rag.rag.hybrid_search import HybridGeospatialSearch
     from green_gov_rag.rag.vector_store import VectorStore
@@ -433,14 +477,16 @@ def rag_geospatial_search(
         help="Path to vector store index",
     ),
     top_k: int = typer.Option(5, "--top-k", "-k", help="Number of results to return"),
-):
+) -> None:
     """Perform geospatial search with location-based filtering.
 
     Combines semantic search with automatic location extraction and
     hierarchical spatial filtering (federal → state → local).
 
     Example:
+    -------
         green-gov-rag-cli rag geospatial-search "tree preservation rules" --location Adelaide
+
     """
     from green_gov_rag.rag.hybrid_search import HybridGeospatialSearch, SpatialQuery
     from green_gov_rag.rag.location_ner import LocationNER
@@ -494,14 +540,16 @@ def rag_geospatial_search(
 
 
 @rag_app.command("list-locations")
-def rag_list_locations():
+def rag_list_locations() -> None:
     """List all known LGA (Local Government Area) locations.
 
     Displays the built-in database of Australian LGAs with their codes
     and state assignments.
 
     Example:
+    -------
         green-gov-rag-cli rag list-locations
+
     """
     from green_gov_rag.types import get_lga_mappings
 
@@ -533,7 +581,7 @@ def rag_list_locations():
 
 
 @app.command("version")
-def show_version():
+def show_version() -> None:
     """Display GreenGovRAG version information."""
     try:
         from green_gov_rag._version import version
@@ -544,11 +592,11 @@ def show_version():
 
 
 @app.command("info")
-def show_info():
+def show_info() -> None:
     """Display system information and available commands."""
     console.print(
         "[bold cyan]GreenGovRAG - AI Assistant for Australian Environmental & "
-        "Planning Regulations[/bold cyan]\n"
+        "Planning Regulations[/bold cyan]\n",
     )
 
     console.print("[bold]Available command groups:[/bold]")

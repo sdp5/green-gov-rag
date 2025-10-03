@@ -4,11 +4,22 @@ Supports AWS S3, Azure Blob Storage, and local filesystem storage.
 Provider is selected via centralized settings.
 """
 
+from __future__ import annotations
+
+import shutil
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import BinaryIO
+from typing import TYPE_CHECKING, Any, BinaryIO
 
 from green_gov_rag.config import settings
+
+if TYPE_CHECKING:
+    import boto3
+    from azure.storage.blob import BlobServiceClient
+else:
+    # Runtime: use Any for optional dependencies
+    boto3 = Any
+    BlobServiceClient = Any
 
 
 class StorageBackend(ABC):
@@ -19,9 +30,11 @@ class StorageBackend(ABC):
         """Upload a file to cloud storage.
 
         Args:
+        ----
             local_path: Path to local file
             container: Bucket/container name
             key: Object key/path in storage
+
         """
 
     @abstractmethod
@@ -29,9 +42,11 @@ class StorageBackend(ABC):
         """Download a file from cloud storage.
 
         Args:
+        ----
             container: Bucket/container name
             key: Object key/path in storage
             local_path: Path where to save the file
+
         """
 
     @abstractmethod
@@ -39,9 +54,11 @@ class StorageBackend(ABC):
         """Upload a file-like object to cloud storage.
 
         Args:
+        ----
             fileobj: File-like object to upload
             container: Bucket/container name
             key: Object key/path in storage
+
         """
 
     @abstractmethod
@@ -49,9 +66,11 @@ class StorageBackend(ABC):
         """Download a file to a file-like object.
 
         Args:
+        ----
             container: Bucket/container name
             key: Object key/path in storage
             fileobj: File-like object to write to
+
         """
 
     @abstractmethod
@@ -59,11 +78,14 @@ class StorageBackend(ABC):
         """List files in a container with optional prefix.
 
         Args:
+        ----
             container: Bucket/container name
             prefix: Optional prefix to filter files
 
         Returns:
+        -------
             List of file keys
+
         """
 
     @abstractmethod
@@ -71,8 +93,10 @@ class StorageBackend(ABC):
         """Delete a file from cloud storage.
 
         Args:
+        ----
             container: Bucket/container name
             key: Object key/path in storage
+
         """
 
     @abstractmethod
@@ -80,11 +104,14 @@ class StorageBackend(ABC):
         """Check if a file exists in cloud storage.
 
         Args:
+        ----
             container: Bucket/container name
             key: Object key/path in storage
 
         Returns:
+        -------
             True if file exists, False otherwise
+
         """
 
 
@@ -94,12 +121,12 @@ class AWSBackend(StorageBackend):
     def __init__(self) -> None:
         """Initialize AWS S3 client."""
         try:
-            import boto3
+            import boto3 as _boto3  # noqa: PLC0415
         except ImportError as e:
             msg = "boto3 is required for AWS backend. Install with: pip install boto3"
             raise ImportError(msg) from e
 
-        self.s3 = boto3.client("s3")
+        self.s3 = _boto3.client("s3")
 
     def upload_file(self, local_path: str | Path, container: str, key: str) -> None:
         """Upload a file to S3."""
@@ -141,7 +168,9 @@ class AzureBackend(StorageBackend):
     def __init__(self) -> None:
         """Initialize Azure Blob Storage client."""
         try:
-            from azure.storage.blob import BlobServiceClient
+            from azure.storage.blob import (
+                BlobServiceClient as _BlobServiceClient,  # noqa: PLC0415
+            )
         except ImportError as e:
             msg = "azure-storage-blob is required for Azure backend. Install with: pip install azure-storage-blob"
             raise ImportError(msg) from e
@@ -151,7 +180,7 @@ class AzureBackend(StorageBackend):
             msg = "AZURE_STORAGE_CONNECTION_STRING is required for Azure backend"
             raise ValueError(msg)
 
-        self.blob_service = BlobServiceClient.from_connection_string(conn_str)
+        self.blob_service = _BlobServiceClient.from_connection_string(conn_str)
 
     def upload_file(self, local_path: str | Path, container: str, key: str) -> None:
         """Upload a file to Azure Blob Storage."""
@@ -200,31 +229,26 @@ class LocalBackend(StorageBackend):
         """Initialize local storage backend.
 
         Args:
+        ----
             base_path: Base directory for storage. Defaults to ./data/storage
+
         """
         self.base_path = Path(base_path) if base_path else Path("./data/storage")
         self.base_path.mkdir(parents=True, exist_ok=True)
 
     def _get_full_path(self, container: str, key: str) -> Path:
         """Get full local path for a container and key."""
-        full_path = self.base_path / container / key
-        return full_path
+        return self.base_path / container / key
 
     def upload_file(self, local_path: str | Path, container: str, key: str) -> None:
         """Copy a file to local storage."""
         dest = self._get_full_path(container, key)
         dest.parent.mkdir(parents=True, exist_ok=True)
-
-        import shutil
-
         shutil.copy2(local_path, dest)
 
     def download_file(self, container: str, key: str, local_path: str | Path) -> None:
         """Copy a file from local storage."""
         src = self._get_full_path(container, key)
-
-        import shutil
-
         shutil.copy2(src, local_path)
 
     def upload_fileobj(self, fileobj: BinaryIO, container: str, key: str) -> None:
@@ -285,8 +309,10 @@ class StorageClient:
         """Initialize storage client.
 
         Args:
+        ----
             provider: Cloud provider ('aws', 'azure', 'local').
                      If None, uses centralized settings (defaults to 'local')
+
         """
         self.provider = provider or settings.cloud_provider
 
@@ -305,9 +331,11 @@ class StorageClient:
         """Upload a file to cloud storage.
 
         Args:
+        ----
             local_path: Path to local file
             container: Bucket/container name
             key: Object key/path in storage
+
         """
         self.backend.upload_file(local_path, container, key)
 
@@ -315,9 +343,11 @@ class StorageClient:
         """Download a file from cloud storage.
 
         Args:
+        ----
             container: Bucket/container name
             key: Object key/path in storage
             local_path: Path where to save the file
+
         """
         self.backend.download_file(container, key, local_path)
 
@@ -325,9 +355,11 @@ class StorageClient:
         """Upload a file-like object to cloud storage.
 
         Args:
+        ----
             fileobj: File-like object to upload
             container: Bucket/container name
             key: Object key/path in storage
+
         """
         self.backend.upload_fileobj(fileobj, container, key)
 
@@ -335,9 +367,11 @@ class StorageClient:
         """Download a file to a file-like object.
 
         Args:
+        ----
             container: Bucket/container name
             key: Object key/path in storage
             fileobj: File-like object to write to
+
         """
         self.backend.download_fileobj(container, key, fileobj)
 
@@ -345,11 +379,14 @@ class StorageClient:
         """List files in a container with optional prefix.
 
         Args:
+        ----
             container: Bucket/container name
             prefix: Optional prefix to filter files
 
         Returns:
+        -------
             List of file keys
+
         """
         return self.backend.list_files(container, prefix)
 
@@ -357,8 +394,10 @@ class StorageClient:
         """Delete a file from cloud storage.
 
         Args:
+        ----
             container: Bucket/container name
             key: Object key/path in storage
+
         """
         self.backend.delete_file(container, key)
 
@@ -366,10 +405,13 @@ class StorageClient:
         """Check if a file exists in cloud storage.
 
         Args:
+        ----
             container: Bucket/container name
             key: Object key/path in storage
 
         Returns:
+        -------
             True if file exists, False otherwise
+
         """
         return self.backend.file_exists(container, key)

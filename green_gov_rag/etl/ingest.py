@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Document ingestion script for GreenGovRAG.
+
 Reads configs/documents_config.yml and downloads files into data/raw/,
 storing metadata alongside each file.
 """
+
+from __future__ import annotations
 
 import hashlib
 import json
@@ -47,7 +50,7 @@ def sha256sum(file_path):
     return h.hexdigest()
 
 
-def download_file(url, dest_path, retries=3, backoff=2):
+def download_file(url, dest_path, retries=3, backoff=2) -> bool:
     """Download file with retry logic."""
     attempt = 0
     while attempt < retries:
@@ -71,7 +74,7 @@ def safe_filename(url):
     return filename or "downloaded_file"
 
 
-def process_document(doc):
+def process_document(doc) -> None:
     """Download and save a single document with metadata."""
     title = doc.get("title", "untitled")
     jurisdiction = doc.get("jurisdiction", "unknown").replace(" ", "_")
@@ -115,7 +118,9 @@ def process_document(doc):
                 metadata["spatial_metadata"] = spatial_metadata
 
             with open(
-                dest_dir / f"{filename}.metadata.json", "w", encoding="utf-8"
+                dest_dir / f"{filename}.metadata.json",
+                "w",
+                encoding="utf-8",
             ) as mf:
                 json.dump(metadata, mf, indent=2)
             print(f"✅ Downloaded: {url}")
@@ -152,7 +157,7 @@ def download_documents(docs: list[dict], output_dir: str) -> list[str]:
     return downloaded_files
 
 
-def main():
+def main() -> None:
     config = load_config()
     documents = config.get("documents", [])
     print(f"Found {len(documents)} documents in config.")

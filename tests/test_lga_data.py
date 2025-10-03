@@ -1,3 +1,5 @@
+"""Tests for LGA data."""
+
 from unittest.mock import patch
 
 import pytest

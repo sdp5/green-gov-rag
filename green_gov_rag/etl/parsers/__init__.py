@@ -13,8 +13,7 @@ SUPPORTED_PARSERS = {
 
 
 def get_parser(file_path: str):
-    """
-    Dispatcher function to get the right parser function
+    """Dispatcher function to get the right parser function
     based on file extension.
 
     Args:
@@ -34,8 +33,7 @@ def get_parser(file_path: str):
 
 
 def parse_file(file_path: str) -> str:
-    """
-    Directly parse a file using the dispatcher.
+    """Directly parse a file using the dispatcher.
 
     Args:
         file_path (str): Path to the file.

@@ -1,6 +1,5 @@
 # etl/parsers/pdf_parser.py
 from pathlib import Path
-from typing import List
 
 import fitz  # PyMuPDF
 from etl.utils import clean_text
@@ -20,9 +19,8 @@ class PDFParser:
                 text.append(page.get_text())
         return "\n".join(text)
 
-    def parse(self) -> List[str]:
-        """
-        Parse the PDF and return a list of cleaned text chunks.
+    def parse(self) -> list[str]:
+        """Parse the PDF and return a list of cleaned text chunks.
         You could later add chunking logic here (e.g., 500 tokens).
         """
         raw_text = self.extract_text()

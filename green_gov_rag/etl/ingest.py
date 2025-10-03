@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Document ingestion script for GreenGovRAG.
+"""Document ingestion script for GreenGovRAG.
 Reads configs/documents_config.yml and downloads files into data/raw/,
 storing metadata alongside each file.
 """
@@ -14,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
-import requests
+import requests  # type: ignore[import-untyped]
 import yaml
 
 # Paths
@@ -35,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 def load_config():
     """Load YAML configuration for documents."""
-    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+    with open(CONFIG_PATH, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 

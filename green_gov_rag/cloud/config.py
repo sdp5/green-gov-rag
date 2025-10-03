@@ -5,7 +5,6 @@ Provides environment-driven configuration for cloud resources.
 
 import os
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -13,9 +12,9 @@ class CloudConfig:
     """Cloud provider configuration."""
 
     provider: str
-    region: Optional[str] = None
-    storage_container: Optional[str] = None
-    storage_connection_string: Optional[str] = None
+    region: str | None = None
+    storage_container: str | None = None
+    storage_connection_string: str | None = None
 
     @classmethod
     def from_env(cls) -> "CloudConfig":
@@ -49,7 +48,7 @@ class CloudConfig:
         Raises:
             ValueError: If required configuration is missing
         """
-        if self.provider not in ("aws", "azure", "local"):
+        if self.provider not in {"aws", "azure", "local"}:
             msg = f"Invalid CLOUD_PROVIDER: {self.provider}. Must be 'aws', 'azure', or 'local'"
             raise ValueError(msg)
 
@@ -58,11 +57,11 @@ class CloudConfig:
             raise ValueError(msg)
 
 
-def get_storage_client():
+def get_storage_client():  # noqa: D103
     """Get a configured storage client based on environment.
 
     Returns:
-        StorageClient instance configured for the current environment
+        StorageClient instance configured for the current environment.
     """
     from green_gov_rag.cloud.storage import StorageClient
 

@@ -1,9 +1,11 @@
+"""Streamlit UI module."""
+
 from pathlib import Path
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-from app.config import APP_DESCRIPTION, APP_TITLE, DEFAULT_REGION_FILTER, TOPIC_OPTIONS
+from app.config import APP_DESCRIPTION, APP_TITLE, TOPIC_OPTIONS
 from app.map import create_map
 
 # Import RAG agent
@@ -29,7 +31,7 @@ def render_ui():
         st.subheader("Ask a Policy Question")
         query_text = st.text_area("Type your question here", height=150)
         region_filter = st.selectbox("Select region", ["All", "Federal", "State", "Local"])
-        topic_filter = st.multiselect("Select topics", TOPIC_OPTIONS, default=TOPIC_OPTIONS)
+        topic_filter: list = st.multiselect("Select topics", TOPIC_OPTIONS, default=TOPIC_OPTIONS)
 
         if st.button("Get Answer"):
             if st.button("Get Answer"):
@@ -38,11 +40,11 @@ def render_ui():
                 else:
                     st.info("Querying RAG engine...")
                     # Construct metadata_filters for RAGAgent
-                    metadata_filters = {}
+                    metadata_filters: dict = {}
                     if region_filter != "All":
-                        metadata_filters["region"] = region_filter
+                        metadata_filters["region"] = str(region_filter)
                     if topic_filter:
-                        metadata_filters["topic"] = topic_filter
+                        metadata_filters["topic"] = topic_filter  # list of topics
 
                     # Get answer
                     answer, sources = st.session_state.rag_agent.query(

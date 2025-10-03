@@ -4,22 +4,20 @@ import yaml
 
 
 def load_documents_config(config_path: str = "configs/documents_config.yml"):
-    """
-    Load document metadata from YAML config.
+    """Load document metadata from YAML config.
     """
     config_file = Path(config_path)
     if not config_file.exists():
         raise FileNotFoundError(f"Config file {config_path} not found.")
 
-    with open(config_file, "r", encoding="utf-8") as f:
+    with open(config_file, encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
     return config.get("documents", [])
 
 
 def get_document_sources():
-    """
-    Returns a list of all source URLs for ingestion.
+    """Returns a list of all source URLs for ingestion.
     """
     documents = load_documents_config()
     sources = []

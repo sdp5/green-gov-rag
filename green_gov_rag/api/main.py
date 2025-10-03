@@ -1,3 +1,5 @@
+"""FastAPI application main module."""
+
 # API endpoints
 
 from api.routes import router as api_router

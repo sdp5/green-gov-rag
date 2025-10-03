@@ -1,6 +1,7 @@
+"""Tests for complete pipeline."""
+
 from unittest.mock import patch
 
-import pytest
 from etl import chunker, utils
 from rag import embeddings, rag_chain, vector_store
 
@@ -48,7 +49,7 @@ def test_multiple_documents_pipeline():
     text_chunker = chunker.TextChunker(chunk_size=50, chunk_overlap=10)
 
     for doc in DOCS:
-        if doc["title"].endswith("HTML"):
+        if str(doc["title"]).endswith("HTML"):
             content = fake_html_parse(doc["text"])
         else:
             content = utils.clean_text(doc["text"])

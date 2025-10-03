@@ -1,7 +1,6 @@
 """Tests for cloud storage abstraction layer."""
 
 import os
-import tempfile
 from io import BytesIO
 from pathlib import Path
 
@@ -13,12 +12,12 @@ from green_gov_rag.cloud.storage import LocalBackend, StorageClient
 class TestLocalBackend:
     """Test local storage backend."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def temp_storage_path(self, tmp_path: Path) -> Path:
         """Create temporary storage path."""
         return tmp_path / "storage"
 
-    @pytest.fixture
+    @pytest.fixture()
     def backend(self, temp_storage_path: Path) -> LocalBackend:
         """Create local backend instance."""
         return LocalBackend(base_path=temp_storage_path)
@@ -112,7 +111,7 @@ class TestLocalBackend:
 class TestStorageClient:
     """Test StorageClient with different providers."""
 
-    @pytest.fixture
+    @pytest.fixture()
     def temp_storage_path(self, tmp_path: Path) -> Path:
         """Create temporary storage path."""
         storage_path = tmp_path / "storage"

@@ -2,8 +2,7 @@ from bs4 import BeautifulSoup
 
 
 def parse_html(file_path: str) -> str:
-    """
-    Parse and extract clean text content from an HTML file.
+    """Parse and extract clean text content from an HTML file.
 
     Args:
         file_path (str): Path to the HTML file.
@@ -12,7 +11,7 @@ def parse_html(file_path: str) -> str:
         str: Extracted and cleaned text from the HTML.
     """
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         soup = BeautifulSoup(content, "html.parser")

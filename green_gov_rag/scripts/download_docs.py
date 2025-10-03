@@ -1,6 +1,6 @@
 import os
 
-import requests
+import requests  # type: ignore[import-untyped]
 from configs.documents_config import DOCUMENT_SOURCES
 
 RAW_DIR = "data/raw"

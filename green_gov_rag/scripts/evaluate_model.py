@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Evaluate GreenGovRAG model with sample queries
+"""Evaluate GreenGovRAG model with sample queries
 
 python scripts/evaluate_model.py
 """

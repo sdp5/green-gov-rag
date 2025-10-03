@@ -1,7 +1,6 @@
 # rag/embeddings.py
 
-"""
-Embeddings module
+"""Embeddings module
 -----------------
 Generate vector embeddings for document chunks using either
 AWS Bedrock LLM or HuggingFace embedding models.
@@ -15,7 +14,6 @@ AWS Bedrock LLM or HuggingFace embedding models.
 """
 
 import os
-from typing import Dict, List
 
 # Optional: Hugging Face
 # Optional: OpenAI-style API (for Bedrock, OpenAI API compatible)
@@ -24,8 +22,7 @@ from langchain.embeddings import HuggingFaceEmbeddings, OpenAIEmbeddings
 
 class ChunkEmbedder:
     def __init__(self, provider: str = "bedrock", model_name: str = None):
-        """
-        Initialize embedding generator.
+        """Initialize embedding generator.
 
         :param provider: "bedrock" or "huggingface"
         :param model_name: Name of the model to use.
@@ -35,14 +32,14 @@ class ChunkEmbedder:
             self.model_name = model_name or "sentence-transformers/all-MiniLM-L6-v2"
             self.embedder = HuggingFaceEmbeddings(model_name=self.model_name)
         elif self.provider == "bedrock":
-            self.model_name = model_name or os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-v2")
+            bedrock_model = model_name or os.getenv("BEDROCK_MODEL_ID")
+            self.model_name = bedrock_model if bedrock_model else "anthropic.claude-v2"
             self.embedder = OpenAIEmbeddings(model=self.model_name)
         else:
             raise ValueError("provider must be 'bedrock' or 'huggingface'")
 
-    def embed_chunks(self, chunks: List[Dict]) -> List[Dict]:
-        """
-        Generate embeddings for a list of chunk dictionaries.
+    def embed_chunks(self, chunks: list[dict]) -> list[dict]:
+        """Generate embeddings for a list of chunk dictionaries.
 
         :param chunks: List of dicts with at least {"content": str, "metadata": dict}
         :return: List of dicts with {"content", "metadata", "embedding"}

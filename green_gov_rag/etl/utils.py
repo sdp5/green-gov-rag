@@ -4,7 +4,6 @@
 
 import re
 import unicodedata
-from typing import List
 
 
 def normalize_unicode(text: str) -> str:
@@ -28,8 +27,7 @@ def collapse_whitespace(text: str) -> str:
 
 
 def clean_text(text: str) -> str:
-    """
-    Apply all cleaning steps to a single text string.
+    """Apply all cleaning steps to a single text string.
     Order matters: normalize → remove urls → clean chars → collapse spaces
     """
     text = normalize_unicode(text)
@@ -39,6 +37,6 @@ def clean_text(text: str) -> str:
     return text
 
 
-def batch_clean(texts: List[str]) -> List[str]:
+def batch_clean(texts: list[str]) -> list[str]:
     """Clean a list of text strings."""
     return [clean_text(t) for t in texts]

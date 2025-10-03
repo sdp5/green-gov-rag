@@ -1,5 +1,6 @@
+"""API routes for GreenGovRAG."""
+
 # Route handlers
-from typing import List, Optional
 
 from fastapi import APIRouter, Query
 from rag.agent_tools import RAGAgent
@@ -16,13 +17,12 @@ def health_check():
 @router.get("/query")
 async def query_rag(
     q: str = Query(..., description="Query string"),
-    jurisdiction: Optional[str] = Query(None, description="Filter by jurisdiction"),
-    category: Optional[str] = Query(None, description="Filter by document category"),
-    topic: Optional[str] = Query(None, description="Filter by topic"),
-    region: Optional[str] = Query(None, description="Filter by region"),
+    jurisdiction: str | None = Query(None, description="Filter by jurisdiction"),
+    category: str | None = Query(None, description="Filter by document category"),
+    topic: str | None = Query(None, description="Filter by topic"),
+    region: str | None = Query(None, description="Filter by region"),
 ):
-    """
-    Query RAG with optional metadata filters.
+    """Query RAG with optional metadata filters.
     Returns an answer + source documents.
     """
     metadata_filters = {}
@@ -41,8 +41,7 @@ async def query_rag(
 
 @router.get("/documents")
 async def list_documents():
-    """
-    List all ingested documents and their metadata.
+    """List all ingested documents and their metadata.
     """
     docs = agent.list_documents()
     return {"documents": docs}

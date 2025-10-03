@@ -1,6 +1,7 @@
+"""Tests for ETL pipeline."""
+
 from pathlib import Path
 
-import pytest
 from etl import chunker, ingest, loader, utils, validators
 
 RAW_DIR = Path("data/raw")

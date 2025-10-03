@@ -1,3 +1,5 @@
+"""Tests for RAG components."""
+
 import pytest
 from rag import embeddings, rag_chain, vector_store
 
@@ -7,7 +9,7 @@ SAMPLE_CHUNKS = [
 ]
 
 
-@pytest.fixture
+@pytest.fixture()
 def embedded_chunks():
     # Embed with dummy embeddings (mocked)
     return embeddings.embed_chunks(SAMPLE_CHUNKS, model_name="mock")

@@ -7,7 +7,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 
 # Import your project modules
-from etl import chunker, ingest, loader, utils
+from etl import chunker, ingest, loader
 from rag import embeddings, rag_chain, vector_store
 
 # --- DAG Default Arguments ---
@@ -56,16 +56,19 @@ def task_chunk_docs():
         text = txt_file.read_text()
         chunks = chunker.chunk_text(text)
         out_file = CHUNK_DIR / (txt_file.stem + "_chunks.json")
-        json.dump(chunks, out_file)
+        with open(out_file, "w") as f:
+            json.dump(chunks, f)
 
 
 def task_embed_docs():
     EMBED_DIR.mkdir(parents=True, exist_ok=True)
     for chunk_file in CHUNK_DIR.glob("*_chunks.json"):
-        chunks = json.load(open(chunk_file))
+        with open(chunk_file) as f:
+            chunks = json.load(f)
         embedded = embeddings.embed_chunks(chunks, model_name=MODEL_NAME)
         out_file = EMBED_DIR / (chunk_file.stem + "_embeddings.json")
-        json.dump(embedded, out_file)
+        with open(out_file, "w") as f:
+            json.dump(embedded, f)
 
 
 def task_build_vector_store():

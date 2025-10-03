@@ -1,30 +1,26 @@
 # rag/agent_tools.py
 
-"""
-Agent Tools for GreenGovRAG
+"""Agent Tools for GreenGovRAG
 ----------------------------
 Provides wrapper functions to call the RAG chain from LangChain Agents,
 supporting optional metadata filters and structured responses.
 """
 
-from typing import Dict, Optional
 
 from .rag_chain import RAGChain
 
 
 class RAGAgentTools:
     def __init__(self, rag_chain: RAGChain):
-        """
-        Initialize the Agent tools with a RAG chain.
+        """Initialize the Agent tools with a RAG chain.
         :param rag_chain: RAGChain instance
         """
         self.rag_chain = rag_chain
 
     def answer_question(
-        self, question: str, metadata_filters: Optional[Dict] = None, top_k: int = 4
+        self, question: str, metadata_filters: dict | None = None, top_k: int = 4
     ):
-        """
-        Query the RAG chain with optional metadata filtering.
+        """Query the RAG chain with optional metadata filtering.
         :param question: User query string
         :param metadata_filters: Optional dictionary of metadata filters (e.g., region, topic)
         :param top_k: Number of top documents to retrieve
@@ -48,9 +44,8 @@ class RAGAgentTools:
 
         return {"answer": response.get("result", ""), "sources": sources}
 
-    def agent_tool_wrapper(self, question: str, context: Optional[Dict] = None):
-        """
-        Optional wrapper to integrate with LangChain Agents.
+    def agent_tool_wrapper(self, question: str, context: dict | None = None):
+        """Optional wrapper to integrate with LangChain Agents.
         Allows passing context as metadata filters.
         :param question: User query string
         :param context: Optional context dict to apply as metadata filters
@@ -71,8 +66,7 @@ class RAGAgent:
         self.rag_chain = RAGChain(self.vector_store, self.embedder)
 
     def query(self, text: str, metadata_filters: dict = None):
-        """
-        :param text: User query
+        """:param text: User query
         :param metadata_filters: dict of metadata to filter retrieved documents (e.g., region, topic)
         :return: (answer_text, list_of_source_metadata)
         """
@@ -84,8 +78,7 @@ class RAGAgent:
         return answer, sources
 
     def list_documents(self):
-        """
-        Return all document metadata stored in the vector store.
+        """Return all document metadata stored in the vector store.
         """
         return self.vector_store.list_metadata()
 
@@ -95,7 +88,7 @@ class RAGAgent:
 # ------------------------------
 if __name__ == "__main__":
     from rag.embeddings import ChunkEmbedder
-    from rag.rag_chain import RAGChain
+    from rag.rag_chain import RAGChain as RAGChainClass
     from rag.vector_store import VectorStore
 
     # Initialize the vector store (load prebuilt FAISS or Qdrant store)
@@ -109,7 +102,7 @@ if __name__ == "__main__":
     vector_store = vector_store.load(path="data/processed/faiss_index")
 
     # Initialize RAG Chain
-    rag_chain = RAGChain(vector_store)
+    rag_chain = RAGChainClass(vector_store)
 
     # Initialize Agent Tools
     agent_tools = RAGAgentTools(rag_chain)

@@ -1,8 +1,7 @@
 # rag/vector_store.py
 
-"""
-Vector Store for GreenGovRAG
------------------------------
+"""Vector Store for GreenGovRAG.
+
 Handles storing, retrieving, and filtering document embeddings for RAG.
 
 1. FAISS backend for fast similarity search.
@@ -13,16 +12,6 @@ Handles storing, retrieving, and filtering document embeddings for RAG.
 6. Easy to integrate into your RAG chain.
 """
 
-# rag/vector_store.py
-
-"""
-Vector Store Wrapper for GreenGovRAG
-------------------------------------
-
-"""
-
-from typing import Dict, List, Optional
-
 from langchain.docstore.document import Document
 from langchain.embeddings.base import Embeddings
 from langchain.vectorstores import FAISS
@@ -31,9 +20,8 @@ from .filters import filter_by_metadata
 
 
 class VectorStore:
-    def __init__(self, embeddings: Embeddings, index_path: Optional[str] = None):
-        """
-        Initialize the vector store. If index_path exists, load the FAISS index.
+    def __init__(self, embeddings: Embeddings, index_path: str | None = None):
+        """Initialize the vector store. If index_path exists, load the FAISS index.
         :param embeddings: LangChain Embeddings instance (OpenAI/HuggingFace/Bedrock)
         :param index_path: Optional path to persisted FAISS index
         """
@@ -44,18 +32,16 @@ class VectorStore:
             self.store = FAISS(embedding_function=embeddings)
         self.index_path = index_path
 
-    def add_documents(self, docs: List[Document]):
-        """
-        Add documents to the vector store.
+    def add_documents(self, docs: list[Document]):
+        """Add documents to the vector store.
         :param docs: List of LangChain Document objects
         """
         self.store.add_documents(docs)
         if self.index_path:
             self.store.save_local(self.index_path)
 
-    def build_store(self, chunks: List[Dict]):
-        """
-        Build vector store from list of chunks.
+    def build_store(self, chunks: list[dict]):
+        """Build vector store from list of chunks.
         Each chunk should be:
         {"content": str, "metadata": dict}
         """
@@ -65,9 +51,8 @@ class VectorStore:
         ]
         self.store = FAISS.from_documents(documents, self.embeddings)
 
-    def add_chunks(self, chunks: List[Dict]):
-        """
-        Add more chunks to existing store.
+    def add_chunks(self, chunks: list[dict]):
+        """Add more chunks to existing store.
         """
         if self.store is None:
             self.build_store(chunks)
@@ -80,18 +65,16 @@ class VectorStore:
         self.store.add_documents(documents)
 
     def list_metadata(self):
-        """
-        Return a list of metadata dictionaries for all stored embeddings.
+        """Return a list of metadata dictionaries for all stored embeddings.
         """
         return [
             doc["metadata"] for doc in self.store
         ]  # assuming `self.store` holds {'embedding': ..., 'metadata': ...}
 
     def similarity_search(
-        self, query: str, k: int = 4, metadata_filters: Optional[Dict] = None
-    ) -> List[Document]:
-        """
-        Perform similarity search with optional metadata filtering.
+        self, query: str, k: int = 4, metadata_filters: dict | None = None
+    ) -> list[Document]:
+        """Perform similarity search with optional metadata filtering.
         :param query: Query string
         :param k: Number of top documents to return
         :param metadata_filters: Dictionary of metadata to filter on
@@ -119,9 +102,8 @@ class VectorStore:
 
         return results
 
-    def persist(self, path: Optional[str] = None):
-        """
-        Persist FAISS index locally
+    def persist(self, path: str | None = None):
+        """Persist FAISS index locally
         """
         save_path = path or self.index_path
         if save_path:

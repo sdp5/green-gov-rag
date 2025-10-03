@@ -1,7 +1,8 @@
+"""Map functionality for UI."""
+
 import json
 
 import folium
-import geopandas as gpd
 import streamlit as st
 from app.config import (
     LGA_DEFAULT_COLOR,
@@ -13,18 +14,16 @@ from app.config import (
     MAP_TILE,
     MAP_ZOOM_START,
 )
-from streamlit_folium import st_folium
 
 
 @st.cache_data
 def load_geojson(path=LGA_GEOJSON_PATH):
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
 def create_map(selected_lgas=None):
-    """
-    Create a Folium map of Australia with LGA boundaries.
+    """Create a Folium map of Australia with LGA boundaries.
     :param selected_lgas: list of selected LGA names
     """
     selected_lgas = selected_lgas or []
@@ -42,13 +41,12 @@ def create_map(selected_lgas=None):
                 "weight": 2,
                 "fillOpacity": LGA_SELECTED_OPACITY,
             }
-        else:
-            return {
-                "fillColor": LGA_DEFAULT_COLOR,
-                "color": LGA_DEFAULT_COLOR,
-                "weight": 1,
-                "fillOpacity": LGA_DEFAULT_OPACITY,
-            }
+        return {
+            "fillColor": LGA_DEFAULT_COLOR,
+            "color": LGA_DEFAULT_COLOR,
+            "weight": 1,
+            "fillOpacity": LGA_DEFAULT_OPACITY,
+        }
 
     folium.GeoJson(
         geojson_data,

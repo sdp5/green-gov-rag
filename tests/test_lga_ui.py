@@ -1,3 +1,5 @@
+"""Tests for LGA UI."""
+
 from unittest.mock import patch
 
 import pytest
@@ -66,8 +68,7 @@ def point_in_lga(lat, lon, polygon_geojson):
 # Mock Streamlit UI selections
 # -----------------------------
 def simulate_user_selection(selected_lgas, selected_topic):
-    """
-    Return metadata filter function for RAG chain based on map selection.
+    """Return metadata filter function for RAG chain based on map selection.
     """
 
     def metadata_filter(metadata):

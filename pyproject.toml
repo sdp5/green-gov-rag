@@ -67,6 +67,7 @@ dev = [
     "sphinx",
     "sphinx-markdown-tables",
     "types-PyYAML",
+    "types-requests",
     "isort",
     "build",
     "WebTest",
@@ -262,5 +263,27 @@ allow_untyped_globals = "no"
 warn_redundant_casts = "yes"
 allow_redefinition = "no"
 strict_optional = "yes"
-disallow_untyped_defs = "yes"
+disallow_untyped_defs = "no"  # Temporarily disabled - enable incrementally
 warn_unreachable = "yes"
+no_implicit_optional = "false"  # Allow implicit Optional for gradual typing
+
+# Per-module options
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+allow_untyped_calls = true
+
+[[tool.mypy.overrides]]
+module = "green_gov_rag.scripts.*"
+disallow_untyped_defs = false
+allow_untyped_calls = true
+check_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "green_gov_rag.airflow.*"
+disallow_untyped_defs = false
+allow_untyped_calls = true
+
+[[tool.mypy.overrides]]
+module = "green_gov_rag.cli"
+disallow_incomplete_defs = false

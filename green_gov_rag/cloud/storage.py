@@ -7,14 +7,14 @@ Provider is selected via CLOUD_PROVIDER environment variable.
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import BinaryIO, Optional, Union
+from typing import BinaryIO
 
 
 class StorageBackend(ABC):
     """Abstract base class for cloud storage backends."""
 
     @abstractmethod
-    def upload_file(self, local_path: Union[str, Path], container: str, key: str) -> None:
+    def upload_file(self, local_path: str | Path, container: str, key: str) -> None:
         """Upload a file to cloud storage.
 
         Args:
@@ -24,7 +24,7 @@ class StorageBackend(ABC):
         """
 
     @abstractmethod
-    def download_file(self, container: str, key: str, local_path: Union[str, Path]) -> None:
+    def download_file(self, container: str, key: str, local_path: str | Path) -> None:
         """Download a file from cloud storage.
 
         Args:
@@ -100,11 +100,11 @@ class AWSBackend(StorageBackend):
 
         self.s3 = boto3.client("s3")
 
-    def upload_file(self, local_path: Union[str, Path], container: str, key: str) -> None:
+    def upload_file(self, local_path: str | Path, container: str, key: str) -> None:
         """Upload a file to S3."""
         self.s3.upload_file(str(local_path), container, key)
 
-    def download_file(self, container: str, key: str, local_path: Union[str, Path]) -> None:
+    def download_file(self, container: str, key: str, local_path: str | Path) -> None:
         """Download a file from S3."""
         self.s3.download_file(container, key, str(local_path))
 
@@ -152,13 +152,13 @@ class AzureBackend(StorageBackend):
 
         self.blob_service = BlobServiceClient.from_connection_string(conn_str)
 
-    def upload_file(self, local_path: Union[str, Path], container: str, key: str) -> None:
+    def upload_file(self, local_path: str | Path, container: str, key: str) -> None:
         """Upload a file to Azure Blob Storage."""
         blob_client = self.blob_service.get_blob_client(container, key)
         with open(local_path, "rb") as data:
             blob_client.upload_blob(data, overwrite=True)
 
-    def download_file(self, container: str, key: str, local_path: Union[str, Path]) -> None:
+    def download_file(self, container: str, key: str, local_path: str | Path) -> None:
         """Download a file from Azure Blob Storage."""
         blob_client = self.blob_service.get_blob_client(container, key)
         with open(local_path, "wb") as download_file:
@@ -193,7 +193,7 @@ class AzureBackend(StorageBackend):
 class LocalBackend(StorageBackend):
     """Local filesystem storage backend for development and testing."""
 
-    def __init__(self, base_path: Optional[Union[str, Path]] = None) -> None:
+    def __init__(self, base_path: str | Path | None = None) -> None:
         """Initialize local storage backend.
 
         Args:
@@ -207,7 +207,7 @@ class LocalBackend(StorageBackend):
         full_path = self.base_path / container / key
         return full_path
 
-    def upload_file(self, local_path: Union[str, Path], container: str, key: str) -> None:
+    def upload_file(self, local_path: str | Path, container: str, key: str) -> None:
         """Copy a file to local storage."""
         dest = self._get_full_path(container, key)
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -216,7 +216,7 @@ class LocalBackend(StorageBackend):
 
         shutil.copy2(local_path, dest)
 
-    def download_file(self, container: str, key: str, local_path: Union[str, Path]) -> None:
+    def download_file(self, container: str, key: str, local_path: str | Path) -> None:
         """Copy a file from local storage."""
         src = self._get_full_path(container, key)
 
@@ -278,7 +278,7 @@ class StorageClient:
     - local: Local filesystem (default for development)
     """
 
-    def __init__(self, provider: Optional[str] = None) -> None:
+    def __init__(self, provider: str | None = None) -> None:
         """Initialize storage client.
 
         Args:
@@ -298,7 +298,7 @@ class StorageClient:
             msg = f"Unsupported cloud provider: {self.provider}. Use 'aws', 'azure', or 'local'"
             raise ValueError(msg)
 
-    def upload_file(self, local_path: Union[str, Path], container: str, key: str) -> None:
+    def upload_file(self, local_path: str | Path, container: str, key: str) -> None:
         """Upload a file to cloud storage.
 
         Args:
@@ -308,7 +308,7 @@ class StorageClient:
         """
         self.backend.upload_file(local_path, container, key)
 
-    def download_file(self, container: str, key: str, local_path: Union[str, Path]) -> None:
+    def download_file(self, container: str, key: str, local_path: str | Path) -> None:
         """Download a file from cloud storage.
 
         Args:

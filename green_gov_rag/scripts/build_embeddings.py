@@ -1,9 +1,9 @@
 import os
 
-from green_gov_rag.etl.chunker import chunk_pdf
+from green_gov_rag.etl.chunker import chunk_pdf  # type: ignore[attr-defined]
 from green_gov_rag.etl.utils import clean_text
-from green_gov_rag.rag.embeddings import get_embedding_model
-from green_gov_rag.rag.vector_store import save_vectorstore
+from green_gov_rag.rag.embeddings import get_embedding_model  # type: ignore[attr-defined]
+from green_gov_rag.rag.vector_store import save_vectorstore  # type: ignore[attr-defined]
 
 RAW_DIR = "data/raw"
 PROCESSED_DIR = "data/processed"

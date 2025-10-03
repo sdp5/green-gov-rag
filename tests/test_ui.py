@@ -1,3 +1,5 @@
+"""Tests for UI components."""
+
 from unittest.mock import MagicMock, patch
 
 import folium
@@ -24,7 +26,7 @@ def test_create_map_default():
     assert isinstance(m, folium.Map)
     # Center coordinates should match config
     assert m.location == config.MAP_CENTER
-    assert m.zoom_start == config.MAP_ZOOM_START
+    assert m.zoom_start == config.MAP_ZOOM_START  # type: ignore[attr-defined]
 
 
 def test_add_geojson_layer(tmp_path):

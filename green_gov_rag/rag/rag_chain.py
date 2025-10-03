@@ -1,7 +1,6 @@
 # rag/rag_chain.py
 
-"""
-RAG Chain for GreenGovRAG
+"""RAG Chain for GreenGovRAG
 -------------------------
 Retrieval-Augmented Generation pipeline using FAISS + LLM (OpenAI / Bedrock)
 Supports optional metadata filtering during retrieval.
@@ -15,9 +14,7 @@ Supports optional metadata filtering during retrieval.
 
 # Optional: LLM client wrappers
 import os
-from typing import Dict, List, Optional
 
-import numpy as np
 import openai
 
 # Optional: HuggingFace / OpenAI embeddings
@@ -29,13 +26,12 @@ class RAGChain:
     def __init__(
         self,
         vector_store: VectorStore,
-        embedder: Optional[ChunkEmbedder] = None,
+        embedder: ChunkEmbedder | None = None,
         llm_provider: str = "openai",
         llm_model: str = "gpt-4",
         top_k: int = 5,
     ):
-        """
-        Initialize RAG Chain.
+        """Initialize RAG Chain.
 
         :param vector_store: VectorStore instance
         :param embedder: ChunkEmbedder instance
@@ -52,17 +48,15 @@ class RAGChain:
         if llm_provider == "openai":
             openai.api_key = os.environ.get("OPENAI_API_KEY")
 
-    def retrieve(self, query: str) -> List[Dict]:
-        """
-        Retrieve top_k relevant chunks for the query.
+    def retrieve(self, query: str) -> list[dict]:
+        """Retrieve top_k relevant chunks for the query.
         """
         query_embedding = self.embedder.embed_query(query)
         results = self.vector_store.store.search(query_embedding, top_k=self.top_k)
         return results
 
     def generate_answer(self, query: str) -> str:
-        """
-        Generate answer using retrieved context and LLM.
+        """Generate answer using retrieved context and LLM.
         """
         retrieved = self.retrieve(query)
         context = "\n".join(
@@ -75,7 +69,7 @@ class RAGChain:
         prompt = f"Answer the query based on the following context:\n{context}\n\nQuery: {query}\nAnswer:"
 
         if self.llm_provider == "openai":
-            response = openai.ChatCompletion.create(
+            response = openai.ChatCompletion.create(  # type: ignore[attr-defined]
                 model=self.llm_model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.2,
@@ -83,21 +77,18 @@ class RAGChain:
             )
             answer = response.choices[0].message["content"]
             return answer
-        else:
-            # Placeholder for Bedrock or other LLMs
-            return "LLM provider not implemented."
+        # Placeholder for Bedrock or other LLMs
+        return "LLM provider not implemented."
 
-    def query_with_sources(self, query: str) -> Dict:
-        """
-        Return both the answer and the retrieved sources for transparency.
+    def query_with_sources(self, query: str) -> dict:
+        """Return both the answer and the retrieved sources for transparency.
         """
         retrieved = self.retrieve(query)
         answer = self.generate_answer(query)
         return {"query": query, "answer": answer, "sources": retrieved}
 
-    def query(self, question: str, metadata_filters: Optional[Dict] = None, k: int = 4):
-        """
-        Query the RAG chain with optional metadata filtering.
+    def query(self, question: str, metadata_filters: dict | None = None, k: int = 4):
+        """Query the RAG chain with optional metadata filtering.
         :param question: User query string
         :param metadata_filters: Optional dictionary of metadata filters
         :param k: Number of top documents to retrieve
@@ -105,14 +96,15 @@ class RAGChain:
         """
         # If filters are provided, create a filtered retriever
         if metadata_filters:
-            retriever = lambda q: self.vector_store.similarity_search(
-                q, k=k, metadata_filters=metadata_filters
-            )
+            def retriever(q):  # noqa: ANN202
+                return self.vector_store.similarity_search(
+                    q, k=k, metadata_filters=metadata_filters
+                )
         else:
             retriever = self.vector_store.store.as_retriever(search_kwargs={"k": k})
 
         # Execute the chain
-        result = self.chain.run(question, callbacks=None, return_only_outputs=True)
+        result = self.chain.run(question, callbacks=None, return_only_outputs=True)  # type: ignore[attr-defined]
 
         # Attach filtered documents if applicable
         source_docs = (

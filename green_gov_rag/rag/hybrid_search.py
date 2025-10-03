@@ -16,6 +16,7 @@ from typing import Optional
 
 from langchain.docstore.document import Document
 
+from green_gov_rag.rag.location_ner import LocationNER
 from green_gov_rag.rag.vector_store import VectorStore
 
 
@@ -33,13 +34,15 @@ class SpatialQuery:
 class HybridGeospatialSearch:
     """Combine lexical, spatial, and vector search for geospatial RAG."""
 
-    def __init__(self, vector_store: VectorStore):
+    def __init__(self, vector_store: VectorStore, enable_ner: bool = True):
         """Initialize hybrid search with vector store.
 
         Args:
             vector_store: VectorStore instance for similarity search
+            enable_ner: Whether to enable NER for automatic location extraction
         """
         self.vector_store = vector_store
+        self.ner = LocationNER(use_llm=False) if enable_ner else None
 
     def search(
         self,
@@ -287,6 +290,44 @@ class HybridGeospatialSearch:
             metadata_filters["esg_metadata.industry_codes"] = industry_codes
 
         return self.search(query=query, metadata_filters=metadata_filters, k=k)
+
+    def search_with_auto_location(self, query: str, k: int = 10) -> list[Document]:
+        """Search with automatic location extraction from query text.
+
+        Uses NER to extract LGA codes and states from the query, then
+        performs spatial filtering automatically.
+
+        Args:
+            query: User query text (e.g., "What are tree rules in Adelaide?")
+            k: Number of results to return
+
+        Returns:
+            List of Document objects matching query and extracted locations
+
+        Example:
+            >>> search_with_auto_location("emission rules in Port Adelaide Enfield", k=5)
+            # Automatically extracts LGA code "40280" and state "SA"
+        """
+        if not self.ner:
+            # NER disabled, fall back to regular search
+            return self.search(query=query, k=k)
+
+        # Extract locations from query
+        locations = self.ner.extract_locations(query)
+        lga_codes = [lga["code"] for lga in locations["lgas"]]
+        state_codes = locations["states"]
+
+        # Build spatial query if locations found
+        if lga_codes or state_codes:
+            spatial_query = SpatialQuery(
+                location_name=", ".join(locations["raw_locations"]),
+                lga_codes=lga_codes,
+                state=state_codes[0] if state_codes else None,
+            )
+            return self.search(query=query, spatial_query=spatial_query, k=k)
+
+        # No locations found, perform regular search
+        return self.search(query=query, k=k)
 
     def search_by_jurisdiction_and_category(
         self,

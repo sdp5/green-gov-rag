@@ -20,6 +20,7 @@ import openai
 # Optional: HuggingFace / OpenAI embeddings
 from green_gov_rag.config import settings
 from green_gov_rag.rag.embeddings import ChunkEmbedder
+from green_gov_rag.rag.enhanced_response import EnhancedResponse, ResponseFormatter
 from green_gov_rag.rag.vector_store import VectorStore
 
 
@@ -86,6 +87,39 @@ class RAGChain:
         retrieved = self.retrieve(query)
         answer = self.generate_answer(query)
         return {"query": query, "answer": answer, "sources": retrieved}
+
+    def query_with_enhanced_citations(self, query: str, k: int = 5) -> EnhancedResponse:
+        """Query with enhanced citations and deep links.
+
+        Args:
+            query: User question
+            k: Number of sources to retrieve
+
+        Returns:
+            EnhancedResponse with inline citations and hierarchical metadata
+        """
+        from langchain.docstore.document import Document
+
+        # Retrieve documents
+        results = self.vector_store.similarity_search(query, k=k)
+
+        # Convert to Document objects if needed
+        documents: list[Document] = []
+        if results:
+            # Type narrowing - assume results is list of Documents
+            documents = results
+
+        # Generate answer
+        answer = self.generate_answer(query)
+
+        # Create enhanced response
+        enhanced_response = ResponseFormatter.create_enhanced_response(
+            query=query,
+            answer=answer,
+            sources=documents,
+        )
+
+        return enhanced_response
 
     def query(self, question: str, metadata_filters: dict | None = None, k: int = 4):
         """Query the RAG chain with optional metadata filtering.

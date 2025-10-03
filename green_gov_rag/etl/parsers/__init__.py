@@ -2,13 +2,15 @@
 
 from pathlib import Path
 
+from green_gov_rag.types import ParserType
+
 from .html_parser import parse_html
 from .pdf_parser import PDFParser
 
 SUPPORTED_PARSERS = {
-    ".pdf": PDFParser,
-    ".html": parse_html,
-    ".htm": parse_html,
+    ParserType.PDF.value: PDFParser,
+    ParserType.HTML.value: parse_html,
+    ParserType.HTM.value: parse_html,
 }
 
 

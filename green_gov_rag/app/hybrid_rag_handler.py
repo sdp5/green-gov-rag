@@ -11,6 +11,7 @@ Coordinates between the UI layer and the HybridGeospatialSearch backend.
 
 from typing import Optional
 
+from green_gov_rag.rag.enhanced_response import ResponseFormatter
 from green_gov_rag.rag.hybrid_search import HybridGeospatialSearch, SpatialQuery
 
 
@@ -92,6 +93,32 @@ class GeospatialRAGHandler:
             )
 
         return formatted_results
+
+    def search_with_auto_location(
+        self,
+        query: str,
+        k: int = 10,
+    ) -> list[dict]:
+        """Search with automatic location extraction from query text.
+
+        Uses NER to automatically extract LGA names and state codes from
+        the query, then performs location-filtered search.
+
+        Args:
+            query: User query text (e.g., "What are tree rules in Adelaide?")
+            k: Number of results to return
+
+        Returns:
+            List of formatted results with location context
+
+        Example:
+            >>> handler.search_with_auto_location(
+            ...     "emission reporting in Port Adelaide Enfield"
+            ... )
+            # Automatically extracts LGA and state, performs spatial search
+        """
+        results = self.hybrid_search.search_with_auto_location(query=query, k=k)
+        return self._format_results(results)
 
     def search_with_esg_filters(
         self,
@@ -268,6 +295,46 @@ class GeospatialRAGHandler:
             )
 
         return formatted_results
+
+    def search_with_enhanced_citations(
+        self,
+        query: str,
+        spatial_query: Optional[SpatialQuery] = None,
+        metadata_filters: Optional[dict] = None,
+        k: int = 10,
+    ) -> dict:
+        """Search with enhanced citations and hierarchical section paths.
+
+        Returns formatted response with inline citations, deep links to
+        specific PDF pages/sections, and hierarchical breadcrumbs.
+
+        Args:
+            query: User query string
+            spatial_query: Optional spatial filtering
+            metadata_filters: Optional metadata filtering
+            k: Number of results
+
+        Returns:
+            Dict with answer, citations, and hierarchical context
+        """
+        # Perform hybrid search
+        results = self.hybrid_search.search(
+            query=query,
+            spatial_query=spatial_query,
+            metadata_filters=metadata_filters,
+            k=k,
+        )
+
+        # Format with hierarchical context
+        hierarchical_sources = ResponseFormatter.format_with_hierarchical_context(
+            results
+        )
+
+        return {
+            "query": query,
+            "sources": hierarchical_sources,
+            "source_count": len(results),
+        }
 
 
 # Example Streamlit integration

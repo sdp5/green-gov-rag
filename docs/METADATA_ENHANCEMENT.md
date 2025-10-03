@@ -94,9 +94,10 @@ Added spatial metadata framework for geo-aware filtering.
 ```yaml
 spatial_metadata:
   spatial_scope: federal  # or state, local
-  state: SA  # For state-level docs
-  lga_codes: [50280, 50310]  # ABS LGA codes
-  lga_names: [City of Adelaide, Port Adelaide Enfield]
+  state: SA  # For state-level docs (null for federal)
+  lga_codes: [40070, 40280]  # ABS LGA codes (empty for state/federal)
+  lga_names: [City of Adelaide, Port Adelaide Enfield]  # Human-readable names
+  applies_to_all_lgas: false  # true for state/federal, false for local
   applies_to_point: false  # vs polygon or state
 ```
 
@@ -104,6 +105,7 @@ spatial_metadata:
 - Enables "Click LGA and get policies" use case
 - Hierarchical spatial filtering: federal → state → local
 - Foundation for hybrid geospatial RAG
+- Clear intent: `applies_to_all_lgas: true` means applies to all LGAs (state/federal), `false` means specific LGAs only (local)
 
 ### 4. Enhanced Chunking with Hierarchy Preservation
 
@@ -288,24 +290,28 @@ All implementations pass:
 {
     "query": "What biodiversity rules apply in Adelaide?",
     "spatial_query": {
-        "lga_code": "50280",
+        "lga_code": "40070",
         "lga_name": "City of Adelaide"
     },
     "answer": "Biodiversity regulations in Adelaide include...",
     "sources": [
         {
-            "title": "Adelaide Biodiversity Policy",
+            "title": "City of Adelaide Development Guidelines",
             "spatial_scope": "local",
-            "lga_codes": ["50280"]
+            "lga_codes": ["40070"],
+            "lga_names": ["City of Adelaide"],
+            "applies_to_all_lgas": false  # Specific LGA only
         },
         {
-            "title": "SA Native Vegetation Act",
+            "title": "Native Vegetation Guidelines (SA)",
             "spatial_scope": "state",
-            "state": "SA"
+            "state": "SA",
+            "applies_to_all_lgas": true  # All SA LGAs
         },
         {
             "title": "EPBC Act",
-            "spatial_scope": "federal"
+            "spatial_scope": "federal",
+            "applies_to_all_lgas": true  # All Australian LGAs
         }
     ]
 }

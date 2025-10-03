@@ -78,12 +78,16 @@ class HierarchicalPDFParser:
                     "chunk_id": chunk_idx,
                     "chunk_type": chunk_type,  # paragraph, table, list, header
                     # Page information
-                    "page_number": chunk.page_idx + 1 if hasattr(chunk, "page_idx") else None,
+                    "page_number": chunk.page_idx + 1
+                    if hasattr(chunk, "page_idx")
+                    else None,
                     # Section hierarchy
                     "section_hierarchy": section_hierarchy,
                     "section_title": section_title,
                     "section_level": len(section_hierarchy),
-                    "parent_sections": section_hierarchy[:-1] if section_hierarchy else [],
+                    "parent_sections": section_hierarchy[:-1]
+                    if section_hierarchy
+                    else [],
                     # For citation building
                     "heading_hierarchy": section_hierarchy,  # Alias for compatibility
                 },
@@ -185,7 +189,9 @@ class HierarchicalPDFParser:
         for chunk_idx, chunk in enumerate(doc.chunks()):
             chunks.append(
                 {
-                    "content": chunk.to_text() if hasattr(chunk, "to_text") else str(chunk),
+                    "content": chunk.to_text()
+                    if hasattr(chunk, "to_text")
+                    else str(chunk),
                     "metadata": {
                         "chunk_id": chunk_idx,
                         "source": pdf_path.name,

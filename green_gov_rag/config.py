@@ -3,6 +3,8 @@
 All environment variables are defined here and can be accessed via the settings object.
 """
 
+from __future__ import annotations
+
 from typing import Literal
 
 from pydantic import Field

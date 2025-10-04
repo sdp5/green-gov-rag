@@ -25,7 +25,9 @@ def load_geojson(path=LGA_GEOJSON_PATH):
 
 def create_map(selected_lgas=None):
     """Create a Folium map of Australia with LGA boundaries.
-    :param selected_lgas: list of selected LGA names
+
+    from __future__ import annotations
+        :param selected_lgas: list of selected LGA names
     """
     selected_lgas = selected_lgas or []
 
@@ -35,7 +37,7 @@ def create_map(selected_lgas=None):
 
     def style_function(feature):
         name = feature["properties"].get("LGA_NAME") or feature["properties"].get(
-            "NAME"
+            "NAME",
         )
         if name in selected_lgas:
             return {
@@ -56,7 +58,9 @@ def create_map(selected_lgas=None):
         name="LGAs",
         style_function=style_function,
         tooltip=folium.GeoJsonTooltip(
-            fields=["LGA_NAME"], aliases=["LGA:"], labels=True
+            fields=["LGA_NAME"],
+            aliases=["LGA:"],
+            labels=True,
         ),
         highlight_function=lambda x: {"weight": 3, "color": "yellow"},
     ).add_to(m)

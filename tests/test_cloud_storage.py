@@ -1,5 +1,7 @@
 """Tests for cloud storage abstraction layer."""
 
+from __future__ import annotations
+
 import os
 from io import BytesIO
 from pathlib import Path
@@ -23,7 +25,9 @@ class TestLocalBackend:
         return LocalBackend(base_path=temp_storage_path)
 
     def test_upload_and_download_file(
-        self, backend: LocalBackend, tmp_path: Path
+        self,
+        backend: LocalBackend,
+        tmp_path: Path,
     ) -> None:
         """Test uploading and downloading a file."""
         # Create test file
@@ -122,7 +126,9 @@ class TestStorageClient:
 
     @pytest.fixture(autouse=True)
     def setup_env(
-        self, temp_storage_path: Path, monkeypatch: pytest.MonkeyPatch
+        self,
+        temp_storage_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Set up environment for tests."""
         monkeypatch.setenv("CLOUD_PROVIDER", "local")
@@ -184,7 +190,8 @@ class TestCloudConfig:
         monkeypatch.setenv("CLOUD_REGION", "australiaeast")
         monkeypatch.setenv("STORAGE_CONTAINER", "my-container")
         monkeypatch.setenv(
-            "AZURE_STORAGE_CONNECTION_STRING", "DefaultEndpointsProtocol=https;..."
+            "AZURE_STORAGE_CONNECTION_STRING",
+            "DefaultEndpointsProtocol=https;...",
         )
 
         # Reload settings with monkeypatched environment and temporarily replace global settings
@@ -226,7 +233,8 @@ class TestCloudConfig:
         config = CloudConfig(provider="azure", storage_connection_string=None)
 
         with pytest.raises(
-            ValueError, match="AZURE_STORAGE_CONNECTION_STRING is required"
+            ValueError,
+            match="AZURE_STORAGE_CONNECTION_STRING is required",
         ):
             config.validate()
 
@@ -268,7 +276,8 @@ class TestCloudIntegration:
         client.delete_file(container, "integration/aws_test.txt")
 
     @pytest.mark.skipif(
-        os.getenv("TEST_AZURE") != "true", reason="Azure tests not enabled"
+        os.getenv("TEST_AZURE") != "true",
+        reason="Azure tests not enabled",
     )
     def test_azure_operations(self, tmp_path: Path) -> None:
         """Test Azure Blob Storage operations."""

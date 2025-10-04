@@ -1,5 +1,9 @@
 documents:
 
+  # ============================================================================
+  # FEDERAL GOVERNMENT SOURCES
+  # ============================================================================
+
   - title: EPBC Act – Environment Protection and Biodiversity Conservation
     source_url: https://www.legislation.gov.au/Series/C2004A00485
     download_urls:
@@ -10,39 +14,13 @@ documents:
     topic: biodiversity
     region: Australia
     sovereign: true
-
-  - title: Clean Energy Regulator
-    source_url: https://cer.gov.au/
-    download_urls:
-      - https://cer.gov.au/document/estimating-emissions-and-energy-coal-mining-guideline
-      - https://cer.gov.au/document/estimating-emissions-and-energy-electricity-production-and-consumption-guideline
-      - https://cer.gov.au/document/estimating-emissions-and-energy-industrial-processes-guidance
-      - https://cer.gov.au/document/estimating-emissions-and-energy-industrial-processes-guidance
-      - https://cer.gov.au/document/estimating-emissions-and-energy-wastewater-handling-domestic-commercial-and-industrial-guideline
-      - https://cer.gov.au/document/voluntary-market-based-scope-2-emissions-guideline
-      - https://cer.gov.au/document/guidance-aggregated-facility-reporting-percentage-estimates-and-incidental-emissions-and-energy-0
-      - https://cer.gov.au/document/reporting-blended-fuels-other-fuel-mixes-bitumen-and-explosives-guideline
-      - https://cer.gov.au/document/estimating-emissions-and-energy-fuel-combustion-guideline
-      - https://cer.gov.au/document/landfill-site-plan-and-verification-requirements-methods-2-and-3
-      - https://cer.gov.au/document/reporting-energy-production-and-consumption-guideline-1
-      - https://cer.gov.au/document/reporting-hydrofluorocarbons-and-sulphur-hexafluoride-gases-guideline
-      - https://cer.gov.au/document/methods-and-measurement-criteria-guideline
-      - https://cer.gov.au/document/reporting-petroleum-based-oils-and-greases-other-petroleum-based-oils-and-greases-used-fuel-0
-      - https://cer.gov.au/document/reporting-uncertainty-guideline
-      - https://cer.gov.au/document/nger-quick-help-topics
-    jurisdiction: federal
-    category: environment
-    topic: emissions_reporting
-    region: Australia
-    sovereign: true
-
-  - title: ABS LGA Boundaries (GeoJSON)
-    source_url: https://www.abs.gov.au/statistics/mapping/geo-boundaries
-    jurisdiction: federal
-    category: geospatial
-    topic: lga_boundaries
-    region: Australia
-    sovereign: true
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # Federal documents apply to all LGAs nationwide
+      applies_to_point: false
 
   - title: National Construction Code (NCC)
     source_url: https://ncc.abcb.gov.au/
@@ -56,6 +34,463 @@ documents:
     topic: standards
     region: Australia
     sovereign: true
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # Federal documents apply to all LGAs nationwide
+      applies_to_point: false
+
+  - title: ABS LGA Boundaries (GeoJSON)
+    source_url: https://www.abs.gov.au/statistics/mapping/geo-boundaries
+    jurisdiction: federal
+    category: geospatial
+    topic: lga_boundaries
+    region: Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # Federal documents apply to all LGAs nationwide
+      applies_to_point: false
+
+  - title: Clean Energy Regulator - Scope 1 Coal Mining Guideline
+    source_url: https://cer.gov.au/
+    download_urls:
+      - https://cer.gov.au/document/estimating-emissions-and-energy-coal-mining-guideline
+    jurisdiction: federal
+    category: environment
+    topic: emissions_reporting
+    region: Australia
+    sovereign: true
+    esg_metadata:
+      # Frameworks & Standards
+      frameworks: [NGER, GHG_Protocol]
+      measurement_standard: GHG_Protocol_Corporate_Standard
+
+      # Emission Classification (NGER-compliant)
+      emission_scopes: [scope_1]
+      greenhouse_gases: [CO2, CH4, N2O, SF6, HFCs, PFCs, NF3]  # All NGER gases
+
+      # Consolidation & Methodology (ISSB/GRI requirement)
+      consolidation_method: operational_control  # or equity_share, financial_control
+      methodology_type: calculation
+
+      # NGER-Specific
+      reportable_under_nger: true
+      scope_3_reportable: false
+      nger_threshold_tonnes: 25000  # NGER reporting threshold
+
+      # Regulatory Authority
+      regulator: Clean Energy Regulator
+      regulation_type: guideline
+
+      # Activity & Industry Categorization
+      activity_types: [fuel_combustion, fugitive_emissions]
+      facility_types: [coal_mine]
+      industry_codes: [B0600]  # ANZSIC: Coal Mining
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # Federal documents apply to all LGAs nationwide
+      applies_to_point: false
+
+  - title: Clean Energy Regulator - Scope 2 Emissions Guideline
+    source_url: https://cer.gov.au/
+    download_urls:
+      - https://cer.gov.au/document/voluntary-market-based-scope-2-emissions-guideline
+    jurisdiction: federal
+    category: environment
+    topic: emissions_reporting
+    region: Australia
+    sovereign: true
+    esg_metadata:
+      # Frameworks & Standards
+      frameworks: [NGER, ISSB, GHG_Protocol]
+      measurement_standard: GHG_Protocol_Corporate_Standard
+
+      # Emission Classification (NGER-compliant)
+      emission_scopes: [scope_2]
+      greenhouse_gases: [CO2, CH4, N2O, SF6, HFCs, PFCs, NF3]  # All NGER gases
+
+      # Consolidation & Methodology (ISSB/GRI requirement)
+      consolidation_method: operational_control  # or equity_share, financial_control
+      methodology_type: calculation
+      accounting_methods: [location_based, market_based]  # Scope 2 specific
+
+      # NGER-Specific
+      reportable_under_nger: true
+      scope_3_reportable: false
+      nger_threshold_tonnes: 25000  # NGER reporting threshold
+
+      # Regulatory Authority
+      regulator: Clean Energy Regulator
+      regulation_type: guideline
+
+      # Activity & Industry Categorization
+      activity_types: [electricity_consumption, market_based_accounting]
+      facility_types: [all]
+      industry_codes: []
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # Federal documents apply to all LGAs nationwide
+      applies_to_point: false
+
+  - title: Clean Energy Regulator - Fuel Combustion Guideline
+    source_url: https://cer.gov.au/
+    download_urls:
+      - https://cer.gov.au/document/estimating-emissions-and-energy-fuel-combustion-guideline
+    jurisdiction: federal
+    category: environment
+    topic: emissions_reporting
+    region: Australia
+    sovereign: true
+    esg_metadata:
+      # Frameworks & Standards
+      frameworks: [NGER, GHG_Protocol]
+      measurement_standard: GHG_Protocol_Corporate_Standard
+
+      # Emission Classification (NGER-compliant)
+      emission_scopes: [scope_1]
+      greenhouse_gases: [CO2, CH4, N2O, SF6, HFCs, PFCs, NF3]  # All NGER gases
+
+      # Consolidation & Methodology (ISSB/GRI requirement)
+      consolidation_method: operational_control  # or equity_share, financial_control
+      methodology_type: calculation
+
+      # NGER-Specific
+      reportable_under_nger: true
+      scope_3_reportable: false
+      nger_threshold_tonnes: 25000  # NGER reporting threshold
+
+      # Regulatory Authority
+      regulator: Clean Energy Regulator
+      regulation_type: guideline
+
+      # Activity & Industry Categorization
+      activity_types: [fuel_combustion, stationary_energy]
+      facility_types: [all]
+      industry_codes: []
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # Federal documents apply to all LGAs nationwide
+      applies_to_point: false
+
+  - title: Clean Energy Regulator - HFC & SF6 Gases Guideline
+    source_url: https://cer.gov.au/
+    download_urls:
+      - https://cer.gov.au/document/reporting-hydrofluorocarbons-and-sulphur-hexafluoride-gases-guideline
+    jurisdiction: federal
+    category: environment
+    topic: emissions_reporting
+    region: Australia
+    sovereign: true
+    esg_metadata:
+      # Frameworks & Standards
+      frameworks: [NGER, GHG_Protocol]
+      measurement_standard: GHG_Protocol_Corporate_Standard
+
+      # Emission Classification (NGER-compliant)
+      emission_scopes: [scope_1]
+      greenhouse_gases: [HFCs, SF6, PFCs]  # Synthetic greenhouse gases
+
+      # Consolidation & Methodology (ISSB/GRI requirement)
+      consolidation_method: operational_control  # or equity_share, financial_control
+      methodology_type: reporting
+
+      # NGER-Specific
+      reportable_under_nger: true
+      scope_3_reportable: false
+      nger_threshold_tonnes: 25000  # NGER reporting threshold
+
+      # Regulatory Authority
+      regulator: Clean Energy Regulator
+      regulation_type: guideline
+
+      # Activity & Industry Categorization
+      activity_types: [refrigerant_use, electrical_equipment, synthetic_gases]
+      facility_types: [all]
+      industry_codes: []
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # Federal documents apply to all LGAs nationwide
+      applies_to_point: false
+
+  - title: Clean Energy Regulator - Safeguard Mechanism (HTML)
+    source_url: https://www.cleanenergyregulator.gov.au/NGER/About-the-National-Greenhouse-and-Energy-Reporting-scheme/Safeguard-Mechanism
+    jurisdiction: federal
+    category: regulation
+    topic: emissions_reporting
+    region: Australia
+    sovereign: true
+    esg_metadata:
+      # Frameworks & Standards
+      frameworks: [NGER, Safeguard_Mechanism]
+      measurement_standard: GHG_Protocol_Corporate_Standard
+
+      # Emission Classification (NGER-compliant)
+      emission_scopes: [scope_1]
+      greenhouse_gases: [CO2, CH4, N2O, SF6, HFCs, PFCs, NF3]  # All NGER gases
+
+      # Consolidation & Methodology (ISSB/GRI requirement)
+      consolidation_method: operational_control  # or equity_share, financial_control
+      methodology_type: reporting
+
+      # NGER-Specific
+      reportable_under_nger: true
+      scope_3_reportable: false
+      nger_threshold_tonnes: 100000  # Safeguard Mechanism threshold (>100k tonnes CO2-e)
+      baseline_setting: facility_specific
+
+      # Regulatory Authority
+      regulator: Clean Energy Regulator
+      regulation_type: regulation
+
+      # Activity & Industry Categorization
+      activity_types: [all]
+      facility_types: [large_emitters]  # >100k tonnes CO2-e
+      industry_codes: []
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # Federal documents apply to all LGAs nationwide
+      applies_to_point: false
+
+  - title: DCCEEW - Nature Positive Plan (HTML)
+    source_url: https://www.dcceew.gov.au/environment/epbc/nature-positive-plan
+    jurisdiction: federal
+    category: policy
+    topic: biodiversity
+    region: Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # Federal documents apply to all LGAs nationwide
+      applies_to_point: false
+
+  # ============================================================================
+  # SCOPE 3 EMISSIONS GUIDANCE (ISSB/GHG Protocol - 15 Categories)
+  # ============================================================================
+
+  - title: GHG Protocol - Scope 3 Upstream Emissions Guidance
+    source_url: https://ghgprotocol.org/scope-3-calculation-guidance
+    download_urls:
+      - https://ghgprotocol.org/sites/default/files/standards/Scope3_Calculation_Guidance_0.pdf
+    jurisdiction: federal
+    category: environment
+    topic: emissions_reporting
+    region: Australia
+    sovereign: true
+    esg_metadata:
+      # Frameworks & Standards
+      frameworks: [ISSB, GHG_Protocol, GRI]
+      measurement_standard: GHG_Protocol_Scope3_Standard
+
+      # Emission Classification (ISSB-required, NOT NGER)
+      emission_scopes: [scope_3]
+      greenhouse_gases: [CO2, CH4, N2O, SF6, HFCs, PFCs, NF3]
+
+      # Scope 3 Categories (ISSB/GHG Protocol - Upstream)
+      scope_3_categories:
+        - purchased_goods_services     # Category 1
+        - capital_goods                # Category 2
+        - fuel_energy_activities       # Category 3
+        - upstream_transport           # Category 4
+        - waste_generated              # Category 5
+        - business_travel              # Category 6
+        - employee_commuting           # Category 7
+        - upstream_leased_assets       # Category 8
+
+      # Consolidation & Methodology
+      consolidation_method: operational_control
+      methodology_type: calculation
+
+      # NGER-Specific (Scope 3 NOT reportable under NGER)
+      reportable_under_nger: false
+      scope_3_reportable: false
+
+      # Regulatory Authority
+      regulator: None  # Voluntary under ISSB/GRI
+      regulation_type: guideline
+
+      # Activity & Industry
+      activity_types: [supply_chain, procurement, transport, waste]
+      facility_types: [all]
+      industry_codes: []
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: GHG Protocol - Scope 3 Downstream Emissions Guidance
+    source_url: https://ghgprotocol.org/scope-3-calculation-guidance
+    download_urls:
+      - https://ghgprotocol.org/sites/default/files/standards/Scope3_Calculation_Guidance_0.pdf
+    jurisdiction: federal
+    category: environment
+    topic: emissions_reporting
+    region: Australia
+    sovereign: true
+    esg_metadata:
+      # Frameworks & Standards
+      frameworks: [ISSB, GHG_Protocol, GRI]
+      measurement_standard: GHG_Protocol_Scope3_Standard
+
+      # Emission Classification (ISSB-required, NOT NGER)
+      emission_scopes: [scope_3]
+      greenhouse_gases: [CO2, CH4, N2O, SF6, HFCs, PFCs, NF3]
+
+      # Scope 3 Categories (ISSB/GHG Protocol - Downstream)
+      scope_3_categories:
+        - downstream_transport         # Category 9
+        - processing_sold_products     # Category 10
+        - use_of_sold_products         # Category 11
+        - end_of_life_treatment        # Category 12
+        - downstream_leased_assets     # Category 13
+        - franchises                   # Category 14
+        - investments                  # Category 15
+
+      # Consolidation & Methodology
+      consolidation_method: operational_control
+      methodology_type: calculation
+
+      # NGER-Specific (Scope 3 NOT reportable under NGER)
+      reportable_under_nger: false
+      scope_3_reportable: false
+
+      # Regulatory Authority
+      regulator: None  # Voluntary under ISSB/GRI
+      regulation_type: guideline
+
+      # Activity & Industry
+      activity_types: [product_lifecycle, distribution, end_of_life]
+      facility_types: [all]
+      industry_codes: []
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: ISSB Standards - Scope 3 Reporting Requirements
+    source_url: https://www.ifrs.org/issued-standards/ifrs-sustainability-standards-navigator/ifrs-s2-climate-related-disclosures/
+    jurisdiction: federal
+    category: regulation
+    topic: emissions_reporting
+    region: Australia
+    sovereign: true
+    esg_metadata:
+      # Frameworks & Standards
+      frameworks: [ISSB, GRI]
+      measurement_standard: ISSB_S2_Climate_Standard
+
+      # Emission Classification (ISSB mandatory for Scope 3)
+      emission_scopes: [scope_1, scope_2, scope_3]
+      greenhouse_gases: [CO2, CH4, N2O, SF6, HFCs, PFCs, NF3]
+
+      # All 15 Scope 3 Categories (ISSB requires disclosure)
+      scope_3_categories:
+        - purchased_goods_services     # Category 1
+        - capital_goods                # Category 2
+        - fuel_energy_activities       # Category 3
+        - upstream_transport           # Category 4
+        - waste_generated              # Category 5
+        - business_travel              # Category 6
+        - employee_commuting           # Category 7
+        - upstream_leased_assets       # Category 8
+        - downstream_transport         # Category 9
+        - processing_sold_products     # Category 10
+        - use_of_sold_products         # Category 11
+        - end_of_life_treatment        # Category 12
+        - downstream_leased_assets     # Category 13
+        - franchises                   # Category 14
+        - investments                  # Category 15
+
+      # Consolidation & Methodology (ISSB requires all 3 methods)
+      consolidation_method: operational_control  # Also: equity_share, financial_control
+      methodology_type: calculation
+
+      # NGER-Specific (ISSB is separate from NGER)
+      reportable_under_nger: false
+      scope_3_reportable: true  # ISSB requires Scope 3
+
+      # Regulatory Authority
+      regulator: IFRS Foundation
+      regulation_type: standard
+
+      # Activity & Industry
+      activity_types: [all]
+      facility_types: [all]
+      industry_codes: []
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  # ============================================================================
+  # NEW SOUTH WALES (NSW)
+  # ============================================================================
+
+  - title: NSW Environmental Planning and Assessment Act 1979
+    source_url: https://legislation.nsw.gov.au/view/html/inforce/current/act-1979-203
+    download_urls:
+      - https://legislation.nsw.gov.au/view/pdf/asmade/act-1979-203
+    jurisdiction: state
+    category: legislation
+    topic: environmental_planning
+    region: New South Wales
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: NSW
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in NSW
+      applies_to_point: false
+
+  - title: NSW Biodiversity Conservation Act 2016
+    source_url: https://legislation.nsw.gov.au/view/html/inforce/current/act-2016-063
+    download_urls:
+      - https://legislation.nsw.gov.au/view/pdf/asmade/act-2016-063
+    jurisdiction: state
+    category: legislation
+    topic: biodiversity
+    region: New South Wales
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: NSW
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in NSW
+      applies_to_point: false
 
   - title: NSW Biodiversity Offsets Scheme
     source_url: https://www.environment.nsw.gov.au/topics/animals-and-plants/biodiversity-offsets-scheme
@@ -66,6 +501,13 @@ documents:
     topic: biodiversity
     region: New South Wales
     sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: NSW
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in NSW
+      applies_to_point: false
 
   - title: NSW Planning Portal – EIA Guidelines
     source_url: https://www.planningportal.nsw.gov.au/
@@ -87,6 +529,335 @@ documents:
     topic: environmental_impact
     region: New South Wales
     sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: NSW
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in NSW
+      applies_to_point: false
+
+  - title: NSW Climate Change (Net Zero Future) Act 2023
+    source_url: https://legislation.nsw.gov.au/view/html/inforce/current/act-2023-020
+    download_urls:
+      - https://legislation.nsw.gov.au/view/pdf/asmade/act-2023-020
+    jurisdiction: state
+    category: legislation
+    topic: climate_change
+    region: New South Wales
+    sovereign: true
+    esg_metadata:
+      frameworks: [NSW_Net_Zero]
+      emission_scopes: [scope_1, scope_2]
+      greenhouse_gases: [CO2, CH4, N2O, SF6, HFCs, PFCs]
+      consolidation_method: operational_control
+      methodology_type: reporting
+      reportable_under_nger: false
+      scope_3_reportable: false
+      regulator: NSW Net Zero Commission
+      regulation_type: legislation
+      activity_types: [all]
+      facility_types: [all]
+      industry_codes: []
+    spatial_metadata:
+      spatial_scope: state
+      state: NSW
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in NSW
+      applies_to_point: false
+
+  - title: NSW EPA Climate Change Emissions Reporting Guidelines
+    source_url: https://www.epa.nsw.gov.au/your-environment/climate-change
+    download_urls:
+      - https://www.energy.nsw.gov.au/sites/default/files/2025-06/20250611-DCCEEW-Greenhouse-Gas-Emissions-Accounting-and-Reporting-Guidelines.pdf
+    jurisdiction: state
+    category: guidelines
+    topic: emissions_reporting
+    region: New South Wales
+    sovereign: true
+    esg_metadata:
+      frameworks: [NSW_EPA, NGER]
+      emission_scopes: [scope_1, scope_2]
+      greenhouse_gases: [CO2, CH4, N2O, SF6, HFCs, PFCs]
+      consolidation_method: operational_control
+      methodology_type: calculation
+      reportable_under_nger: true
+      scope_3_reportable: false
+      regulator: NSW EPA
+      regulation_type: guideline
+      activity_types: [all]
+      facility_types: [epl_holders]
+      industry_codes: []
+    spatial_metadata:
+      spatial_scope: state
+      state: NSW
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in NSW
+      applies_to_point: false
+
+  - title: NSW Planning Portal - Environmental Impact Assessment Guidelines (HTML)
+    source_url: https://www.planningportal.nsw.gov.au/policy-and-legislation/environmental-planning-instruments
+    jurisdiction: state
+    category: guidelines
+    topic: environmental_impact
+    region: New South Wales
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: NSW
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in NSW
+      applies_to_point: false
+
+  - title: NSW Environment & Heritage - Biodiversity Offsets Scheme (HTML)
+    source_url: https://www.environment.nsw.gov.au/topics/animals-and-plants/biodiversity-offsets-scheme
+    jurisdiction: state
+    category: guidelines
+    topic: biodiversity
+    region: New South Wales
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: NSW
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in NSW
+      applies_to_point: false
+
+  # ============================================================================
+  # VICTORIA (VIC)
+  # ============================================================================
+
+  - title: Victoria Planning Provisions (VPP)
+    source_url: https://www.planning.vic.gov.au/
+    download_urls:
+      - https://www.planning.vic.gov.au/__data/assets/pdf_file/0037/709597/Practitioners-Guide-to-Victorias-Planning-Schemes-Final-August-2025.pdf
+    jurisdiction: state
+    category: planning
+    topic: land_use
+    region: Victoria
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: VIC
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in VIC
+      applies_to_point: false
+
+  - title: Victoria Environment Protection Act 2017
+    source_url: https://www.epa.vic.gov.au/about-epa/laws
+    download_urls:
+      - https://www.epa.vic.gov.au/sites/default/files/2025-05/consolidated-ERS.pdf
+    jurisdiction: state
+    category: legislation
+    topic: environment_protection
+    region: Victoria
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: VIC
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in VIC
+      applies_to_point: false
+
+  - title: Victoria Climate Change Act 2017
+    source_url: https://www.climatechange.vic.gov.au/legislation
+    download_urls:
+      - https://www.climatechange.vic.gov.au/__data/assets/pdf_file/0028/635590/Victorias-2035-Climate-Target_Driving-Real-Climate-Action.pdf
+    jurisdiction: state
+    category: legislation
+    topic: climate_change
+    region: Victoria
+    sovereign: true
+    esg_metadata:
+      frameworks: [VIC_Climate_Action]
+      emission_scopes: [scope_1, scope_2]
+      greenhouse_gases: [CO2, CH4, N2O, SF6, HFCs, PFCs]
+      consolidation_method: operational_control
+      methodology_type: reporting
+      reportable_under_nger: false
+      scope_3_reportable: false
+      regulator: Victorian EPA
+      regulation_type: legislation
+      activity_types: [all]
+      facility_types: [all]
+      industry_codes: []
+    spatial_metadata:
+      spatial_scope: state
+      state: VIC
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in VIC
+      applies_to_point: false
+
+  - title: Victoria EPA Climate Change Regulatory Intent 2025-2027
+    source_url: https://www.epa.vic.gov.au/statement-regulatory-intent-climate-change
+    jurisdiction: state
+    category: guidelines
+    topic: emissions_reporting
+    region: Victoria
+    sovereign: true
+    esg_metadata:
+      frameworks: [VIC_EPA, NGER]
+      emission_scopes: [scope_1, scope_2]
+      greenhouse_gases: [CO2, CH4, N2O, SF6, HFCs, PFCs]
+      consolidation_method: operational_control
+      methodology_type: calculation
+      reportable_under_nger: true
+      scope_3_reportable: false
+      regulator: Victorian EPA
+      regulation_type: guideline
+      activity_types: [all]
+      facility_types: [nger_reporters]
+      industry_codes: []
+    spatial_metadata:
+      spatial_scope: state
+      state: VIC
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in VIC
+      applies_to_point: false
+
+  - title: Victoria Planning - Planning Scheme Amendment Process (HTML)
+    source_url: https://www.planning.vic.gov.au/guides-and-resources/guides/all-guides/planning-scheme-amendments
+    jurisdiction: state
+    category: guidelines
+    topic: planning
+    region: Victoria
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: VIC
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in VIC
+      applies_to_point: false
+
+  - title: Victoria EPA - Waste Management Guidelines (HTML)
+    source_url: https://www.epa.vic.gov.au/for-business/find-a-topic/manage-waste
+    jurisdiction: state
+    category: guidelines
+    topic: waste_management
+    region: Victoria
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: VIC
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in VIC
+      applies_to_point: false
+
+  # ============================================================================
+  # QUEENSLAND (QLD)
+  # ============================================================================
+
+  - title: Queensland Environmental Protection Act 1994
+    source_url: https://www.legislation.qld.gov.au/view/html/inforce/current/act-1994-062
+    download_urls:
+      - https://www.legislation.qld.gov.au/view/pdf/inforce/current/act-1994-062
+    jurisdiction: state
+    category: legislation
+    topic: environment_protection
+    region: Queensland
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: QLD
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in QLD
+      applies_to_point: false
+
+  - title: Queensland Planning Act 2016
+    source_url: https://www.legislation.qld.gov.au/view/html/inforce/current/act-2016-025
+    download_urls:
+      - https://www.legislation.qld.gov.au/view/pdf/inforce/current/act-2016-025
+    jurisdiction: state
+    category: legislation
+    topic: planning
+    region: Queensland
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: QLD
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in QLD
+      applies_to_point: false
+
+  - title: Queensland Vegetation Management Act 1999
+    source_url: https://www.legislation.qld.gov.au/view/html/inforce/current/act-1999-068
+    download_urls:
+      - https://www.legislation.qld.gov.au/view/pdf/inforce/current/act-1999-068
+    jurisdiction: state
+    category: legislation
+    topic: vegetation_management
+    region: Queensland
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: QLD
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in QLD
+      applies_to_point: false
+
+  - title: Queensland Environmental Protection Regulation 2019
+    source_url: https://www.legislation.qld.gov.au/view/html/inforce/current/sl-2019-0155
+    download_urls:
+      - https://www.legislation.qld.gov.au/view/pdf/inforce/current/sl-2019-0155
+    jurisdiction: state
+    category: regulation
+    topic: environment_protection
+    region: Queensland
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: QLD
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in QLD
+      applies_to_point: false
+
+  - title: Queensland Department of Environment - Vegetation Management Framework (HTML)
+    source_url: https://www.qld.gov.au/environment/land/management/vegetation
+    jurisdiction: state
+    category: guidelines
+    topic: vegetation_management
+    region: Queensland
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: QLD
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in QLD
+      applies_to_point: false
+
+  - title: Queensland Planning - Development Assessment Process (HTML)
+    source_url: https://www.planning.qld.gov.au/planning-framework/development-assessment
+    jurisdiction: state
+    category: guidelines
+    topic: development_assessment
+    region: Queensland
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: QLD
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in QLD
+      applies_to_point: false
+
+  # ============================================================================
+  # SOUTH AUSTRALIA (SA)
+  # ============================================================================
 
   - title: Planning and Design Code (SA)
     source_url: https://code.plan.sa.gov.au/
@@ -99,6 +870,13 @@ documents:
     topic: land_use
     region: South Australia
     sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: SA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in SA
+      applies_to_point: false
 
   - title: Environment Protection Act 1993 (SA)
     source_url: https://www.legislation.sa.gov.au/
@@ -109,6 +887,13 @@ documents:
     topic: environment_protection
     region: South Australia
     sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: SA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in SA
+      applies_to_point: false
 
   - title: Native Vegetation Guidelines (SA)
     source_url: https://www.environment.sa.gov.au/topics/native-vegetation
@@ -117,6 +902,43 @@ documents:
     topic: vegetation_clearance
     region: South Australia
     sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: SA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in SA
+      applies_to_point: false
+
+  - title: SA Planning Portal - Planning and Design Code (HTML)
+    source_url: https://plan.sa.gov.au/
+    jurisdiction: state
+    category: planning
+    topic: land_use
+    region: South Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: SA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in SA
+      applies_to_point: false
+
+  - title: SA EPA - Environmental Authorisations (HTML)
+    source_url: https://www.epa.sa.gov.au/environmental-authorisations
+    jurisdiction: state
+    category: guidelines
+    topic: environment_protection
+    region: South Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: SA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in SA
+      applies_to_point: false
 
   - title: City of Adelaide Development Guidelines
     source_url: https://www.cityofadelaide.com.au/planning
@@ -130,6 +952,13 @@ documents:
     topic: zoning
     region: City of Adelaide
     sovereign: true
+    spatial_metadata:
+      spatial_scope: local
+      state: SA
+      lga_codes: [40070]
+      lga_names: [City of Adelaide]
+      applies_to_all_lgas: false  # Local documents apply only to specific LGAs
+      applies_to_point: false
 
   - title: Port Adelaide Enfield Sustainability Policies
     source_url: https://www.cityofpae.sa.gov.au
@@ -153,13 +982,208 @@ documents:
     topic: sustainable_development
     region: Port Adelaide Enfield
     sovereign: true
+    spatial_metadata:
+      spatial_scope: local
+      state: SA
+      lga_codes: [40280]
+      lga_names: [Port Adelaide Enfield]
+      applies_to_all_lgas: false  # Local documents apply only to specific LGAs
+      applies_to_point: false
 
-  - title: Victoria Planning Provisions (VPP)
-    source_url: https://www.planning.vic.gov.au/
+  - title: City of Norwood Payneham & St Peters Strategic Plans
+    source_url: https://www.npsp.sa.gov.au
     download_urls:
-      - https://www.planning.vic.gov.au/__data/assets/pdf_file/0037/709597/Practitioners-Guide-to-Victorias-Planning-Schemes-Final-August-2025.pdf
-    jurisdiction: state
+      - https://www.npsp.sa.gov.au/files/12454_corporate_emissions_reduction_plan_2020-2030.pdf
+      - https://www.npsp.sa.gov.au/files/23314_cityplan_2030_update_2024_publication_final_for_web_22_october_2024_a987897.pdf
+      - https://www.npsp.sa.gov.au/files/17787_built_heritage_strategy_2022_september_update_final_for_web_23_october_2023_a491823.pdf
+      - https://www.npsp.sa.gov.au/files/3265_city_wide_cycling_plan_dec_2013.pdf
+    jurisdiction: local
     category: planning
-    topic: land_use
-    region: Victoria
+    topic: sustainable_development
+    region: Norwood Payneham St Peters
     sovereign: true
+    spatial_metadata:
+      spatial_scope: local
+      state: SA
+      lga_codes: [40340]
+      lga_names: [Norwood Payneham and St Peters]
+      applies_to_all_lgas: false
+      applies_to_point: false
+
+  - title: City of Unley Sustainability and Planning Strategies
+    source_url: https://www.unley.sa.gov.au
+    download_urls:
+      - https://www.unley.sa.gov.au/files/assets/public/v/1/council/cou-community-plan-2050-spreads.pdf
+      - https://www.unley.sa.gov.au/files/assets/public/v/1/environment-hub/climate-and-energy-plan-2023.pdf
+      - https://www.unley.sa.gov.au/files/assets/public/v/4/council/about-the-council/city-of-unley-tree-strategy-2020.pdf
+      - https://www.unley.sa.gov.au/files/assets/public/v/2/council/about-the-council/waste-management-resource-recovery-plan-2021–2025-web.pdf
+      - https://www.unley.sa.gov.au/files/assets/public/v/1/council/about-the-council/unley-walking-and-cycling-plan-2022-2027.pdf
+      - https://www.unley.sa.gov.au/files/assets/public/v/2/council/about-the-council/city-of-unley-environmental-sustainability-strategy-2016-2020.pdf
+    jurisdiction: local
+    category: environment
+    topic: sustainable_development
+    region: City of Unley
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: local
+      state: SA
+      lga_codes: [40370]
+      lga_names: [Unley]
+      applies_to_all_lgas: false
+      applies_to_point: false
+
+  - title: City of Burnside Development Plan and Tree Strategy
+    source_url: https://www.burnside.sa.gov.au
+    download_urls:
+      - https://www.burnside.sa.gov.au/files/assets/public/v/1/planning-amp-business/development/planning-assessment/city-of-burnside-development-plan.pdf
+      - https://www.burnside.sa.gov.au/files/assets/public/v/1/environment-amp-sustainability/trees/urban-tree-strategy/dept-planning-regulated-and-significant-trees-overview.pdf
+      - https://www.burnside.sa.gov.au/files/assets/public/v/2/environment-amp-sustainability/trees/trees-amp-development-faqs/trees-development-faqs.pdf
+    jurisdiction: local
+    category: planning
+    topic: development_plan
+    region: City of Burnside
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: local
+      state: SA
+      lga_codes: [40070]
+      lga_names: [Burnside]
+      applies_to_all_lgas: false
+      applies_to_point: false
+
+  - title: City of West Torrens Planning Guidelines
+    source_url: https://www.westtorrens.sa.gov.au
+    download_urls:
+      - https://www.westtorrens.sa.gov.au/files/sharedassets/public/v/2/objective-digitalpublications/external-website/guidelines/greening-your-verge-guidelines.pdf
+      - https://www.westtorrens.sa.gov.au/files/sharedassets/public/v/1/objective-digitalpublications/external-website/fact-sheets/finished-floor-level-and-flood-protection-fact-sheet.pdf
+      - https://www.westtorrens.sa.gov.au/files/sharedassets/public/v/1/objective-digitalpublications/external-website/fact-sheets/site-works-and-drainage-plan-fact-sheet.pdf
+    jurisdiction: local
+    category: planning
+    topic: development_guidelines
+    region: City of West Torrens
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: local
+      state: SA
+      lga_codes: [40430]
+      lga_names: [West Torrens]
+      applies_to_all_lgas: false
+      applies_to_point: false
+
+  - title: Adelaide Airport Master Plan
+    source_url: https://corporate.adelaideairport.com.au/community/adelaide-airport-master-plan/
+    download_urls:
+      - https://corporate.adelaideairport.com.au/wp-content/uploads/2019/08/adelaide-airport-preliminary-draft-master-plan-2019-chapter-10.pdf
+      - https://corporate.adelaideairport.com.au/wp-content/uploads/2020/05/Master-Plan-Chapter-9-Commercial-Development.pdf
+    jurisdiction: federal
+    category: planning
+    topic: airport_development
+    region: Adelaide Airport (West Torrens)
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: local
+      state: SA
+      lga_codes: [40430]
+      lga_names: [West Torrens]
+      applies_to_all_lgas: false
+      applies_to_point: true
+
+  # ============================================================================
+  # WESTERN AUSTRALIA (WA)
+  # ============================================================================
+
+  - title: WA Environmental Protection Act 1986
+    source_url: https://www.legislation.wa.gov.au/legislation/statutes.nsf/main_mrtitle_304_homepage.html
+    download_urls:
+      - https://www.legislation.wa.gov.au/legislation/prod/filestore.nsf/FileURL/mrdoc_48028.pdf/$FILE/Environmental%20Protection%20Act%201986%20-%20%5B09-f0-00%5D.pdf
+    jurisdiction: state
+    category: legislation
+    topic: environment_protection
+    region: Western Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: WA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in WA
+      applies_to_point: false
+
+  - title: WA Planning and Development Act 2005
+    source_url: https://www.legislation.wa.gov.au/legislation/statutes.nsf/main_mrtitle_722_homepage.html
+    download_urls:
+      - https://www.legislation.wa.gov.au/legislation/prod/filestore.nsf/FileURL/mrdoc_48537.pdf/$FILE/Planning%20and%20Development%20Act%202005%20-%20%5B14-h0-00%5D.pdf
+    jurisdiction: state
+    category: legislation
+    topic: planning
+    region: Western Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: WA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in WA
+      applies_to_point: false
+
+  - title: WA Biodiversity Conservation Act 2016
+    source_url: https://www.legislation.wa.gov.au/legislation/statutes.nsf/main_mrtitle_13738_homepage.html
+    download_urls:
+      - https://www.legislation.wa.gov.au/legislation/prod/filestore.nsf/FileURL/mrdoc_45255.pdf/$FILE/Biodiversity%20Conservation%20Act%202016%20-%20%5B01-e0-02%5D.pdf
+    jurisdiction: state
+    category: legislation
+    topic: biodiversity
+    region: Western Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: WA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in WA
+      applies_to_point: false
+
+  - title: WA EPA Environmental Impact Assessment Procedures Manual
+    source_url: https://www.epa.wa.gov.au/procedures-manual
+    jurisdiction: state
+    category: guidelines
+    topic: environmental_assessment
+    region: Western Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: WA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in WA
+      applies_to_point: false
+
+  - title: WA Department of Water and Environmental Regulation - Clearing Permits (HTML)
+    source_url: https://www.der.wa.gov.au/your-environment/native-vegetation/clearing-permits
+    jurisdiction: state
+    category: guidelines
+    topic: vegetation_clearance
+    region: Western Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: WA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in WA
+      applies_to_point: false
+
+  - title: WA Planning Commission - State Planning Policies (HTML)
+    source_url: https://www.dplh.wa.gov.au/policy-and-legislation/state-planning-framework/state-planning-policies
+    jurisdiction: state
+    category: policy
+    topic: planning
+    region: Western Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: WA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in WA
+      applies_to_point: false

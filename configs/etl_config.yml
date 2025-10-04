@@ -1,0 +1,65 @@
+# ETL Pipeline Configuration
+# Configuration for document processing, chunking, and auto-tagging
+
+etl:
+  # Auto-tagging settings
+  auto_tagging:
+    enabled: true  # Enable/disable automated metadata extraction
+    model: "gpt-3.5-turbo"  # Model to use for tagging (gpt-3.5-turbo or gpt-4)
+    temperature: 0.0  # Temperature for deterministic tagging
+
+    # What to tag
+    tag_esg_metadata: true  # Extract ESG/NGER metadata
+    tag_document_metadata: true  # Extract general document metadata
+    tag_scope_3_categories: true  # Extract Scope 3 emission categories
+
+    # Batch processing
+    batch_size: 10  # Number of documents to process at once
+    max_retries: 3  # Max retries for failed tagging
+
+  # Chunking settings
+  chunking:
+    chunk_size: 1000  # Max characters per chunk
+    chunk_overlap: 100  # Overlap between chunks
+    splitter_type: "recursive"  # "recursive" or "token"
+
+    # Preserve metadata
+    preserve_hierarchy: true  # Preserve section hierarchy from PDF parser
+    preserve_page_numbers: true  # Keep page number metadata
+
+  # Document processing
+  processing:
+    skip_existing: true  # Skip documents that already exist
+    save_intermediate: true  # Save intermediate processing results
+    output_dir: "data/processed"  # Output directory for processed chunks
+
+  # PDF parsing
+  pdf_parsing:
+    use_hierarchical: false  # Use LlamaIndex LayoutPDFReader (requires API)
+    extract_tables: true  # Extract tables from PDFs
+    extract_images: false  # Extract images (disabled by default)
+
+# Metadata schema validation
+metadata_schema:
+  required_fields:
+    - title
+    - jurisdiction
+    - category
+    - topic
+
+  optional_fields:
+    - esg_metadata
+    - spatial_metadata
+    - region
+    - source_url
+
+# ESG metadata fields that can be auto-tagged
+esg_auto_tag_fields:
+  - emission_scope
+  - scope_3_categories
+  - greenhouse_gases
+  - frameworks
+  - consolidation_approach
+  - calculation_method
+  - industry_applicability
+  - regulatory_authority

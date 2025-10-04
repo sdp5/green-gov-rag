@@ -12,6 +12,8 @@ Handles storing, retrieving, and filtering document embeddings for RAG.
 6. Easy to integrate into your RAG chain.
 """
 
+from __future__ import annotations
+
 from langchain.docstore.document import Document
 from langchain.embeddings.base import Embeddings
 from langchain.vectorstores import FAISS
@@ -23,7 +25,7 @@ class VectorStore:
     def __init__(self, embeddings: Embeddings, index_path: str | None = None):
         """Initialize the vector store. If index_path exists, load the FAISS index.
         :param embeddings: LangChain Embeddings instance (OpenAI/HuggingFace/Bedrock)
-        :param index_path: Optional path to persisted FAISS index
+        :param index_path: Optional path to persisted FAISS index.
         """
         self.embeddings = embeddings
         self.store: FAISS | None
@@ -33,20 +35,21 @@ class VectorStore:
             self.store = None
         self.index_path = index_path
 
-    def add_documents(self, docs: list[Document]):
+    def add_documents(self, docs: list[Document]) -> None:
         """Add documents to the vector store.
-        :param docs: List of LangChain Document objects
+        :param docs: List of LangChain Document objects.
         """
         if self.store is None:
-            raise ValueError("Vector store not initialized. Call build_store first.")
+            msg = "Vector store not initialized. Call build_store first."
+            raise ValueError(msg)
         self.store.add_documents(docs)
         if self.index_path:
             self.store.save_local(self.index_path)
 
-    def build_store(self, chunks: list[dict]):
+    def build_store(self, chunks: list[dict]) -> None:
         """Build vector store from list of chunks.
         Each chunk should be:
-        {"content": str, "metadata": dict}
+        {"content": str, "metadata": dict}.
         """
         documents = [
             Document(page_content=chunk["content"], metadata=chunk.get("metadata", {}))
@@ -54,14 +57,15 @@ class VectorStore:
         ]
         self.store = FAISS.from_documents(documents, self.embeddings)
 
-    def add_chunks(self, chunks: list[dict]):
+    def add_chunks(self, chunks: list[dict]) -> None:
         """Add more chunks to existing store."""
         if self.store is None:
             self.build_store(chunks)
         else:
             documents = [
                 Document(
-                    page_content=chunk["content"], metadata=chunk.get("metadata", {})
+                    page_content=chunk["content"],
+                    metadata=chunk.get("metadata", {}),
                 )
                 for chunk in chunks
             ]
@@ -76,16 +80,20 @@ class VectorStore:
         return []
 
     def similarity_search(
-        self, query: str, k: int = 4, metadata_filters: dict | None = None
+        self,
+        query: str,
+        k: int = 4,
+        metadata_filters: dict | None = None,
     ) -> list[Document]:
         """Perform similarity search with optional metadata filtering.
         :param query: Query string
         :param k: Number of top documents to return
         :param metadata_filters: Dictionary of metadata to filter on
-        :return: List of LangChain Document objects
+        :return: List of LangChain Document objects.
         """
         if self.store is None:
-            raise ValueError("Vector store not initialized.")
+            msg = "Vector store not initialized."
+            raise ValueError(msg)
 
         # Perform initial similarity search
         results = self.store.similarity_search(query, k=k, filters=metadata_filters)
@@ -107,15 +115,16 @@ class VectorStore:
 
         return results
 
-    def persist(self, path: str | None = None):
-        """Persist FAISS index locally"""
+    def persist(self, path: str | None = None) -> None:
+        """Persist FAISS index locally."""
         if self.store is None:
-            raise ValueError("Vector store not initialized. Nothing to persist.")
+            msg = "Vector store not initialized. Nothing to persist."
+            raise ValueError(msg)
         save_path = path or self.index_path
         if save_path:
             self.store.save_local(save_path)
 
-    def load(self, path: str):
+    def load(self, path: str) -> None:
         self.store = FAISS.load_local(path, self.embeddings)
 
 

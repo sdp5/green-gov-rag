@@ -3,6 +3,8 @@
 Provides cloud-agnostic interfaces for storage, secrets, and other cloud services.
 """
 
+from __future__ import annotations
+
 from green_gov_rag.cloud.storage import StorageClient
 
 __all__ = ["StorageClient"]

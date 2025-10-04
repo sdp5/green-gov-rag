@@ -57,7 +57,8 @@ dependencies = [
     "shapely ~= 2.0.0",
     "sentence-transformers ~= 2.2.2",
     "pydantic ~= 2.0",
-    "pydantic-settings ~= 2.0"
+    "pydantic-settings ~= 2.0",
+    "llmsherpa ~= 0.1.4"
 ]
 requires-python = "~=3.12.3"
 

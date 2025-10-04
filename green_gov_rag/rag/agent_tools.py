@@ -1,11 +1,12 @@
 # rag/agent_tools.py
 
-"""Agent Tools for GreenGovRAG
-----------------------------
+"""Agent Tools for GreenGovRAG.
+
 Provides wrapper functions to call the RAG chain from LangChain Agents,
 supporting optional metadata filters and structured responses.
 """
 
+from __future__ import annotations
 
 from .rag_chain import RAGChain
 
@@ -13,21 +14,26 @@ from .rag_chain import RAGChain
 class RAGAgentTools:
     def __init__(self, rag_chain: RAGChain):
         """Initialize the Agent tools with a RAG chain.
-        :param rag_chain: RAGChain instance
+        :param rag_chain: RAGChain instance.
         """
         self.rag_chain = rag_chain
 
     def answer_question(
-        self, question: str, metadata_filters: dict | None = None, top_k: int = 4
+        self,
+        question: str,
+        metadata_filters: dict | None = None,
+        top_k: int = 4,
     ):
         """Query the RAG chain with optional metadata filtering.
         :param question: User query string
         :param metadata_filters: Optional dictionary of metadata filters (e.g., region, topic)
         :param top_k: Number of top documents to retrieve
-        :return: dict containing 'answer' and 'sources'
+        :return: dict containing 'answer' and 'sources'.
         """
         response = self.rag_chain.query(
-            question=question, metadata_filters=metadata_filters, k=top_k
+            question=question,
+            metadata_filters=metadata_filters,
+            k=top_k,
         )
 
         # Format sources nicely
@@ -39,7 +45,7 @@ class RAGAgentTools:
                     "url": doc.metadata.get("source_url", ""),
                     "topic": doc.metadata.get("topic", ""),
                     "region": doc.metadata.get("region", ""),
-                }
+                },
             )
 
         return {"answer": response.get("result", ""), "sources": sources}
@@ -49,7 +55,7 @@ class RAGAgentTools:
         Allows passing context as metadata filters.
         :param question: User query string
         :param context: Optional context dict to apply as metadata filters
-        :return: dict with answer and sources
+        :return: dict with answer and sources.
         """
         metadata_filters = context or None
         return self.answer_question(question, metadata_filters=metadata_filters)
@@ -104,7 +110,8 @@ if __name__ == "__main__":
     vector_store = VectorStore(
         index_path="faiss_index",
         embeddings=ChunkEmbedder(
-            provider="huggingface", model_name="sentence-transformers/all-MiniLM-L6-v2"
+            provider="huggingface",
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
         ).embedder,
     )
     # Load existing vector store from
@@ -118,7 +125,7 @@ if __name__ == "__main__":
 
     # Example 1: Simple query without filters
     response = agent_tools.answer_question(
-        "What are native vegetation clearance rules in SA?"
+        "What are native vegetation clearance rules in SA?",
     )
     print("Answer:\n", response["answer"])
     print("Sources:\n", response["sources"])
@@ -126,7 +133,8 @@ if __name__ == "__main__":
     # Example 2: Query with metadata filters
     filters = {"region": "South Australia", "topic": "vegetation_clearance"}
     response_filtered = agent_tools.answer_question(
-        "What approvals are required for land clearing?", metadata_filters=filters
+        "What approvals are required for land clearing?",
+        metadata_filters=filters,
     )
     print("\nFiltered Answer:\n", response_filtered["answer"])
     print("Filtered Sources:\n", response_filtered["sources"])

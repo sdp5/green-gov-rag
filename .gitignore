@@ -199,3 +199,14 @@ cython_debug/
 
 data/processed/
 data/raw/
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+pnpm-debug.log
+package-lock.json
+package.json
+yarn.lock
+pnpm-lock.yaml

@@ -1,7 +1,7 @@
 # rag/filters.py
 
-"""Metadata Filters for RAG
-------------------------
+"""Metadata Filters for RAG.
+
 Provides helper functions to filter documents/chunks in a vector store
 based on metadata such as jurisdiction, region, category, or topic.
 
@@ -12,6 +12,8 @@ based on metadata such as jurisdiction, region, category, or topic.
 3. Plug-and-play:
     - Can be imported in rag/agent_tools.py or directly in your RAG chain for pre-filtering.
 """
+
+from __future__ import annotations
 
 
 def filter_by_metadata(documents: list[dict], filters: dict) -> list[dict]:

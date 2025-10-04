@@ -1,5 +1,6 @@
 """Tests for LGA UI."""
 
+from __future__ import annotations
 
 import pytest
 from shapely.geometry import Point, shape
@@ -26,7 +27,7 @@ DOCS = [
                         [138.60, -34.92],
                         [138.55, -34.92],
                         [138.55, -34.95],
-                    ]
+                    ],
                 ],
             },
         },
@@ -47,7 +48,7 @@ DOCS = [
                         [138.55, -34.80],
                         [138.50, -34.80],
                         [138.50, -34.85],
-                    ]
+                    ],
                 ],
             },
         },
@@ -136,7 +137,8 @@ def test_ui_rag_with_lga_selection(test_case):
 
     # Step 4: Test metadata filtering
     metadata_filter = simulate_user_selection(
-        test_case["selected_lgas"], test_case["selected_topic"]
+        test_case["selected_lgas"],
+        test_case["selected_topic"],
     )
 
     # Step 5: Apply filter

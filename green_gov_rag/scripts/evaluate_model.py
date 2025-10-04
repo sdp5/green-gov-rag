@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Evaluate GreenGovRAG model with sample queries
+"""Evaluate GreenGovRAG model with sample queries.
 
 python scripts/evaluate_model.py
 """
 
+from __future__ import annotations
+
 from green_gov_rag.rag.agent_tools import RAGAgent
 
 
-def run_sample_queries(agent: RAGAgent):
+def run_sample_queries(agent: RAGAgent) -> None:
     sample_queries = [
         "What are the biodiversity offset requirements in NSW?",
         "Which regulations cover emissions reporting for coal mining?",
@@ -26,7 +28,7 @@ def run_sample_queries(agent: RAGAgent):
         print("=" * 80, "\n")
 
 
-def main():
+def main() -> None:
     agent = RAGAgent()  # Ensure vector store & embedder are preloaded
     run_sample_queries(agent)
 

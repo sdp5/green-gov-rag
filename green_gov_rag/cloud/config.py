@@ -4,8 +4,11 @@ Provides environment-driven configuration for cloud resources.
 Now uses centralized settings from green_gov_rag.config
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 
+from green_gov_rag.cloud.storage import StorageClient
 from green_gov_rag.config import settings
 
 
@@ -22,8 +25,10 @@ class CloudConfig:
     def from_env(cls) -> "CloudConfig":
         """Load cloud configuration from centralized settings.
 
-        Returns:
+        Returns
+        -------
             CloudConfig instance
+
         """
         return cls(
             provider=settings.cloud_provider,
@@ -35,8 +40,10 @@ class CloudConfig:
     def validate(self) -> None:
         """Validate cloud configuration.
 
-        Raises:
+        Raises
+        ------
             ValueError: If required configuration is missing
+
         """
         if self.provider not in {"aws", "azure", "local"}:
             msg = f"Invalid CLOUD_PROVIDER: {self.provider}. Must be 'aws', 'azure', or 'local'"
@@ -47,14 +54,14 @@ class CloudConfig:
             raise ValueError(msg)
 
 
-def get_storage_client():  # noqa: D103
+def get_storage_client() -> StorageClient:
     """Get a configured storage client based on environment.
 
-    Returns:
+    Returns
+    -------
         StorageClient instance configured for the current environment.
-    """
-    from green_gov_rag.cloud.storage import StorageClient
 
+    """
     config = CloudConfig.from_env()
     config.validate()
 

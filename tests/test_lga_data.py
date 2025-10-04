@@ -26,7 +26,7 @@ DOCS = [
                         [138.60, -34.92],
                         [138.55, -34.92],
                         [138.55, -34.95],
-                    ]
+                    ],
                 ],
             },
         },
@@ -47,7 +47,7 @@ DOCS = [
                         [138.55, -34.80],
                         [138.50, -34.80],
                         [138.50, -34.85],
-                    ]
+                    ],
                 ],
             },
         },
@@ -104,7 +104,7 @@ TEST_QUERIES = [
         "query": "What are the biodiversity regulations in Adelaide?",
         "filters": {
             "custom_filter_fn": lambda metadata: "lga_geometry" in metadata
-            and point_in_lga(-34.935, 138.575, metadata["lga_geometry"])
+            and point_in_lga(-34.935, 138.575, metadata["lga_geometry"]),
         },
         "expected_topic": "biodiversity",
     },
@@ -112,7 +112,7 @@ TEST_QUERIES = [
         "query": "Show sustainable development policies in Port Adelaide.",
         "filters": {
             "custom_filter_fn": lambda metadata: "lga_geometry" in metadata
-            and point_in_lga(-34.825, 138.525, metadata["lga_geometry"])
+            and point_in_lga(-34.825, 138.525, metadata["lga_geometry"]),
         },
         "expected_topic": "sustainable_development",
     },

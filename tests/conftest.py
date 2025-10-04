@@ -1,5 +1,7 @@
 """Pytest configuration and shared fixtures for testing."""
 
+from __future__ import annotations
+
 import os
 import tempfile
 from pathlib import Path
@@ -69,7 +71,7 @@ def mock_bedrock_embeddings():
     with patch("boto3.client") as mock_boto:
         mock_bedrock = Mock()
         mock_bedrock.invoke_model.return_value = {
-            "body": Mock(read=lambda: b'{"embedding": [0.1, 0.2, 0.3]}')
+            "body": Mock(read=lambda: b'{"embedding": [0.1, 0.2, 0.3]}'),
         }
         mock_boto.return_value = mock_bedrock
         yield mock_boto
@@ -81,8 +83,12 @@ def mock_openai_chat():
     with patch("openai.ChatCompletion.create") as mock:
         mock.return_value = {
             "choices": [
-                {"message": {"content": "This is a test response from the mocked LLM."}}
-            ]
+                {
+                    "message": {
+                        "content": "This is a test response from the mocked LLM."
+                    }
+                },
+            ],
         }
         yield mock
 
@@ -282,17 +288,17 @@ class MockChunkEmbedder:
     def embed_chunks(self, chunks: list[dict]) -> list[dict]:
         """Generate mock embeddings for chunks."""
         embedded = []
-        for i, chunk in enumerate(chunks):
+        for _i, chunk in enumerate(chunks):
             # Create deterministic embeddings based on content hash
             embedding = [
-                hash(chunk.get("content", "")) % 1000 / 1000.0
+                hash(chunk.get("content", "")) % 1000 / 1000.0,
             ] * self.embedding_dim
             embedded.append(
                 {
                     "content": chunk.get("content"),
                     "metadata": chunk.get("metadata", {}),
                     "embedding": embedding,
-                }
+                },
             )
         return embedded
 

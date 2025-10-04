@@ -1,5 +1,7 @@
 """Tests for ETL pipeline."""
 
+from __future__ import annotations
+
 from pathlib import Path
 
 from green_gov_rag.etl import chunker, ingest, loader, utils, validators
@@ -56,7 +58,7 @@ def test_loader_yaml_parsing(tmp_path):
     documents:
       - title: Sample
         download_urls: [http://example.com/doc.pdf]
-    """
+    """,
     )
     loaded = loader.load_yaml(str(yaml_file))
     assert "documents" in loaded

@@ -456,6 +456,50 @@ class ParserType(str, Enum):
 
 
 # ============================================================================
+# Document Source Validation Types
+# ============================================================================
+
+
+class FederalCategory(str, Enum):
+    """Valid categories for federal legislation."""
+
+    LEGISLATION = "legislation"
+    REGULATION = "regulation"
+    BUILDING = "building"
+    POLICY = "policy"
+
+
+class StateFramework(str, Enum):
+    """State-specific ESG frameworks."""
+
+    NSW_NET_ZERO = "NSW_Net_Zero"
+    VIC_CLIMATE_ACTION = "VIC_Climate_Action"
+    NSW_EPA = "NSW_EPA"
+    VIC_EPA = "VIC_EPA"
+
+
+# ============================================================================
+# Document Source Validation Constants
+# ============================================================================
+
+# Valid categories for federal legislation (for backward compatibility)
+FEDERAL_VALID_CATEGORIES = [cat.value for cat in FederalCategory]
+
+# Valid emission scopes (derived from EmissionScope enum)
+VALID_EMISSION_SCOPES = [scope.value for scope in EmissionScope]
+
+# Valid greenhouse gases (derived from GreenhouseGas enum)
+VALID_GREENHOUSE_GASES = [gas.value for gas in GreenhouseGas]
+
+# Valid ESG frameworks (combined from ESGFramework and StateFramework enums)
+VALID_ESG_FRAMEWORKS = [fw.value for fw in ESGFramework] + [
+    fw.value for fw in StateFramework
+]
+
+# State code to full name mapping (derived from AustralianState enum)
+STATE_CODE_TO_NAME = {state.value: state.full_name for state in AustralianState}
+
+# ============================================================================
 # Constants
 # ============================================================================
 

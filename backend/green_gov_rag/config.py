@@ -64,21 +64,55 @@ class Settings(BaseSettings):
     # =========================================================================
     # LLM & Embedding Settings
     # =========================================================================
+    llm_provider: Literal["openai", "azure", "bedrock", "anthropic"] = Field(
+        default="openai",
+        description="LLM provider (openai, azure, bedrock, anthropic)",
+    )
+
+    # OpenAI Settings
     openai_api_key: str | None = Field(
         default=None,
         description="OpenAI API key",
     )
+
+    # Azure OpenAI Settings
+    azure_openai_api_key: str | None = Field(
+        default=None,
+        description="Azure OpenAI API key",
+    )
+    azure_openai_endpoint: str | None = Field(
+        default=None,
+        description="Azure OpenAI endpoint URL",
+    )
+    azure_openai_api_version: str = Field(
+        default="2024-02-15-preview",
+        description="Azure OpenAI API version",
+    )
+    azure_openai_deployment: str | None = Field(
+        default=None,
+        description="Azure OpenAI deployment name",
+    )
+
+    # AWS Bedrock Settings
+    bedrock_model_id: str | None = Field(
+        default=None,
+        description="AWS Bedrock model ID",
+    )
+
+    # Anthropic Settings
+    anthropic_api_key: str | None = Field(
+        default=None,
+        description="Anthropic API key",
+    )
+
+    # Model Settings
     llm_model: str = Field(
-        default="openai/text-davinci-003",
+        default="gpt-4",
         description="LLM model to use for generation",
     )
     embedding_model: str = Field(
         default="sentence-transformers/all-MiniLM-L6-v2",
         description="Embedding model for vector generation",
-    )
-    bedrock_model_id: str | None = Field(
-        default=None,
-        description="AWS Bedrock model ID",
     )
 
     # =========================================================================
@@ -160,6 +194,33 @@ class Settings(BaseSettings):
         default="http://localhost:3000,http://localhost:8501,http://localhost:5173",
         description="CORS allowed origins (comma-separated)",
     )
+
+    def model_post_init(self, __context):
+        """Validate settings after initialization."""
+        self._validate_llm_credentials()
+
+    def _validate_llm_credentials(self):
+        """Validate that required API keys are present for the selected provider."""
+        if self.llm_provider == "openai" and not self.openai_api_key:
+            msg = "OPENAI_API_KEY is required when LLM_PROVIDER is 'openai'"
+            raise ValueError(msg)
+
+        if self.llm_provider == "azure":
+            if not self.azure_openai_api_key:
+                msg = "AZURE_OPENAI_API_KEY is required when LLM_PROVIDER is 'azure'"
+                raise ValueError(msg)
+            if not self.azure_openai_endpoint:
+                msg = "AZURE_OPENAI_ENDPOINT is required when LLM_PROVIDER is 'azure'"
+                raise ValueError(msg)
+
+        if self.llm_provider == "bedrock":
+            if not self.aws_access_key_id or not self.aws_secret_access_key:
+                msg = "AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are required when LLM_PROVIDER is 'bedrock'"
+                raise ValueError(msg)
+
+        if self.llm_provider == "anthropic" and not self.anthropic_api_key:
+            msg = "ANTHROPIC_API_KEY is required when LLM_PROVIDER is 'anthropic'"
+            raise ValueError(msg)
 
 
 # Global settings instance

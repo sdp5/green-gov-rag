@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Optional
 
@@ -11,6 +12,8 @@ from green_gov_rag.api.schemas.query import QueryResponse, SourceDocument
 from green_gov_rag.models import QueryHistory
 from green_gov_rag.models.base import engine
 from green_gov_rag.rag.agent_tools import RAGAgent
+
+logger = logging.getLogger(__name__)
 
 
 class QueryService:
@@ -119,4 +122,4 @@ class QueryService:
                 session.commit()
         except Exception as e:
             # Log error but don't fail the request
-            print(f"Failed to save query history: {e}")
+            logger.error("Failed to save query history: %s", e, exc_info=True)

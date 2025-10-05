@@ -29,6 +29,20 @@ services:
       timeout: 5s
       retries: 5
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: greengovrag-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ../..
@@ -39,6 +53,8 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-greengovrag}
       REDIS_URL: redis://redis:6379
+      QDRANT_URL: http://qdrant:6333
+      VECTOR_STORE_TYPE: ${VECTOR_STORE_TYPE:-faiss}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       CORS_ORIGINS: http://localhost:3000,http://localhost:8501
     volumes:
@@ -48,6 +64,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      qdrant:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
@@ -105,3 +123,5 @@ services:
 volumes:
   pg_data:
     name: greengovrag_pg_data
+  qdrant_data:
+    name: greengovrag_qdrant_data

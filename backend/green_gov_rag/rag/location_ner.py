@@ -31,9 +31,9 @@ class LocationNER:
         self.use_llm = use_llm
         self.llm: Any = None
         if use_llm:
-            from langchain.chat_models import ChatOpenAI
+            from green_gov_rag.rag.llm_factory import get_llm
 
-            self.llm = ChatOpenAI(model=llm_model, temperature=0.0)  # type: ignore[misc]
+            self.llm = get_llm(model=llm_model, temperature=0.0)
 
         # Load mappings from types module
         self._state_mappings = get_state_mapping()

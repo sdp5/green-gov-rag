@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from sqlmodel import Session, func, select
+from sqlalchemy import func
+from sqlmodel import Session, col, select
 
 from green_gov_rag.api.schemas.analytics import (
     AnalyticsStats,
@@ -23,18 +24,20 @@ class AnalyticsService:
         """
         with Session(engine) as session:
             # Total documents
-            total_docs = session.exec(select(func.count()).select_from(Document)).one()
+            total_docs_stmt = select(func.count()).select_from(Document)
+            total_docs = session.exec(total_docs_stmt).one()
 
             # Total queries
-            total_queries = session.exec(
-                select(func.count()).select_from(QueryHistory)
-            ).one()
+            total_queries_stmt = select(func.count()).select_from(QueryHistory)
+            total_queries = session.exec(total_queries_stmt).one()
 
             # Documents by jurisdiction
             jurisdiction_stmt = (
-                select(Document.jurisdiction, func.count(Document.id).label("count"))
+                select(
+                    Document.jurisdiction, func.count(col(Document.id)).label("count")
+                )
                 .group_by(Document.jurisdiction)
-                .order_by(func.count(Document.id).desc())
+                .order_by(col("count").desc())
             )
             jurisdiction_results = session.exec(jurisdiction_stmt).all()
             by_jurisdiction = [
@@ -44,9 +47,9 @@ class AnalyticsService:
 
             # Documents by topic
             topic_stmt = (
-                select(Document.topic, func.count(Document.id).label("count"))
+                select(Document.topic, func.count(col(Document.id)).label("count"))
                 .group_by(Document.topic)
-                .order_by(func.count(Document.id).desc())
+                .order_by(col("count").desc())
             )
             topic_results = session.exec(topic_stmt).all()
             by_topic = [
@@ -56,10 +59,10 @@ class AnalyticsService:
 
             # Documents by region (excluding None)
             region_stmt = (
-                select(Document.region, func.count(Document.id).label("count"))
-                .where(Document.region.isnot(None))
+                select(Document.region, func.count(col(Document.id)).label("count"))
+                .where(col(Document.region).is_not(None))
                 .group_by(Document.region)
-                .order_by(func.count(Document.id).desc())
+                .order_by(col("count").desc())
             )
             region_results = session.exec(region_stmt).all()
             by_region = [

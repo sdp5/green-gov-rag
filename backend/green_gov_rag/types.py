@@ -511,3 +511,16 @@ NGER_THRESHOLD_LARGE = 100000  # tonnes CO2-e
 DEFAULT_CHUNK_SIZE = 1000
 DEFAULT_CHUNK_OVERLAP = 100
 DEFAULT_TOP_K = 10
+
+# ============================================================================
+# LLM Provider Types
+# ============================================================================
+
+
+class LLMProvider(str, Enum):
+    """Supported LLM providers."""
+
+    OPENAI = "openai"
+    AZURE = "azure"
+    BEDROCK = "bedrock"
+    ANTHROPIC = "anthropic"

@@ -86,11 +86,11 @@ class RAGAgent:
         :param metadata_filters: dict of metadata to filter retrieved documents (e.g., region, topic)
         :return: (answer_text, list_of_source_metadata)
         """
-        # Call the RAGChain
-        result = self.chain.run(query=text, metadata_filters=metadata_filters)  # type: ignore[attr-defined]
-        # Assuming result contains 'answer' and 'sources' keys
-        answer = result.get("answer", "")
-        sources = result.get("sources", [])
+        # Call the RAGChain query method
+        result = self.chain.query(question=text, metadata_filters=metadata_filters)
+        # Extract answer and sources from result
+        answer = result.get("result", "")
+        sources = result.get("source_documents", [])
         return answer, sources
 
     def list_documents(self):

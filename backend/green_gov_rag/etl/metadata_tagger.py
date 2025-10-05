@@ -153,9 +153,9 @@ class MetadataTagger:
             temperature: Model temperature (0 for deterministic)
 
         """
-        from langchain.chat_models import ChatOpenAI
+        from green_gov_rag.rag.llm_factory import get_llm
 
-        self.llm: Any = ChatOpenAI(model=model_name, temperature=temperature)  # type: ignore[misc]
+        self.llm: Any = get_llm(model=model_name, temperature=temperature)
 
         # Create tagging chains
         self.esg_tagger = create_tagging_chain_pydantic(ESGMetadata, self.llm)
@@ -254,9 +254,9 @@ class CustomPromptTagger:
             temperature: Model temperature
 
         """
-        from langchain.chat_models import ChatOpenAI
+        from green_gov_rag.rag.llm_factory import get_llm
 
-        self.llm: Any = ChatOpenAI(model=model_name, temperature=temperature)  # type: ignore[misc]
+        self.llm: Any = get_llm(model=model_name, temperature=temperature)
 
     def extract_scope_3_categories(self, text: str) -> list[str]:
         """Extract Scope 3 categories from text using custom prompt.
@@ -341,16 +341,42 @@ class CustomPromptTagger:
         )
 
         chain: Any = prompt | self.llm
-        _response = chain.invoke({"text": text})
+        response = chain.invoke({"text": text})
 
-        # In production, parse JSON response properly
-        # For now, return structured dict
-        return {
-            "frameworks": [],
-            "regulator": None,
-            "reportable_under_nger": None,
-            "emission_scopes": [],
-        }
+        # Parse LLM response - extract structured data
+        try:
+            # Try to extract JSON from response content
+            import json
+            import re
+
+            content = (
+                response.content if hasattr(response, "content") else str(response)
+            )
+
+            # Extract JSON from markdown code blocks if present
+            json_match = re.search(
+                r"```(?:json)?\s*(\{.*?\})\s*```", content, re.DOTALL
+            )
+            if json_match:
+                data = json.loads(json_match.group(1))
+            else:
+                # Try to parse entire content as JSON
+                data = json.loads(content)
+
+            return {
+                "frameworks": data.get("frameworks", []),
+                "regulator": data.get("regulator"),
+                "reportable_under_nger": data.get("reportable_under_nger"),
+                "emission_scopes": data.get("emission_scopes", []),
+            }
+        except (json.JSONDecodeError, AttributeError):
+            # If parsing fails, return empty structure
+            return {
+                "frameworks": [],
+                "regulator": None,
+                "reportable_under_nger": None,
+                "emission_scopes": [],
+            }
 
 
 class ESGOpenAITagger:

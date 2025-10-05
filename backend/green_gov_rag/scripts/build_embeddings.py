@@ -1,13 +1,16 @@
 import os
+from pathlib import Path
 
+from green_gov_rag.config import settings
 from green_gov_rag.etl.chunker import TextChunker
 from green_gov_rag.etl.parser import DocumentParser
 from green_gov_rag.etl.utils import clean_text
 from green_gov_rag.rag.embeddings import ChunkEmbedder
 from green_gov_rag.rag.vector_store import VectorStore
 
-RAW_DIR = "data/raw"
-PROCESSED_DIR = "data/processed"
+# Use settings for paths
+RAW_DIR = Path(settings.local_storage_path) / "raw"
+PROCESSED_DIR = Path(settings.local_storage_path) / "processed"
 os.makedirs(PROCESSED_DIR, exist_ok=True)
 
 

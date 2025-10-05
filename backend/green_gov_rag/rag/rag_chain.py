@@ -2,28 +2,34 @@
 
 """RAG Chain for GreenGovRAG.
 
-Retrieval-Augmented Generation pipeline using FAISS + LLM (OpenAI / Bedrock)
+Retrieval-Augmented Generation pipeline supporting multiple LLM providers:
+- OpenAI
+- Azure OpenAI
+- AWS Bedrock
+- Anthropic
+
 Supports optional metadata filtering during retrieval.
 
-1. Retrieve: Fetch top-K relevant document chunks using FAISS vector search.
+1. Retrieve: Fetch top-K relevant document chunks using vector search.
 2. Embed: Convert query into vector using HuggingFace/OpenAI embeddings.
-3. Generate: Pass context + query to LLM (OpenAI/Bedrock) for answer generation.
+3. Generate: Pass context + query to LLM for answer generation.
 4. Query with sources: Returns answer + metadata for transparency.
-5. Extensible: Can add Bedrock or other LLMs later.
 
-Now uses centralized settings from green_gov_rag.config
+Now uses centralized settings from green_gov_rag.config and LLMFactory for multi-provider support.
 """
 
 from __future__ import annotations
 
-# Optional: LLM client wrappers
-import openai
+from typing import TYPE_CHECKING
 
-# Optional: HuggingFace / OpenAI embeddings
 from green_gov_rag.config import settings
 from green_gov_rag.rag.embeddings import ChunkEmbedder
 from green_gov_rag.rag.enhanced_response import EnhancedResponse, ResponseFormatter
+from green_gov_rag.rag.llm_factory import get_llm
 from green_gov_rag.rag.vector_store import VectorStore
+
+if TYPE_CHECKING:
+    from langchain.schema.language_model import BaseLanguageModel
 
 
 class RAGChain:
@@ -31,26 +37,38 @@ class RAGChain:
         self,
         vector_store: VectorStore,
         embedder: ChunkEmbedder | None = None,
-        llm_provider: str = "openai",
-        llm_model: str = "gpt-4",
+        llm_provider: str | None = None,
+        llm_model: str | None = None,
         top_k: int = 5,
+        temperature: float = 0.2,
+        max_tokens: int = 500,
     ):
         """Initialize RAG Chain.
 
         :param vector_store: VectorStore instance
         :param embedder: ChunkEmbedder instance
-        :param llm_provider: 'openai' or 'bedrock' (future)
-        :param llm_model: model name
-        :param top_k: number of retrieved chunks to pass to LLM
+        :param llm_provider: LLM provider (openai, azure, bedrock, anthropic).
+                            Defaults to settings.llm_provider
+        :param llm_model: Model name. Defaults to settings.llm_model
+        :param top_k: Number of retrieved chunks to pass to LLM
+        :param temperature: Sampling temperature for LLM
+        :param max_tokens: Maximum tokens in LLM response
         """
         self.vector_store = vector_store
         self.embedder = embedder or ChunkEmbedder()
-        self.llm_provider = llm_provider
-        self.llm_model = llm_model
+        self.llm_provider = llm_provider or settings.llm_provider
+        self.llm_model = llm_model or settings.llm_model
         self.top_k = top_k
+        self.temperature = temperature
+        self.max_tokens = max_tokens
 
-        if llm_provider == "openai":
-            openai.api_key = settings.openai_api_key
+        # Initialize LLM using factory
+        self.llm: BaseLanguageModel = get_llm(
+            provider=self.llm_provider,
+            model=self.llm_model,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+        )
 
     def retrieve(self, query: str) -> list[dict]:
         """Retrieve top_k relevant chunks for the query."""
@@ -59,6 +77,8 @@ class RAGChain:
 
     def generate_answer(self, query: str) -> str:
         """Generate answer using retrieved context and LLM."""
+        from langchain.schema import HumanMessage
+
         retrieved = self.retrieve(query)
         context = "\n".join(
             [
@@ -71,16 +91,9 @@ class RAGChain:
 
         prompt = f"Answer the query based on the following context:\n{context}\n\nQuery: {query}\nAnswer:"
 
-        if self.llm_provider == "openai":
-            response = openai.ChatCompletion.create(  # type: ignore[attr-defined]
-                model=self.llm_model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.2,
-                max_tokens=500,
-            )
-            return response.choices[0].message["content"]
-        # Placeholder for Bedrock or other LLMs
-        return "LLM provider not implemented."
+        # Use LangChain's invoke method for all providers
+        response = self.llm.invoke([HumanMessage(content=prompt)])
+        return response.content if hasattr(response, "content") else str(response)
 
     def query_with_sources(self, query: str) -> dict:
         """Return both the answer and the retrieved sources for transparency."""
@@ -129,30 +142,32 @@ class RAGChain:
         :param k: Number of top documents to retrieve
         :return: dict with 'result' and 'source_documents'.
         """
-        # If filters are provided, create a filtered retriever
+        # Retrieve documents with optional metadata filtering
         if metadata_filters:
-
-            def retriever(q):  # noqa: ANN202
-                return self.vector_store.similarity_search(
-                    q,
-                    k=k,
-                    metadata_filters=metadata_filters,
-                )
+            source_docs = self.vector_store.similarity_search(
+                question,
+                k=k,
+                metadata_filters=metadata_filters,
+            )
         else:
-            retriever = self.vector_store.store.as_retriever(search_kwargs={"k": k})  # type: ignore[union-attr,assignment]
+            # Use existing retrieve method
+            retrieved = self.retrieve(question)
+            # Convert to Document objects for compatibility
+            from langchain.docstore.document import Document
 
-        # Execute the chain
-        result = self.chain.run(question, callbacks=None, return_only_outputs=True)  # type: ignore[attr-defined]
+            source_docs = [
+                Document(
+                    page_content=r.get("metadata", {}).get("content", ""),
+                    metadata=r.get("metadata", {}),
+                )
+                for r in retrieved
+            ]
 
-        # Attach filtered documents if applicable
-        source_docs = (
-            retriever(question)
-            if metadata_filters
-            else result.get("source_documents", [])
-        )
+        # Generate answer using the LLM
+        answer = self.generate_answer(question)
 
         return {
-            "result": result.get("result") if isinstance(result, dict) else result,
+            "result": answer,
             "source_documents": source_docs,
         }
 

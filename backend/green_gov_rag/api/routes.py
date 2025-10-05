@@ -129,6 +129,9 @@ async def get_lga_geojson():
     # Go up from backend/green_gov_rag/api/ to project root
     api_dir = Path(__file__).parent
     project_root = api_dir.parent.parent.parent
+    # Data obtained from:
+    # - Australian Bureau of Statistics (ABS): https://www.abs.gov.au/statistics/standards/australian-statistical-geography-standard-asgs-edition-3/jul2021-jun2026/access-and-downloads/digital-boundary-files
+    # - data.gov.au: https://data.gov.au/
     geojson_path = project_root / "data" / "geo" / "aus_lga.geojson"
 
     # Check if file exists
@@ -139,7 +142,6 @@ async def get_lga_geojson():
             return json.load(f)
 
     # Return mock GeoJSON for development
-    # TODO: Add actual Australian LGA boundaries GeoJSON
     return {
         "type": "FeatureCollection",
         "features": [

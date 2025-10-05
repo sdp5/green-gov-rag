@@ -30,7 +30,11 @@ class VectorStore:
         self.embeddings = embeddings
         self.store: FAISS | None
         if index_path:
-            self.store = FAISS.load_local(index_path, embeddings)
+            self.store = FAISS.load_local(
+                folder_path=index_path,
+                embeddings=embeddings,
+                allow_dangerous_deserialization=True,
+            )
         else:
             self.store = None
         self.index_path = index_path
@@ -72,11 +76,23 @@ class VectorStore:
             self.store.add_documents(documents)
 
     def list_metadata(self):
-        """Return a list of metadata dictionaries for all stored embeddings."""
+        """Return a list of metadata dictionaries for all stored embeddings.
+
+        Note: FAISS stores only vectors and doesn't maintain document metadata directly.
+        To get all metadata, you need to maintain a separate metadata store or use
+        a vector database that supports metadata retrieval (like Qdrant, Chroma, etc.)
+
+        Returns:
+            list: Empty list for FAISS backend. Use a different vector store for metadata listing.
+        """
         if self.store is None:
             return []
-        # FAISS doesn't support direct iteration; this method needs implementation
-        # For now, return empty list as FAISS doesn't expose all documents directly
+
+        # FAISS limitation: no built-in metadata iteration
+        # Alternative approaches:
+        # 1. Use Qdrant/Chroma if metadata listing is required
+        # 2. Maintain separate metadata database/file
+        # 3. Store metadata externally and sync with vector IDs
         return []
 
     def similarity_search(
@@ -153,7 +169,7 @@ if __name__ == "__main__":
     # results = store.search(embedded[0]["embedding"], top_k=3)
     # print("Search results:", results)
 
-    from rag.embeddings import ChunkEmbedder  # your embeddings wrapper
+    from green_gov_rag.rag.embeddings import ChunkEmbedder  # your embeddings wrapper
 
     # sample chunks
     chunks = [

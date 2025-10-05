@@ -205,6 +205,34 @@ class Settings(BaseSettings):
         description="CORS allowed origins (comma-separated)",
     )
 
+    # =========================================================================
+    # Cache Settings
+    # =========================================================================
+    enable_cache: bool = Field(
+        default=True,
+        description="Enable LLM response caching",
+    )
+    enable_redis_cache: bool = Field(
+        default=False,
+        description="Enable Redis for distributed caching (requires Redis server)",
+    )
+    redis_host: str = Field(
+        default="localhost",
+        description="Redis server host",
+    )
+    redis_port: int = Field(
+        default=6379,
+        description="Redis server port",
+    )
+    cache_ttl: int = Field(
+        default=3600,
+        description="Cache time-to-live in seconds (default: 1 hour)",
+    )
+    enable_semantic_cache: bool = Field(
+        default=False,
+        description="Enable semantic similarity caching (experimental)",
+    )
+
     def model_post_init(self, __context):
         """Validate settings after initialization."""
         # Skip validation in development if skip_validation is true or DEBUG is true

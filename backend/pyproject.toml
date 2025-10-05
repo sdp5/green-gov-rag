@@ -38,10 +38,10 @@ keywords = [
     "Retrieval Augmented Generation"
 ]
 dependencies = [
-    "langchain ~= 0.3.26",
-    "langchain-community ~= 0.3.26",
-    "langchain-openai ~= 0.3.34",
     "langchain-anthropic ~= 0.3.21",
+    "langchain-community ~= 0.3.26",
+    "langchain-qdrant ~= 0.1.0",
+    "langchain-openai ~= 0.3.34",
     "langchain-aws ~= 0.2.35",
     "faiss-cpu ~= 1.11.0",
     "plotly ~= 6.3.0",
@@ -62,7 +62,8 @@ dependencies = [
     "langchain-huggingface ~= 0.1.2",
     "pydantic ~= 2.0",
     "pydantic-settings ~= 2.0",
-    "llmsherpa ~= 0.1.4"
+    "llmsherpa ~= 0.1.4",
+    "redis ~= 5.0.0",
 ]
 requires-python = "~=3.12.3"
 

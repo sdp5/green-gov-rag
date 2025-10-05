@@ -152,8 +152,11 @@ async def reprocess_document(document_id: str) -> AdminActionResponse:
     """Trigger document reprocessing.
 
     Updates document status to 'pending' to trigger reprocessing.
+    Also invalidates cache entries that use this document.
     """
     from fastapi import HTTPException
+
+    from green_gov_rag.api.routes import query_service
 
     with Session(engine) as session:
         doc = session.get(Document, document_id)
@@ -165,17 +168,31 @@ async def reprocess_document(document_id: str) -> AdminActionResponse:
         session.add(doc)
         session.commit()
 
+        # Invalidate cache entries for this document
+        if query_service.cache_service:
+            invalidated = query_service.cache_service.invalidate_by_document(
+                document_id
+            )
+            message = f"Document reprocessing triggered. Invalidated {invalidated} cache entries."
+        else:
+            message = "Document reprocessing triggered"
+
         return AdminActionResponse(
             status="triggered",
             document_id=document_id,
-            message="Document reprocessing triggered",
+            message=message,
         )
 
 
 @router.delete("/documents/{document_id}", response_model=AdminActionResponse)
 async def delete_document(document_id: str) -> AdminActionResponse:
-    """Delete a document."""
+    """Delete a document.
+
+    Also invalidates cache entries that use this document.
+    """
     from fastapi import HTTPException
+
+    from green_gov_rag.api.routes import query_service
 
     with Session(engine) as session:
         doc = session.get(Document, document_id)
@@ -185,10 +202,19 @@ async def delete_document(document_id: str) -> AdminActionResponse:
         session.delete(doc)
         session.commit()
 
+        # Invalidate cache entries for this document
+        if query_service.cache_service:
+            invalidated = query_service.cache_service.invalidate_by_document(
+                document_id
+            )
+            message = f"Document deleted successfully. Invalidated {invalidated} cache entries."
+        else:
+            message = "Document deleted successfully"
+
         return AdminActionResponse(
             status="deleted",
             document_id=document_id,
-            message="Document deleted successfully",
+            message=message,
         )
 
 
@@ -261,3 +287,32 @@ async def get_system_health() -> SystemHealthResponse:
         vector_store=settings.vector_store_type,
         llm_provider=settings.llm_provider,
     )
+
+
+@router.get("/cache/metrics")
+async def get_cache_metrics() -> dict:
+    """Get cache performance metrics.
+
+    Returns cache hit rate, cost savings, and other statistics.
+    """
+    from green_gov_rag.api.routes import query_service
+
+    if not query_service.cache_service:
+        return {"error": "Cache is not enabled"}
+
+    return query_service.cache_service.get_metrics()
+
+
+@router.post("/cache/clear")
+async def clear_cache() -> dict:
+    """Clear all cache entries.
+
+    Use with caution - this will remove all cached responses.
+    """
+    from green_gov_rag.api.routes import query_service
+
+    if not query_service.cache_service:
+        return {"error": "Cache is not enabled"}
+
+    query_service.cache_service.clear()
+    return {"status": "success", "message": "Cache cleared"}

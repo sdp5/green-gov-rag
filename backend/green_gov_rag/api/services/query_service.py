@@ -9,6 +9,8 @@ from typing import Optional
 from sqlmodel import Session
 
 from green_gov_rag.api.schemas.query import QueryResponse, SourceDocument
+from green_gov_rag.api.services.cache import CacheService
+from green_gov_rag.config import settings
 from green_gov_rag.models import QueryHistory
 from green_gov_rag.models.base import engine
 from green_gov_rag.rag.agent_tools import RAGAgent
@@ -23,6 +25,22 @@ class QueryService:
         """Initialize query service."""
         self.rag_agent = RAGAgent()
 
+        # Initialize cache service
+        self.cache_service = None
+        if settings.enable_cache:
+            self.cache_service = CacheService(
+                enable_redis=settings.enable_redis_cache,
+                redis_host=settings.redis_host,
+                redis_port=settings.redis_port,
+                cache_ttl=settings.cache_ttl,
+                enable_semantic=settings.enable_semantic_cache,
+            )
+            logger.info(
+                "Cache enabled (Redis: %s, TTL: %ds)",
+                settings.enable_redis_cache,
+                settings.cache_ttl,
+            )
+
     def execute_query(
         self,
         query: str,
@@ -31,7 +49,7 @@ class QueryService:
         topics: Optional[list[str]] = None,
         max_sources: int = 5,
     ) -> QueryResponse:
-        """Execute RAG query.
+        """Execute RAG query with caching.
 
         Args:
             query: User query
@@ -54,10 +72,17 @@ class QueryService:
         if topics:
             metadata_filters["topic"] = topics[0] if len(topics) == 1 else topics
 
-        # Execute query
+        # Execute full RAG query (retrieval + generation)
+        # TODO: Refactor RAGAgent to support caching at the generation step
         answer, sources = self.rag_agent.query(
             query, metadata_filters=metadata_filters or None
         )
+
+        # Build context from sources for potential caching
+        _ = self._build_context(sources[:max_sources])
+
+        # Note: Caching temporarily disabled until RAGAgent refactored
+        # TODO: Add caching support by exposing retrieval and generation methods separately
 
         # Convert sources to schema
         source_docs = [
@@ -92,6 +117,24 @@ class QueryService:
             filters_applied=metadata_filters,
             response_time_ms=response_time,
         )
+
+    def _build_context(self, sources: list[dict]) -> str:
+        """Build context string from source documents.
+
+        Args:
+            sources: List of source documents
+
+        Returns:
+            Context string for LLM
+        """
+        context_parts = []
+        for i, src in enumerate(sources, 1):
+            context_parts.append(
+                f"Source {i}:\n"
+                f"Title: {src.get('title', 'Unknown')}\n"
+                f"Content: {src.get('excerpt', src.get('content', ''))}\n"
+            )
+        return "\n".join(context_parts)
 
     def _save_query_history(
         self,

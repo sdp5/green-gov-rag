@@ -2,17 +2,22 @@
 
 """Vector Store for GreenGovRAG.
 
+LEGACY: This class is maintained for backward compatibility.
+New code should use VectorStoreFactory.create_vector_store()
+
 Handles storing, retrieving, and filtering document embeddings for RAG.
 
-1. FAISS backend for fast similarity search.
+1. Supports multiple backends: FAISS, Qdrant, ChromaDB
 2. Metadata filtering support: Use metadata_filters in similarity_search.
 3. Stores metadata alongside embeddings.
-4. Persistent storage: index + metadata saved to disk.
+4. Persistent storage: index + metadata saved to disk/database.
 5. Supports additions and searches.
 6. Easy to integrate into your RAG chain.
 """
 
 from __future__ import annotations
+
+import logging
 
 from langchain.docstore.document import Document
 from langchain_community.vectorstores import FAISS
@@ -20,13 +25,24 @@ from langchain_core.embeddings import Embeddings
 
 from .filters import filter_by_metadata
 
+logger = logging.getLogger(__name__)
+
 
 class VectorStore:
     def __init__(self, embeddings: Embeddings, index_path: str | None = None):
-        """Initialize the vector store. If index_path exists, load the FAISS index.
+        """Initialize the vector store.
+
+        LEGACY: This class defaults to FAISS for backward compatibility.
+        New code should use VectorStoreFactory.create_vector_store()
+
         :param embeddings: LangChain Embeddings instance (OpenAI/HuggingFace/Bedrock)
         :param index_path: Optional path to persisted FAISS index.
         """
+        logger.warning(
+            "VectorStore is deprecated. Use VectorStoreFactory.create_vector_store() instead. "
+            "See docs/VECTOR_STORE_MIGRATION.md for details."
+        )
+
         self.embeddings = embeddings
         self.store: FAISS | None
         if index_path:

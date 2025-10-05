@@ -17,6 +17,7 @@ import pytest
 @pytest.fixture(autouse=True)
 def mock_env_vars(monkeypatch):
     """Set up test environment variables."""
+    monkeypatch.setenv("SKIP_VALIDATION", "true")
     monkeypatch.setenv("CLOUD_PROVIDER", "local")
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test-access-key")

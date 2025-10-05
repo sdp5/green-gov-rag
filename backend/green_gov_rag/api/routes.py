@@ -12,6 +12,10 @@ from green_gov_rag.api.schemas import (
     AnalyticsStats,
     DocumentListResponse,
     DocumentResponse,
+    GeoJSONFeature,
+    GeoJSONGeometry,
+    GeoJSONResponse,
+    HealthResponse,
     QueryRequest,
     QueryResponse,
 )
@@ -29,10 +33,10 @@ document_service = DocumentService()
 analytics_service = AnalyticsService()
 
 
-@router.get("/health")
-def health_check():
+@router.get("/health", response_model=HealthResponse)
+def health_check() -> HealthResponse:
     """Health check endpoint."""
-    return {"status": "ok", "service": "GreenGovRAG API", "version": __version__}
+    return HealthResponse(status="ok", service="GreenGovRAG API", version=__version__)
 
 
 @router.post("/query", response_model=QueryResponse)
@@ -118,12 +122,12 @@ async def get_analytics() -> AnalyticsStats:
     return analytics_service.get_stats()
 
 
-@router.get("/map/lgas")
-async def get_lga_geojson():
+@router.get("/map/lgas", response_model=GeoJSONResponse)
+async def get_lga_geojson() -> GeoJSONResponse:
     """Get LGA boundaries as GeoJSON.
 
     Returns:
-        dict: GeoJSON FeatureCollection
+        GeoJSONResponse: GeoJSON FeatureCollection
     """
     # Use absolute path relative to project root
     # Go up from backend/green_gov_rag/api/ to project root
@@ -139,18 +143,19 @@ async def get_lga_geojson():
         import json
 
         with open(geojson_path) as f:
-            return json.load(f)
+            data = json.load(f)
+            return GeoJSONResponse(**data)
 
     # Return mock GeoJSON for development
-    return {
-        "type": "FeatureCollection",
-        "features": [
-            {
-                "type": "Feature",
-                "properties": {"name": "Sydney", "LGA_NAME": "Sydney", "state": "NSW"},
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [
+    return GeoJSONResponse(
+        type="FeatureCollection",
+        features=[
+            GeoJSONFeature(
+                type="Feature",
+                properties={"name": "Sydney", "LGA_NAME": "Sydney", "state": "NSW"},
+                geometry=GeoJSONGeometry(
+                    type="Polygon",
+                    coordinates=[
                         [
                             [151.1, -33.8],
                             [151.3, -33.8],
@@ -159,18 +164,18 @@ async def get_lga_geojson():
                             [151.1, -33.8],
                         ]
                     ],
-                },
-            },
-            {
-                "type": "Feature",
-                "properties": {
+                ),
+            ),
+            GeoJSONFeature(
+                type="Feature",
+                properties={
                     "name": "Melbourne",
                     "LGA_NAME": "Melbourne",
                     "state": "VIC",
                 },
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [
+                geometry=GeoJSONGeometry(
+                    type="Polygon",
+                    coordinates=[
                         [
                             [144.8, -37.7],
                             [145.0, -37.7],
@@ -179,7 +184,7 @@ async def get_lga_geojson():
                             [144.8, -37.7],
                         ]
                     ],
-                },
-            },
+                ),
+            ),
         ],
-    }
+    )

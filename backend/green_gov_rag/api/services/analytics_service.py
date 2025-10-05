@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from sqlalchemy import func
-from sqlmodel import Session, col, select
+from sqlmodel import Session, select
 
 from green_gov_rag.api.schemas.analytics import (
     AnalyticsStats,
@@ -24,47 +24,42 @@ class AnalyticsService:
         """
         with Session(engine) as session:
             # Total documents
-            total_docs_stmt = select(func.count()).select_from(Document)
-            total_docs = session.exec(total_docs_stmt).one()
+            total_docs = session.exec(select(func.count()).select_from(Document)).one()
 
             # Total queries
-            total_queries_stmt = select(func.count()).select_from(QueryHistory)
-            total_queries = session.exec(total_queries_stmt).one()
+            total_queries = session.exec(
+                select(func.count()).select_from(QueryHistory)
+            ).one()
 
             # Documents by jurisdiction
-            jurisdiction_stmt = (
-                select(
-                    Document.jurisdiction, func.count(col(Document.id)).label("count")
-                )
+            jurisdiction_results = session.exec(
+                select(Document.jurisdiction, func.count(Document.id))  # type: ignore[arg-type]
                 .group_by(Document.jurisdiction)
-                .order_by(col("count").desc())
-            )
-            jurisdiction_results = session.exec(jurisdiction_stmt).all()
+                .order_by(func.count(Document.id).desc())  # type: ignore[arg-type]
+            ).all()
             by_jurisdiction = [
                 DistributionData(name=name, count=count)
                 for name, count in jurisdiction_results
             ]
 
             # Documents by topic
-            topic_stmt = (
-                select(Document.topic, func.count(col(Document.id)).label("count"))
+            topic_results = session.exec(
+                select(Document.topic, func.count(Document.id))  # type: ignore[arg-type]
                 .group_by(Document.topic)
-                .order_by(col("count").desc())
-            )
-            topic_results = session.exec(topic_stmt).all()
+                .order_by(func.count(Document.id).desc())  # type: ignore[arg-type]
+            ).all()
             by_topic = [
                 DistributionData(name=name, count=count)
                 for name, count in topic_results
             ]
 
             # Documents by region (excluding None)
-            region_stmt = (
-                select(Document.region, func.count(col(Document.id)).label("count"))
-                .where(col(Document.region).is_not(None))
+            region_results = session.exec(
+                select(Document.region, func.count(Document.id))  # type: ignore[arg-type]
+                .where(Document.region.is_not(None))  # type: ignore[union-attr]
                 .group_by(Document.region)
-                .order_by(col("count").desc())
-            )
-            region_results = session.exec(region_stmt).all()
+                .order_by(func.count(Document.id).desc())  # type: ignore[arg-type]
+            ).all()
             by_region = [
                 DistributionData(name=name or "Unknown", count=count)
                 for name, count in region_results

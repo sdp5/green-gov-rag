@@ -5,20 +5,30 @@ All environment variables are defined here and can be accessed via the settings 
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Determine the .env file path (look in backend/ directory)
+ENV_FILE = Path(__file__).parent.parent / ".env"
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(ENV_FILE) if ENV_FILE.exists() else None,
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
+    )
+
+    # Validation control
+    skip_validation: bool = Field(
+        default=False,
+        description="Skip credential validation (for testing)",
     )
 
     # =========================================================================
@@ -197,13 +207,19 @@ class Settings(BaseSettings):
 
     def model_post_init(self, __context):
         """Validate settings after initialization."""
-        self._validate_llm_credentials()
+        # Skip validation in development if skip_validation is true or DEBUG is true
+        if not self.skip_validation and not self.debug:
+            self._validate_llm_credentials()
 
     def _validate_llm_credentials(self):
         """Validate that required API keys are present for the selected provider."""
-        if self.llm_provider == "openai" and not self.openai_api_key:
-            msg = "OPENAI_API_KEY is required when LLM_PROVIDER is 'openai'"
-            raise ValueError(msg)
+        if self.llm_provider == "openai":
+            if not self.openai_api_key or self.openai_api_key == "sk-your-key-here":
+                msg = (
+                    "OPENAI_API_KEY is required when LLM_PROVIDER is 'openai'. "
+                    "Set DEBUG=true in .env to skip validation during development."
+                )
+                raise ValueError(msg)
 
         if self.llm_provider == "azure":
             if not self.azure_openai_api_key:

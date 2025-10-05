@@ -107,7 +107,6 @@ cd frontend && npm install && npm run dev
 
 **Access:**
 - Backend API: http://localhost:8000/docs
-- Streamlit UI: http://localhost:8501
 - Frontend: http://localhost:5173
 
 See [SUMMARY](docs/IMPLEMENTATION_SUMMARY.md) for details.

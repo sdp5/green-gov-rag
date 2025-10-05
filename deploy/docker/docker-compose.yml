@@ -95,21 +95,6 @@ services:
       backend:
         condition: service_started
 
-  streamlit:
-    build:
-      context: ../..
-      dockerfile: deploy/docker/streamlit.Dockerfile
-    container_name: greengovrag-streamlit
-    ports:
-      - "8501:8501"
-    environment:
-      API_URL: http://backend:8000
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-    volumes:
-      - ../../data:/app/data
-    depends_on:
-      - backend
-
   frontend:
     build:
       context: ../..

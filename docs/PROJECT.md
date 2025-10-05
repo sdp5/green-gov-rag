@@ -10,8 +10,7 @@ green-gov-rag/
 │   │   ├── models/        # SQLModel ORM
 │   │   ├── rag/           # RAG components
 │   │   ├── etl/           # ETL pipeline + plugins
-│   │   ├── airflow/       # Airflow DAGs
-│   │   └── app/           # Streamlit UI
+│   │   └── airflow/       # Airflow DAGs
 │   ├── alembic/           # Database migrations
 │   ├── tests/
 │   ├── configs/           # YAML configs
@@ -41,7 +40,7 @@ green-gov-rag/
 ## Architecture
 
 ```
-User Interface (Streamlit/React + Map)
+User Interface (React + Map)
            ↓
 Query Handler (FastAPI/LangChain Agent)
            ↓
@@ -86,9 +85,9 @@ Raw Data Sources (PDFs, HTML, GeoJSON)
 
 | Component | Description |
 |-----------|-------------|
-| Streamlit App | Search bar, results, clickable map |
-| React App | Modern UI with Mapbox, charts |
-| Folium/Mapbox Map | GeoJSON overlays, LGA filtering |
+| React App | Modern UI with Mapbox, charts, search |
+| Mapbox Map | GeoJSON overlays, LGA filtering |
+| Admin API | Document management, analytics dashboard |
 
 ### Deployment
 
@@ -116,7 +115,9 @@ Raw Data Sources (PDFs, HTML, GeoJSON)
 ## Program Flow
 
 ```
-app/ui.py (Streamlit)
+frontend/ (React UI)
+    ↓
+api/routes.py (FastAPI endpoints)
     ↓
 rag/agent_tools.py (Agent wrapper)
     ↓
@@ -147,9 +148,9 @@ etl/utils.py (Cleaning/normalizing)
 
 | Layer | Technologies |
 |-------|-------------|
-| Frontend | React, Streamlit, Mapbox, Folium |
+| Frontend | React, Mapbox |
 | Backend | FastAPI, LangChain |
-| RAG | FAISS/Qdrant, OpenAI/Bedrock |
+| RAG | FAISS/Qdrant, OpenAI/Azure/Bedrock/Anthropic |
 | ETL | Airflow, LLMSherpa, PyMuPDF |
 | Database | PostgreSQL/PostGIS, SQLModel |
 | Deployment | Docker, AWS ECS, Azure Container Apps |

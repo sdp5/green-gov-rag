@@ -56,20 +56,21 @@ docker-compose up
 # Access
 # - Frontend: http://localhost:3000
 # - API: http://localhost:8000/docs
-# - Streamlit: http://localhost:8501
+# - Admin: http://localhost:8000/api/admin/dashboard
+# - Airflow: http://localhost:8080
 ```
 
 ## Architecture
 
 ```
-User Interface (Streamlit/React + Map)
+User Interface (React + Map)
            ↓
     FastAPI Backend
            ↓
     RAG Query Engine
     ├─ Vector Store (FAISS/Qdrant)
     ├─ Metadata Filters (PostgreSQL)
-    └─ LLM (OpenAI/Bedrock/Local)
+    └─ LLM (OpenAI/Azure/Bedrock/Anthropic)
            ↓
     Document Store
     ├─ Vector Index
@@ -86,9 +87,9 @@ User Interface (Streamlit/React + Map)
 
 | Layer | Technologies |
 |-------|-------------|
-| **Frontend** | React, Streamlit, Mapbox/Folium |
+| **Frontend** | React, Mapbox |
 | **Backend** | FastAPI, LangChain |
-| **RAG** | FAISS/Qdrant, OpenAI/Bedrock |
+| **RAG** | FAISS/Qdrant, OpenAI/Azure/Bedrock/Anthropic |
 | **ETL** | Airflow, LLMSherpa, PyMuPDF |
 | **Database** | PostgreSQL/PostGIS, SQLModel |
 | **Deployment** | Docker, AWS ECS, Azure Container Apps |

@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from green_gov_rag import __version__
+from green_gov_rag.api.admin import router as admin_router
 from green_gov_rag.api.routes import router as api_router
 from green_gov_rag.config import settings
 from green_gov_rag.models.base import init_db
@@ -37,6 +38,7 @@ async def startup_event():
 
 # Include API routes
 app.include_router(api_router, prefix="/api")
+app.include_router(admin_router, prefix="/api")
 
 
 @app.get("/")
@@ -46,5 +48,6 @@ async def root():
         "service": "GreenGovRAG API",
         "version": __version__,
         "docs": "/docs",
+        "admin": "/api/admin/dashboard",
         "health": "/api/health",
     }

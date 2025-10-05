@@ -18,6 +18,12 @@ alembic upgrade head
 # Run API server
 uvicorn green_gov_rag.api.main:app --reload
 
+# Access services
+# - API: http://localhost:8000
+# - API Docs: http://localhost:8000/docs
+# - Admin: http://localhost:8000/api/admin/dashboard
+# - Airflow: http://localhost:8080
+
 # Run tests
 pytest tests/
 ```
@@ -81,9 +87,6 @@ uvicorn green_gov_rag.api.main:app --reload --port 8000
 
 # Airflow (optional)
 airflow standalone
-
-# Streamlit UI (optional)
-streamlit run green_gov_rag/app/ui.py
 ```
 
 ## Testing
@@ -120,12 +123,24 @@ All settings in `green_gov_rag/config.py`, loaded from `.env`:
 
 ## API Endpoints
 
+### Public API
 ```
 GET  /api/health                 # Health check
 POST /api/query                  # RAG query
 GET  /api/documents              # List documents
 GET  /api/analytics              # Analytics stats
 GET  /api/lga-boundaries         # LGA GeoJSON
+```
+
+### Admin API
+```
+GET    /api/admin/dashboard              # Dashboard statistics
+GET    /api/admin/documents              # List documents with filters
+GET    /api/admin/documents/{id}         # Document details
+POST   /api/admin/documents/{id}/reprocess  # Trigger reprocessing
+DELETE /api/admin/documents/{id}         # Delete document
+GET    /api/admin/analytics/queries      # Query analytics (last N days)
+GET    /api/admin/system/health          # System health check
 ```
 
 ## Development

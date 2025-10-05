@@ -72,4 +72,4 @@ ingest:
 	python scripts/ingest_docs.py
 
 run:
-	uvicorn green_gov_rag.app.main:app --reload
+	uvicorn green_gov_rag.api.main:app --reload

@@ -173,7 +173,6 @@ def example_5_full_pipeline():
     print("Example 5: Full Pipeline Integration")
     print("=" * 70)
 
-    from green_gov_rag.app.hybrid_rag_handler import GeospatialRAGHandler
     from green_gov_rag.rag.embeddings import ChunkEmbedder
     from green_gov_rag.rag.hybrid_search import HybridGeospatialSearch
     from green_gov_rag.rag.vector_store import VectorStore
@@ -235,54 +234,38 @@ def example_5_full_pipeline():
     vector_store.build_store(chunks)
 
     hybrid_search = HybridGeospatialSearch(vector_store, enable_ner=True)
-    handler = GeospatialRAGHandler(hybrid_search)
 
-    # Test 1: Auto-location search
-    print("\n--- Test 1: Auto-location Search ---")
+    # Test 1: Simple hybrid search
+    print("\n--- Test 1: Hybrid Search with NER ---")
     query1 = "What are the development rules in Adelaide?"
     print(f"Query: {query1}")
 
-    results1 = handler.search_with_auto_location(query1, k=2)
-    print(f"Found {len(results1)} results with automatic location extraction")
+    results1 = hybrid_search.search(query1, k=2)
+    print(f"Found {len(results1)} results")
     for result in results1:
-        print(f"  - {result['title']} ({result['spatial_scope']})")
+        print(f"  - {result.get('metadata', {}).get('title', 'Unknown')} ({result.get('metadata', {}).get('spatial_scope', 'Unknown')})")
 
-    # Test 2: ESG filtered search
-    print("\n--- Test 2: ESG Filtered Search ---")
+    # Test 2: Search with metadata filters
+    print("\n--- Test 2: Search with Metadata Filters ---")
     query2 = "What are NGER reporting requirements?"
     print(f"Query: {query2}")
 
-    results2 = handler.search_with_esg_filters(
+    results2 = hybrid_search.search(
         query2, frameworks=["NGER"], emission_scopes=["scope_1"], k=2
     )
     print(f"Found {len(results2)} NGER Scope 1 results")
     for result in results2:
-        print(f"  - {result['title']}")
-        print(f"    Frameworks: {result.get('frameworks', [])}")
+        metadata = result.get('metadata', {})
+        print(f"  - {metadata.get('title', 'Unknown')}")
+        print(f"    Frameworks: {metadata.get('esg_metadata', {}).get('frameworks', [])}")
 
-    # Test 3: Scope 3 search
-    print("\n--- Test 3: Scope 3 Category Search ---")
-    query3 = "How to calculate upstream transport emissions?"
-    print(f"Query: {query3}")
-
-    results3 = handler.search_scope_3(
-        query3, scope_3_categories=["upstream_transport"], k=2
-    )
-    print(f"Found {len(results3)} Scope 3 results")
-    for result in results3:
-        print(f"  - {result['title']}")
-
-    # Test 4: Enhanced citations
-    print("\n--- Test 4: Enhanced Citations ---")
-    query4 = "What are emissions reporting requirements?"
-    print(f"Query: {query4}")
-
-    enhanced_results = handler.search_with_enhanced_citations(query4, k=2)
-    print(f"\nEnhanced Response with {enhanced_results['source_count']} citations:")
-    for source in enhanced_results["sources"]:
-        print(f"\n  [{source['citation_number']}] {source['title']}")
-        print(f"      Deep Link: {source['deep_link']}")
-        print(f"      Breadcrumb: {source['breadcrumb']}")
+    # Test 3: Demonstration complete
+    print("\n--- Pipeline Integration Complete ---")
+    print("Demonstrated:")
+    print("  ✓ Vector store with enhanced metadata")
+    print("  ✓ Hybrid search with NER")
+    print("  ✓ ESG framework filtering")
+    print("  ✓ Location-aware search")
 
 
 def main():

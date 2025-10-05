@@ -36,12 +36,19 @@ Monorepo migration with database persistence, enhanced API, and containerized de
 - `GET /api/health` - Health check
 - `GET /` - Root endpoint
 
+**Admin API:**
+- `GET /api/admin/dashboard` - Dashboard statistics
+- `GET /api/admin/documents` - List documents with filters
+- `POST /api/admin/documents/{id}/reprocess` - Trigger reprocessing
+- `DELETE /api/admin/documents/{id}` - Delete document
+- `GET /api/admin/analytics/queries` - Query analytics
+- `GET /api/admin/system/health` - System health
+
 ### Phase 4: Deployment
 
 | Component | Status |
 |-----------|--------|
 | Backend Dockerfile | ✅ |
-| Streamlit Dockerfile | ✅ |
 | Airflow Dockerfile | ✅ |
 | Frontend Dockerfile (multi-stage) | ✅ |
 | Nginx config | ✅ |
@@ -83,8 +90,7 @@ green-gov-rag/
 │   │   ├── api/         # FastAPI routes ✅
 │   │   ├── models/      # SQLModel ORM ✅
 │   │   ├── rag/         # RAG components
-│   │   ├── etl/         # ETL pipeline ✅
-│   │   └── app/         # Streamlit UI
+│   │   └── etl/         # ETL pipeline ✅
 │   ├── alembic/         # Migrations ✅
 │   ├── tests/
 │   └── pyproject.toml
@@ -125,7 +131,7 @@ docker-compose up --build
 **Access:**
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:8000/docs
-- Streamlit: http://localhost:8501
+- Admin: http://localhost:8000/api/admin/dashboard
 - Airflow: http://localhost:8080
 
 ## Progress

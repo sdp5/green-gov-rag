@@ -1,113 +1,115 @@
-## Document & Data Sources
+# Data Sources
 
-### Federal Government (Australia-wide)
+## Federal Sources
 
-| Source                                                      | Type                                 | URL                                                                                                                      |
-| ----------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| **EPBC Act**                                                | Environmental legislation (PDF/HTML) | [https://www.legislation.gov.au/Series/C2004A00485](https://www.legislation.gov.au/Series/C2004A00485)                   |
-| **Environment Protection Australia**                        | Reform updates, new rules            | [https://www.dcceew.gov.au/environment/epbc/epbc-act-reform](https://www.dcceew.gov.au/environment/epbc/epbc-act-reform) |
-| **National Construction Code (NCC)**                        | Building standards (PDF)             | [https://ncc.abcb.gov.au/](https://ncc.abcb.gov.au/)                                                                     |
-| **Clean Energy Regulator**                                  | Emissions reporting guidelines       | [https://www.cleanenergyregulator.gov.au/](https://www.cleanenergyregulator.gov.au/)                                     |
-| **Australian Energy Infrastructure Commissioner**           | Wind/solar project rules             | [https://www.aeic.gov.au/](https://www.aeic.gov.au/)                                                                     |
-| **National Native Vegetation Guidelines** (where available) | Guidelines, offsets                  | [https://www.dcceew.gov.au/](https://www.dcceew.gov.au/)                                                                 |
+| Source | Type | URL |
+|--------|------|-----|
+| EPBC Act | Legislation | https://www.legislation.gov.au/Series/C2004A00485 |
+| Environment Protection Australia | Reform updates | https://www.dcceew.gov.au/environment/epbc/epbc-act-reform |
+| National Construction Code | Building standards | https://ncc.abcb.gov.au/ |
+| Clean Energy Regulator | Emissions guidelines | https://www.cleanenergyregulator.gov.au/ |
+| Energy Infrastructure Commissioner | Wind/solar rules | https://www.aeic.gov.au/ |
 
+## State Sources
 
-### State Government Sources
+### South Australia
 
-#### South Australia (SA)
+| Source | URL |
+|--------|-----|
+| Planning & Design Code | https://code.plan.sa.gov.au/ |
+| Property Location Browser | https://location.sa.gov.au/viewer/ |
+| Environment Protection Authority | https://www.epa.sa.gov.au/ |
+| Native Vegetation Council | https://www.environment.sa.gov.au/topics/native-vegetation |
 
-| Source                              | URL                                                                                                                      |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Planning & Design Code              | [https://code.plan.sa.gov.au/](https://code.plan.sa.gov.au/)                                                             |
-| SA Property Location Browser        | [https://location.sa.gov.au/viewer/](https://location.sa.gov.au/viewer/)                                                 |
-| SA Environment Protection Authority | [https://www.epa.sa.gov.au/](https://www.epa.sa.gov.au/)                                                                 |
-| Native Vegetation Council (SA)      | [https://www.environment.sa.gov.au/topics/native-vegetation](https://www.environment.sa.gov.au/topics/native-vegetation) |
+### New South Wales
 
-#### New South Wales (NSW)
+| Source | URL |
+|--------|-----|
+| Planning Portal | https://www.planningportal.nsw.gov.au/ |
+| Biodiversity Offsets Scheme | https://www.environment.nsw.gov.au/topics/animals-and-plants/biodiversity-offsets-scheme |
+| EIA Guidance | https://www.planning.nsw.gov.au/policy-and-legislation/environmental-impact-assessment |
 
-| Source                      | URL                                                                                                                                                                                  |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| NSW Planning Portal         | [https://www.planningportal.nsw.gov.au/](https://www.planningportal.nsw.gov.au/)                                                                                                     |
-| Biodiversity Offsets Scheme | [https://www.environment.nsw.gov.au/topics/animals-and-plants/biodiversity-offsets-scheme](https://www.environment.nsw.gov.au/topics/animals-and-plants/biodiversity-offsets-scheme) |
-| EIA Guidance Documents      | [https://www.planning.nsw.gov.au/policy-and-legislation/environmental-impact-assessment](https://www.planning.nsw.gov.au/policy-and-legislation/environmental-impact-assessment)     |
+### Victoria
 
-#### Victoria (VIC)
+| Source | URL |
+|--------|-----|
+| Planning Schemes Online | https://planning-schemes.app.planning.vic.gov.au/ |
+| Environment Resources | https://www.environment.vic.gov.au/ |
 
-| Source                             | URL                                                                                                    |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Planning Schemes Online            | [https://planning-schemes.app.planning.vic.gov.au/](https://planning-schemes.app.planning.vic.gov.au/) |
-| DELWP Environment Docs             | [https://www.environment.vic.gov.au/](https://www.environment.vic.gov.au/)                             |
-| Victoria State Planning Provisions | [https://www.planning.vic.gov.au/](https://www.planning.vic.gov.au/)                                   |
+### Queensland
 
-#### Queensland (QLD)
+| Source | URL |
+|--------|-----|
+| State Development Assessment | https://planning.dsdmip.qld.gov.au/ |
+| Environmental Offsets Policy | https://environment.des.qld.gov.au/ |
 
-| Source                                         | URL                                                                        |
-| ---------------------------------------------- | -------------------------------------------------------------------------- |
-| State Development Assessment Provisions (SDAP) | [https://planning.dsdmip.qld.gov.au/](https://planning.dsdmip.qld.gov.au/) |
-| QLD Environmental Offsets Policy               | [https://environment.des.qld.gov.au/](https://environment.des.qld.gov.au/) |
+## Local Government Sources
 
-### Local Council & LGA Policies
+| Council | Resources | URL |
+|---------|-----------|-----|
+| City of Adelaide | Planning overlays, zoning | https://www.cityofadelaide.com.au |
+| Port Adelaide Enfield | Sustainability plans, DCPs | https://www.cityofpae.sa.gov.au |
+| Greater Sydney LGAs | Development Control Plans | https://www.planningportal.nsw.gov.au |
+| City of Melbourne | ESD guidelines | https://www.melbourne.vic.gov.au |
+| Brisbane City Council | Local planning codes | https://www.brisbane.qld.gov.au |
 
-| Council                              | Example Resources (Development Plans, DCPs, Codes)  | How to Access                                                                  |
-| ------------------------------------ | --------------------------------------------------- | ------------------------------------------------------------------------------ |
-| City of Adelaide                     | Planning overlays, land use codes                   | [https://www.cityofadelaide.com.au](https://www.cityofadelaide.com.au)         |
-| City of Port Adelaide Enfield (SA)   | Sustainability plans, development controls          | [https://www.cityofpae.sa.gov.au](https://www.cityofpae.sa.gov.au)             |
-| Greater Sydney Region (various LGAs) | Development Control Plans (DCPs)                    | [https://www.planningportal.nsw.gov.au](https://www.planningportal.nsw.gov.au) |
-| City of Melbourne                    | Environmental sustainability guidelines (ESD tools) | [https://www.melbourne.vic.gov.au](https://www.melbourne.vic.gov.au)           |
-| Brisbane City Council                | Local Planning Codes                                | [https://www.brisbane.qld.gov.au](https://www.brisbane.qld.gov.au)             |
+## Geospatial Data
 
-📝 Most council sites publish:
-
-- Development Control Plans (DCPs)
-- Environmental Impact requirements
-- Land zoning overlays (GeoJSON/PDF)
-- Strategic planning docs (PDFs)
-
-### Geospatial Data
-
-| Dataset                               | Type                                             | Source URL                                                                                                           |
-| ------------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| Australian Bureau of Statistics (ABS) | SA2 / LGA shapefiles                             | [https://www.abs.gov.au/statistics/mapping/geo-boundaries](https://www.abs.gov.au/statistics/mapping/geo-boundaries) |
-| Data.gov.au                           | Government datasets incl. biodiversity, land use | [https://data.gov.au](https://data.gov.au)                                                                           |
-| National Map (Geoscience)             | Map overlays, land zoning, climate data          | [https://nationalmap.gov.au/](https://nationalmap.gov.au/)                                                           |
-
+| Dataset | Type | Source |
+|---------|------|--------|
+| ABS Boundaries | LGA/SA2 shapefiles | https://www.abs.gov.au/statistics/mapping/geo-boundaries |
+| Data.gov.au | Biodiversity, land use | https://data.gov.au |
+| National Map | Zoning, climate overlays | https://nationalmap.gov.au/ |
 
 ## Data Sovereignty
 
-| Action                                    | Required for AU Sovereignty Compliance       |
-| ----------------------------------------- | -------------------------------------------- |
-| Use AU-hosted cloud infra (e.g., AWS SYD) | ✅ Recommended                                |
-| Avoid OpenAI API for production use cases | ✅ Unless explicit approval from stakeholders |
-| Encrypt + tag regulatory data             | ✅ Especially geospatial + planning metadata  |
-| Use sovereign LLM or local inference      | ✅ For councils, federal/state agency use     |
+### Compliance Requirements
 
-### Where Data Sovereignty Matters in GreenGovRAG
+| Action | Required for AU Sovereignty |
+|--------|----------------------------|
+| Use AU-hosted cloud (AWS SYD, Azure AU) | Required |
+| Avoid OpenAI API for production | Recommended |
+| Encrypt + tag regulatory data | Required |
+| Use sovereign LLM or local inference | Required for gov/council use |
 
-| Layer                       | Data Sovereignty Impact                                                                |
-| --------------------------- |----------------------------------------------------------------------------------------|
-| 📥 Document Storage         | If storing government policy documents (federal, state, council), best to host in AU   |
-| 🧠 LLM Inference            | If using US-hosted APIs (OpenAI, Anthropic), text/query data may leave Australian soil |
-| 🗃️ Vector Database (FAISS) | Location of embeddings store — keep in AU if it contains sensitive or unpublished data |
-| 🗺️ Geospatial Metadata     | If using PostGIS with property/region coordinates — ensure it stays within jurisdiction |
-| 🧑 User Query Logs          | If logging queries for audit/improvement — treat as potentially sensitive or personal  |
+### Data Sovereignty by Layer
 
-### Recommended Practices
+| Layer | Impact | Recommendation |
+|-------|--------|----------------|
+| Document Storage | Gov policy documents | Host in AU regions |
+| LLM Inference | Query data may leave AU | Use Bedrock AU or local LLM |
+| Vector Database | Embeddings of sensitive data | Keep in AU if unpublished data |
+| Geospatial Metadata | Property/region coordinates | Keep within jurisdiction |
+| User Query Logs | Potentially sensitive | Treat as personal data |
 
-1. Use Australian Data Centers
-    - Prefer cloud providers with Sydney or Melbourne regions (e.g., AWS, Azure, GCP).
-    - For deployment: use AWS ECS/Fargate in ap-southeast-2 (Sydney).
+### Best Practices
 
-2. Use Sovereign LLMs Where Necessary
-    - Avoid sending user queries to non-AU LLMs for production use in government or council settings.
-    - Alternatives:
-        - AWS Bedrock with Anthropic Claude, hosted in AWS AU region (still not fully sovereign)
-        - Deploy HuggingFace models locally (e.g., mistral, phi-2, etc.)
-        - Explore Sovereign LLM offerings like Indigai, Mycelium, or RedCloud AI (in dev phase in AU)
+**1. Use Australian Data Centers**
+- AWS: Sydney region (ap-southeast-2)
+- Azure: Australia East/Southeast regions
+- Deploy ECS/Fargate or Container Apps in AU
 
-3. Data Classification and Access Control
-    - Tag documents as public / restricted / internal and manage access accordingly.
-    - Use IAM roles, S3 encryption, audit logs if hosted on AWS.
+**2. Use Sovereign LLMs**
+- AWS Bedrock (Claude in AU region)
+- Local HuggingFace models (Mistral, Phi-2)
+- AU sovereign options: Indigai, Mycelium, RedCloud AI
 
-4. Avoid Unintended Leakage
-    - If debugging or logging user input: don’t persist raw queries without pseudonymisation or consent.
-    - Encrypt metadata DB (e.g., PostgreSQL with TDE or RDS with KMS keys)
+**3. Data Classification**
+- Tag: public/restricted/internal
+- Use IAM, S3 encryption, audit logs
+- RDS encryption with KMS keys
+
+**4. Avoid Data Leakage**
+- Pseudonymise query logs
+- Don't persist raw queries without consent
+- Use PostgreSQL TDE or RDS encryption
+
+## Adding Documents
+
+See [Plugin Architecture](./PLUGIN_ARCHITECTURE_SUMMARY.md) for how to contribute new document sources.
+
+## See Also
+
+- [Cloud Deployment](./CLOUD_MIGRATION.md) - Multi-cloud setup with data sovereignty
+- [Plugin Guide](./CONTRIBUTING_DOCUMENT_SOURCES.md) - Add new document sources
+- [Metadata Enhancement](./METADATA_ENHANCEMENT.md) - ESG and spatial metadata

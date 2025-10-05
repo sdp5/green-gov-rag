@@ -1,24 +1,29 @@
-# Metadata Enhancement Implementation
+# Metadata Enhancement
 
-## Overview
+Industry-standard metadata for legal/regulatory RAG with ESG and geospatial capabilities.
 
-This document describes the implementation of industry-standard metadata collection for GreenGovRAG, bringing the system up to 2025 best practices for legal/regulatory RAG systems with ESG compliance and geospatial capabilities.
+## Implementation Overview
 
-## What Was Implemented
+| Component | Description |
+|-----------|-------------|
+| Hierarchical PDF Parsing | LLMSherpa-based section extraction with page tracking |
+| ESG Metadata | NGER/ISSB-compliant emission tracking |
+| Spatial Metadata | LGA-aware filtering with ABS codes |
+| Enhanced Chunking | Hierarchy-preserving text splitting |
 
-### 1. Hierarchical PDF Parsing (LlamaIndex/LLMSherpa Standard)
+## 1. Hierarchical PDF Parsing
 
-**New File:** `green_gov_rag/etl/parsers/layout_parser.py`
+### File
+`green_gov_rag/etl/parsers/layout_parser.py`
 
-Implements `HierarchicalPDFParser` using LLMSherpa's LayoutPDFReader for context-aware document parsing.
+### Features
+- Section hierarchy extraction (chapter → section → subsection)
+- Page number tracking for citations
+- Chunk type detection (paragraph, table, list, header)
+- Context preservation (section headers included)
 
-**Features:**
-- **Section hierarchy extraction**: Captures chapter → section → subsection structure
-- **Page number tracking**: Tracks page numbers for citation quality
-- **Chunk type detection**: Identifies paragraphs, tables, lists, headers
-- **Context preservation**: Includes section headers as context in chunks
+### Example Output
 
-**Example metadata extracted:**
 ```python
 {
     "content": "Market-based accounting requires...",
@@ -34,118 +39,101 @@ Implements `HierarchicalPDFParser` using LLMSherpa's LayoutPDFReader for context
 }
 ```
 
-**Why this matters:**
-- Industry standard for legal/regulatory RAG (78.67% recall vs 57.33% baseline)
-- Enables precise citations: "Page 15, Section 3.2.1"
-- Preserves document structure for better retrieval
+### Why It Matters
+- 78.67% recall vs 57.33% baseline (industry standard)
+- Precise citations: "Page 15, Section 3.2.1"
+- Preserves document structure
 
-### 2. NGER/ISSB-Compliant ESG Metadata
+## 2. ESG Metadata (NGER/ISSB)
 
-**Updated File:** `configs/documents_config.yml`
+### File
+`configs/documents_config.yml`
 
-Added comprehensive ESG metadata structure following Australian NGER and ISSB standards.
+### Schema
 
-**ESG Metadata Schema:**
 ```yaml
 esg_metadata:
-  # Framework Alignment
   frameworks: [NGER, ISSB, GHG_Protocol]
-
-  # Emission Classification
   emission_scopes: [scope_1, scope_2, scope_3]
   greenhouse_gases: [CO2, CH4, N2O, SF6, HFCs, PFCs, NF3]
-
-  # Consolidation & Methodology (ISSB/GRI requirement)
   consolidation_method: operational_control  # or equity_share, financial_control
-  methodology_type: calculation  # vs reporting, verification
-
-  # NGER-Specific
+  methodology_type: calculation
   reportable_under_nger: true
-  scope_3_reportable: false  # NGER doesn't require Scope 3
-
-  # Regulatory Authority
+  scope_3_reportable: false
   regulator: Clean Energy Regulator
   regulation_type: guideline
-
-  # Activity & Industry
   activity_types: [fuel_combustion, fugitive_emissions]
   facility_types: [coal_mine]
   industry_codes: [B0600]  # ANZSIC codes
 ```
 
-**Documents Enhanced:**
-- ✅ Clean Energy Regulator - Scope 1 Coal Mining Guideline
-- ✅ Clean Energy Regulator - Scope 2 Emissions Guideline
-- ✅ Clean Energy Regulator - Fuel Combustion Guideline
-- ✅ Clean Energy Regulator - HFC & SF6 Gases Guideline
+### Enhanced Documents
+- Clean Energy Regulator - Scope 1 Coal Mining Guideline
+- Clean Energy Regulator - Scope 2 Emissions Guideline
+- Clean Energy Regulator - Fuel Combustion Guideline
+- Clean Energy Regulator - HFC & SF6 Gases Guideline
 
-**Why this matters:**
-- NGER compliance: Tracks CO2, CH4, N2O, SF6, HFCs, PFCs, NF3
-- ISSB alignment: Includes consolidation methods and Scope 3 categorization
-- Enables ESG-specific queries: "Show me ISSB-aligned Scope 2 calculation methods"
+### Why It Matters
+- NGER compliance: Tracks all 7 greenhouse gases
+- ISSB alignment: Consolidation methods + Scope 3
+- Enables ESG-specific queries
 
-### 3. Spatial Metadata Structure
+## 3. Spatial Metadata
 
-**Updated Files:** `configs/documents_config.yml`, `green_gov_rag/etl/ingest.py`
+### Schema
 
-Added spatial metadata framework for geo-aware filtering.
-
-**Spatial Metadata Schema:**
 ```yaml
 spatial_metadata:
   spatial_scope: federal  # or state, local
-  state: SA  # For state-level docs (null for federal)
-  lga_codes: [40070, 40280]  # ABS LGA codes (empty for state/federal)
-  lga_names: [City of Adelaide, Port Adelaide Enfield]  # Human-readable names
-  applies_to_all_lgas: false  # true for state/federal, false for local
-  applies_to_point: false  # vs polygon or state
+  state: SA  # For state-level (null for federal)
+  lga_codes: [40070, 40280]  # ABS LGA codes
+  lga_names: [City of Adelaide, Port Adelaide Enfield]
+  applies_to_all_lgas: false  # true for state/federal
+  applies_to_point: false  # vs polygon
 ```
 
-**Why this matters:**
-- Enables "Click LGA and get policies" use case
-- Hierarchical spatial filtering: federal → state → local
+### Why It Matters
+- Enables "click LGA, get policies" use case
+- Hierarchical filtering: federal → state → local
 - Foundation for hybrid geospatial RAG
-- Clear intent: `applies_to_all_lgas: true` means applies to all LGAs (state/federal), `false` means specific LGAs only (local)
 
-### 4. Enhanced Chunking with Hierarchy Preservation
+## 4. Enhanced Chunking
 
-**Updated File:** `green_gov_rag/etl/chunker.py`
+### File
+`green_gov_rag/etl/chunker.py`
 
-Added `chunk_with_hierarchy()` method to preserve section metadata during chunking.
+### Method
+`chunk_with_hierarchy()`
 
-**Features:**
-- Preserves all hierarchical metadata (section titles, page numbers, hierarchy)
+### Features
+- Preserves all hierarchical metadata
 - Creates unique chunk IDs across sub-chunks
 - Tracks sub-chunk position within sections
 
-**Example:**
-```python
-chunker = TextChunker()
-hierarchical_chunks = parser.parse_with_structure("policy.pdf")
-final_chunks = chunker.chunk_with_hierarchy(hierarchical_chunks)
-
-# Each chunk preserves:
-# - section_hierarchy
-# - page_number
-# - section_title
-# - chunk_type
-```
-
-## Dependencies Added
-
-**New Dependency:** `llmsherpa ~= 0.1.4`
-
-Added to `pyproject.toml` for LayoutPDFReader functionality.
-
-## Integration Points
-
-### For ETL Pipeline:
+### Usage
 
 ```python
 from green_gov_rag.etl.parsers.layout_parser import HierarchicalPDFParser
 from green_gov_rag.etl.chunker import TextChunker
 
-# Parse PDF with hierarchy
+# Parse with hierarchy
+parser = HierarchicalPDFParser()
+hierarchical_chunks = parser.parse_with_structure("policy.pdf")
+
+# Chunk while preserving hierarchy
+chunker = TextChunker(chunk_size=1000, chunk_overlap=100)
+final_chunks = chunker.chunk_with_hierarchy(hierarchical_chunks)
+```
+
+## Integration
+
+### ETL Pipeline
+
+```python
+from green_gov_rag.etl.parsers.layout_parser import HierarchicalPDFParser
+from green_gov_rag.etl.chunker import TextChunker
+
+# Parse with hierarchy
 parser = HierarchicalPDFParser()
 hierarchical_chunks = parser.parse_with_structure(
     pdf_path="document.pdf",
@@ -157,14 +145,12 @@ hierarchical_chunks = parser.parse_with_structure(
     }
 )
 
-# Chunk while preserving hierarchy
+# Chunk
 chunker = TextChunker(chunk_size=1000, chunk_overlap=100)
 final_chunks = chunker.chunk_with_hierarchy(hierarchical_chunks)
-
-# Final chunks have complete metadata for RAG
 ```
 
-### For Query/Retrieval:
+### Query/Retrieval
 
 ```python
 # ESG-filtered query
@@ -185,151 +171,85 @@ results = vector_store.similarity_search(
 )
 ```
 
-## Benefits for MVP Announcement
+## Benefits
 
-### 1. Citation Quality
-- ✅ Page numbers in all responses
-- ✅ Section hierarchy for precise references
-- ✅ Deep links to PDF pages (ready for implementation)
+| Benefit | Impact |
+|---------|--------|
+| Citation Quality | Page numbers + section hierarchy |
+| ESG Compliance | NGER + ISSB framework alignment |
+| Geo-Aware Filtering | LGA code support, hierarchical scope |
+| Industry Standards | Legal RAG + ESG + Geospatial best practices |
 
-### 2. ESG Compliance
-- ✅ NGER-compliant greenhouse gas tracking
-- ✅ ISSB framework alignment
-- ✅ Scope 1/2/3 categorization
-- ✅ Industry-specific filtering (ANZSIC codes)
+## Example Responses
 
-### 3. Geo-Aware Filtering
-- ✅ Spatial metadata structure ready
-- ✅ LGA code support
-- ✅ Hierarchical spatial scope (federal/state/local)
+### ESG Query
 
-### 4. Industry Standards
-- ✅ Legal RAG best practices (hierarchical parsing)
-- ✅ ESG reporting standards (NGER/ISSB/GRI)
-- ✅ Geospatial RAG patterns (Elasticsearch-style hybrid search)
-
-## Next Steps
-
-### High Priority (Before Announcement):
-
-1. **Test with Real PDFs**
-   ```bash
-   python green_gov_rag/etl/parsers/layout_parser.py path/to/sample.pdf
-   ```
-
-2. **Implement LGA Code Mapping**
-   - Create `green_gov_rag/etl/geo_tagger.py`
-   - Map region names to ABS LGA codes
-   - Auto-enrich metadata during ingestion
-
-3. **Update API Responses**
-   - Return enhanced citations with page numbers
-   - Include section hierarchy in sources
-   - Add ESG/spatial filters to query endpoint
-
-4. **Build Hybrid Geospatial Search**
-   - Implement `HybridGeospatialSearch` class
-   - Combine vector + spatial + metadata filtering
-   - Integrate with map UI
-
-### Medium Priority (Post-MVP):
-
-1. **LangChain Metadata Tagger**
-   - Automate ESG metadata extraction
-   - Use LLMs to tag emission scopes
-   - Extract industry codes automatically
-
-2. **PostGIS Integration**
-   - Store LGA geometries in PostGIS
-   - Implement spatial join queries
-   - Support polygon-based filtering
-
-3. **Scope 3 Categories**
-   - Add 15 ISSB Scope 3 categories
-   - Tag upstream/downstream activities
-   - Support value chain emissions
-
-## Testing
-
-All implementations pass:
-- ✅ Mypy type checking (44 source files)
-- ✅ Ruff linting (no issues)
-- ✅ No breaking changes to existing code
-
-## API Usage Examples
-
-### Example 1: ESG Query with Citations
-```python
-# Query: "What are Scope 2 market-based accounting methods under NGER?"
+```json
 {
-    "query": "What are Scope 2 market-based accounting methods?",
-    "filters": {
-        "esg_metadata.emission_scopes": "scope_2",
-        "esg_metadata.frameworks": "NGER"
-    },
-    "answer": "Market-based accounting for Scope 2 emissions...",
-    "sources": [
-        {
-            "title": "Clean Energy Regulator - Scope 2 Emissions Guideline",
-            "citation": "CER (2024), Page 42, Section 3.2.1",
-            "url": "https://cer.gov.au/document/voluntary-market-based-scope-2-emissions-guideline",
-            "section_hierarchy": ["Part 3", "Section 3.2", "3.2.1 Methods"],
-            "metadata": {
-                "page_number": 42,
-                "emission_scope": "scope_2",
-                "frameworks": ["NGER", "ISSB"]
-            }
-        }
-    ]
+  "query": "What are Scope 2 market-based methods?",
+  "answer": "Market-based accounting for Scope 2 emissions...",
+  "sources": [{
+    "title": "CER - Scope 2 Emissions Guideline",
+    "citation": "CER (2024), Page 42, Section 3.2.1",
+    "url": "https://cer.gov.au/...",
+    "section_hierarchy": ["Part 3", "Section 3.2", "3.2.1 Methods"],
+    "metadata": {
+      "page_number": 42,
+      "emission_scope": "scope_2",
+      "frameworks": ["NGER", "ISSB"]
+    }
+  }]
 }
 ```
 
-### Example 2: Spatial Query
-```python
-# Query: "What biodiversity rules apply in Adelaide?"
+### Spatial Query
+
+```json
 {
-    "query": "What biodiversity rules apply in Adelaide?",
-    "spatial_query": {
-        "lga_code": "40070",
-        "lga_name": "City of Adelaide"
+  "query": "Biodiversity rules in Adelaide?",
+  "spatial_query": {
+    "lga_code": "40070",
+    "lga_name": "City of Adelaide"
+  },
+  "sources": [
+    {
+      "title": "City of Adelaide Development Guidelines",
+      "spatial_scope": "local",
+      "lga_codes": ["40070"],
+      "applies_to_all_lgas": false
     },
-    "answer": "Biodiversity regulations in Adelaide include...",
-    "sources": [
-        {
-            "title": "City of Adelaide Development Guidelines",
-            "spatial_scope": "local",
-            "lga_codes": ["40070"],
-            "lga_names": ["City of Adelaide"],
-            "applies_to_all_lgas": false  # Specific LGA only
-        },
-        {
-            "title": "Native Vegetation Guidelines (SA)",
-            "spatial_scope": "state",
-            "state": "SA",
-            "applies_to_all_lgas": true  # All SA LGAs
-        },
-        {
-            "title": "EPBC Act",
-            "spatial_scope": "federal",
-            "applies_to_all_lgas": true  # All Australian LGAs
-        }
-    ]
+    {
+      "title": "Native Vegetation Guidelines (SA)",
+      "spatial_scope": "state",
+      "state": "SA",
+      "applies_to_all_lgas": true
+    },
+    {
+      "title": "EPBC Act",
+      "spatial_scope": "federal",
+      "applies_to_all_lgas": true
+    }
+  ]
 }
 ```
 
 ## Files Modified
 
-1. ✅ `pyproject.toml` - Added llmsherpa dependency
-2. ✅ `green_gov_rag/etl/parsers/layout_parser.py` - NEW FILE
-3. ✅ `green_gov_rag/etl/chunker.py` - Added chunk_with_hierarchy()
-4. ✅ `green_gov_rag/etl/ingest.py` - Added ESG/spatial metadata support
-5. ✅ `configs/documents_config.yml` - Enhanced with NGER/ISSB metadata
+1. `pyproject.toml` - Added llmsherpa dependency
+2. `green_gov_rag/etl/parsers/layout_parser.py` - NEW
+3. `green_gov_rag/etl/chunker.py` - Added chunk_with_hierarchy()
+4. `green_gov_rag/etl/ingest.py` - ESG/spatial metadata support
+5. `configs/documents_config.yml` - Enhanced with NGER/ISSB metadata
 
 ## Status
 
-**Implementation Complete:** ✅
-**Type Checking:** ✅
-**Linting:** ✅
-**Ready for Testing:** ✅
+- Implementation: Complete
+- Type Checking: Passing
+- Linting: Passing
+- Ready for Testing: Yes
 
-The system is now aligned with 2025 industry standards for legal/regulatory RAG with ESG compliance and geospatial capabilities.
+## See Also
+
+- [Data Sources](./DATA.md) - Document sources and metadata
+- [Plugin Architecture](./PLUGIN_ARCHITECTURE_SUMMARY.md) - Document source plugins
+- [Project Structure](./PROJECT.md) - Repository organization

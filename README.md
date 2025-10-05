@@ -78,15 +78,36 @@ RAG Output:
 - Suggests offsets or sustainable alternatives
 - Could plug into energy incentive schemes
 
-## Project
+## Project Structure
 
-| Folder/File | Purpose                                                |
-| ----------- | ------------------------------------------------------ |
-| `app/`      | Streamlit UI logic (text + map)                        |
-| `rag/`      | LangChain RAG + Agent logic                            |
-| `etl/`      | Ingest & process PDF/HTML to chunks + metadata         |
-| `configs/`  | Document config YAML, logging setup, vector settings   |
-| `data/`     | Source documents, processed text, and GeoJSON overlays |
-| `docker/`   | Full containerized setup                               |
-| `tests/`    | CI/CD-friendly tests for ingestion, RAG logic, and UI  |
-| `scripts/`  | Developer tools for loading data, evaluating responses |
+| Folder | Purpose |
+|--------|---------|
+| `backend/` | Python: FastAPI + RAG + ETL + Airflow |
+| `frontend/` | React + TypeScript (in progress) |
+| `deploy/` | Docker configs & CI/CD |
+| `data/` | Documents, vectors, GeoJSON |
+| `docs/` | Documentation |
+
+## Quick Start
+
+**Docker (Recommended):**
+```bash
+cd deploy/docker && cp .env.example .env
+docker-compose up --build
+```
+
+**Local:**
+```bash
+# Backend
+cd backend && pip install -e . && uvicorn green_gov_rag.api.main:app --reload
+
+# Frontend (WIP)
+cd frontend && npm install && npm run dev
+```
+
+**Access:**
+- Backend API: http://localhost:8000/docs
+- Streamlit UI: http://localhost:8501
+- Frontend: http://localhost:5173
+
+See [SUMMARY](docs/IMPLEMENTATION_SUMMARY.md) for details.

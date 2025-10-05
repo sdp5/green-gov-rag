@@ -1,0 +1,83 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [ main, dev ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+  pull_request:
+    branches: [ main, dev ]
+    paths:
+      - 'backend/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: greengovrag_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: pip install -e .[dev]
+
+      - name: Run linting
+        working-directory: ./backend
+        run: make lint-ruff
+
+      - name: Run pylint
+        working-directory: ./backend
+        run: make lint-pylint
+        continue-on-error: true
+
+      - name: Run type checking
+        working-directory: ./backend
+        run: make mypy
+        continue-on-error: true
+
+      - name: Run tests
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/greengovrag_test
+          # Mock OpenAI calls in tests (no API key needed)
+          OPENAI_API_KEY: "sk-test-mock-key-for-ci"
+          MOCK_LLM: "true"
+          # Use in-memory FAISS for tests (no persistent storage needed)
+          VECTOR_STORE_TYPE: faiss
+          ENV: test
+        run: make test
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./backend/coverage.xml
+          flags: backend
+        continue-on-error: true

@@ -1,35 +1,46 @@
 """Enhanced ETL Pipeline with Automated Metadata Tagging.
 
 This module provides an end-to-end ETL pipeline that:
-1. Loads documents from config
+1. Loads documents from config or cloud storage
 2. Downloads and parses PDFs
 3. Auto-tags with ESG/NGER metadata
 4. Chunks with preserved metadata
-5. Builds embeddings and vector store
+5. Saves chunks to cloud or local storage
+6. Builds embeddings and vector store
+
+Supports both local filesystem and cloud storage (AWS S3, Azure Blob)
+via the ETL storage adapter.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
 from langchain.docstore.document import Document
 from langchain.document_loaders import PyPDFLoader
 
+from green_gov_rag.config import settings
 from green_gov_rag.etl.chunker import TextChunker
 from green_gov_rag.etl.loader import load_documents_config
 from green_gov_rag.etl.metadata_tagger import ESGOpenAITagger
+from green_gov_rag.etl.storage_adapter import ETLStorageAdapter
+
+logger = logging.getLogger(__name__)
 
 
 class EnhancedETLPipeline:
-    """ETL pipeline with automated metadata extraction."""
+    """ETL pipeline with automated metadata extraction and cloud storage support."""
 
     def __init__(
         self,
         enable_auto_tagging: bool = True,
         chunk_size: int = 1000,
         chunk_overlap: int = 100,
+        use_cloud: bool | None = None,
+        storage_adapter: ETLStorageAdapter | None = None,
     ):
         """Initialize ETL pipeline.
 
@@ -38,6 +49,8 @@ class EnhancedETLPipeline:
             enable_auto_tagging: Whether to auto-tag documents with ESG metadata
             chunk_size: Size of text chunks
             chunk_overlap: Overlap between chunks
+            use_cloud: Whether to use cloud storage. If None, uses settings.
+            storage_adapter: Optional custom storage adapter instance
 
         """
         self.enable_auto_tagging = enable_auto_tagging
@@ -45,6 +58,20 @@ class EnhancedETLPipeline:
 
         # Initialize metadata tagger if enabled
         self.tagger = ESGOpenAITagger() if enable_auto_tagging else None
+
+        # Determine storage mode
+        if use_cloud is None:
+            use_cloud = settings.cloud_provider != "local"
+
+        self.use_cloud = use_cloud
+        self.storage_adapter = storage_adapter or (
+            ETLStorageAdapter() if use_cloud else None
+        )
+
+        logger.info(
+            f"Initialized ETL pipeline: use_cloud={use_cloud}, "
+            f"auto_tagging={enable_auto_tagging}"
+        )
 
     def load_and_parse_documents(
         self,
@@ -151,13 +178,15 @@ class EnhancedETLPipeline:
         self,
         config_path: str = "configs/documents_config.yml",
         output_path: str | None = None,
+        document_ids: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         """Run the complete ETL pipeline.
 
         Args:
         ----
             config_path: Path to documents config
-            output_path: Optional path to save processed chunks
+            output_path: Optional path to save processed chunks (local mode)
+            document_ids: Optional list of document IDs to process (cloud mode)
 
         Returns:
         -------
@@ -166,6 +195,7 @@ class EnhancedETLPipeline:
         """
         print("=" * 60)
         print("Enhanced ETL Pipeline - With Auto-Tagging")
+        print(f"Storage mode: {'cloud' if self.use_cloud else 'local'}")
         print("=" * 60)
 
         # Step 1: Load and parse documents
@@ -182,8 +212,20 @@ class EnhancedETLPipeline:
         print("\n3. Chunking documents...")
         chunks = self.chunk_documents(documents)
 
-        # Step 4: Save if output path provided
-        if output_path:
+        # Step 4: Save chunks
+        if self.use_cloud and self.storage_adapter and document_ids:
+            print(f"\n4. Saving {len(chunks)} chunks to cloud storage...")
+            for doc_id in document_ids:
+                # Filter chunks for this document
+                doc_chunks = [
+                    c
+                    for c in chunks
+                    if c.get("metadata", {}).get("document_id") == doc_id
+                ]
+                if doc_chunks:
+                    self.storage_adapter.save_chunks(doc_chunks, doc_id)
+                    print(f"Saved {len(doc_chunks)} chunks for document {doc_id}")
+        elif output_path:
             print(f"\n4. Saving chunks to {output_path}...")
             Path(output_path).parent.mkdir(parents=True, exist_ok=True)
             with open(output_path, "w", encoding="utf-8") as f:

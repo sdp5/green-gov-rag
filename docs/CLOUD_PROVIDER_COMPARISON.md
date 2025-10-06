@@ -2,19 +2,19 @@
 
 ## Quick Comparison
 
-| Feature | AWS | Azure | Local |
-|---------|-----|-------|-------|
-| **Setup Complexity** | Medium | Medium | Low |
-| **Monthly Cost (Dev)** | $60-80 | $30-50 | $0 |
-| **Monthly Cost (Prod)** | $250-300 | $230-260 | $100* |
-| **Scalability** | Excellent | Excellent | Limited |
-| **Australia Region** | Sydney | Australia East | N/A |
-| **Data Sovereignty** | IRAP certified | IRAP certified | Self-managed |
-| **Container Platform** | ECS Fargate | Container Apps | Docker Compose |
-| **PostgreSQL** | RDS | Azure Database | Docker |
-| **Storage** | S3 | Blob Storage | Filesystem |
-| **LLM Integration** | Bedrock | Azure OpenAI | OpenAI API |
-| **IaC** | CDK (Python) | Bicep | Docker Compose |
+| Feature                 | AWS            | Azure          | Local          |
+|-------------------------|----------------|----------------|----------------|
+| **Setup Complexity**    | Medium         | Medium         | Low            |
+| **Monthly Cost (Dev)**  | $60-80         | $30-50         | $0             |
+| **Monthly Cost (Prod)** | $250-300       | $230-260       | $100*          |
+| **Scalability**         | Excellent      | Excellent      | Limited        |
+| **Australia Region**    | Sydney         | Australia East | N/A            |
+| **Data Sovereignty**    | IRAP certified | IRAP certified | Self-managed   |
+| **Container Platform**  | ECS Fargate    | Container Apps | Docker Compose |
+| **PostgreSQL**          | RDS            | Azure Database | Docker         |
+| **Storage**             | S3             | Blob Storage   | Filesystem     |
+| **LLM Integration**     | Bedrock        | Azure OpenAI   | OpenAI API     |
+| **IaC**                 | CDK (Python)   | Bicep          | Docker Compose |
 
 *Local = electricity + internet only
 

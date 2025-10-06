@@ -80,13 +80,13 @@ RAG Output:
 
 ## Project Structure
 
-| Folder | Purpose                               |
-|--------|---------------------------------------|
-| `backend/` | Python: FastAPI + RAG + ETL + Airflow |
+| Folder      | Purpose                               |
+|-------------|---------------------------------------|
+| `backend/`  | Python: FastAPI + RAG + ETL + Airflow |
 | `frontend/` | React + TypeScript                    |
-| `deploy/` | Docker configs & CI/CD                |
-| `data/` | Documents, vectors, GeoJSON           |
-| `docs/` | Project Documentation                 |
+| `deploy/`   | Docker configs & CI/CD                |
+| `data/`     | Documents, vectors, GeoJSON           |
+| `docs/`     | Project Documentation                 |
 
 ## Quick Start
 

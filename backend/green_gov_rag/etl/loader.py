@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import yaml
 
+from green_gov_rag.config import settings
 from green_gov_rag.etl.sources.base import DocumentSource
 from green_gov_rag.etl.sources.factory import DocumentSourceFactory
+from green_gov_rag.etl.storage_adapter import ETLStorageAdapter
+
+logger = logging.getLogger(__name__)
 
 
 def load_documents_config(config_path: str = "configs/documents_config.yml"):
@@ -122,6 +127,114 @@ def load_yaml(file_path: str) -> dict:
         return yaml.safe_load(f)
 
 
+def load_documents_from_storage(
+    jurisdiction: str | None = None,
+    category: str | None = None,
+    topic: str | None = None,
+    storage_adapter: ETLStorageAdapter | None = None,
+) -> list[dict]:
+    """Load documents from cloud storage with optional filters.
+
+    Args:
+        jurisdiction: Filter by jurisdiction
+        category: Filter by category
+        topic: Filter by topic
+        storage_adapter: Optional custom storage adapter
+
+    Returns:
+        List of document metadata dictionaries
+
+    Example:
+        >>> # Load all federal documents
+        >>> docs = load_documents_from_storage(jurisdiction='federal')
+        >>> # Load specific topic
+        >>> docs = load_documents_from_storage(
+        ...     jurisdiction='federal',
+        ...     category='environment',
+        ...     topic='emissions_reporting'
+        ... )
+    """
+    if storage_adapter is None:
+        storage_adapter = ETLStorageAdapter()
+
+    documents = storage_adapter.list_documents(
+        jurisdiction=jurisdiction,
+        category=category,
+        topic=topic,
+    )
+
+    logger.info(
+        f"Loaded {len(documents)} documents from storage "
+        f"(jurisdiction={jurisdiction}, category={category}, topic={topic})"
+    )
+
+    return documents
+
+
+def get_document_content_from_storage(
+    document_id: str,
+    storage_adapter: ETLStorageAdapter | None = None,
+) -> tuple[bytes, dict]:
+    """Load document content and metadata from storage.
+
+    Args:
+        document_id: Document ID
+        storage_adapter: Optional custom storage adapter
+
+    Returns:
+        Tuple of (content bytes, metadata dict)
+
+    Example:
+        >>> content, metadata = get_document_content_from_storage('abc123')
+        >>> print(metadata['title'])
+        'NGER Guidelines 2024'
+    """
+    if storage_adapter is None:
+        storage_adapter = ETLStorageAdapter()
+
+    # Load metadata first to get storage path
+    metadata = storage_adapter.load_metadata(document_id)
+
+    # Load document content
+    content = storage_adapter.load_document(document_id, metadata)
+
+    return content, metadata
+
+
+def get_document_chunks_from_storage(
+    document_id: str,
+    storage_adapter: ETLStorageAdapter | None = None,
+) -> list[dict]:
+    """Load processed chunks for a document from storage.
+
+    Args:
+        document_id: Document ID
+        storage_adapter: Optional custom storage adapter
+
+    Returns:
+        List of chunk dictionaries
+
+    Example:
+        >>> chunks = get_document_chunks_from_storage('abc123')
+        >>> print(f"Loaded {len(chunks)} chunks")
+        >>> print(chunks[0]['content'])
+    """
+    if storage_adapter is None:
+        storage_adapter = ETLStorageAdapter()
+
+    chunks = storage_adapter.load_chunks(document_id)
+
+    logger.info(f"Loaded {len(chunks)} chunks for document {document_id}")
+
+    return chunks
+
+
 if __name__ == "__main__":
     docs = load_documents_config()
     print(f"Found {len(docs)} documents in config.")
+
+    # Test cloud storage loading if enabled
+    if settings.cloud_provider != "local":
+        print(f"\nTesting cloud storage ({settings.cloud_provider})...")
+        cloud_docs = load_documents_from_storage()
+        print(f"Found {len(cloud_docs)} documents in cloud storage.")

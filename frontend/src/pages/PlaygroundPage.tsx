@@ -9,9 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MapPin, ChevronLeft, ChevronRight, BarChart3, FileText } from 'lucide-react';
+import { MapPin, ChevronLeft, ChevronRight, BarChart3, FileText, ChevronUp, ChevronDown } from 'lucide-react';
 import { REGIONS, JURISDICTIONS, TOPICS } from '@/commons/constants';
-import Map, { Source, Layer, type MapMouseEvent, type ViewStateChangeEvent } from 'react-map-gl/mapbox';
+import Map, { Source, Layer, NavigationControl, type MapMouseEvent, type ViewStateChangeEvent } from 'react-map-gl/mapbox';
 import type { FillLayer, LineLayer } from 'mapbox-gl';
 import type { AnalyticsStats, DocumentListResponse } from '@/types/api';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -178,6 +178,28 @@ export default function PlaygroundPage() {
     setHoveredLGA(null);
   };
 
+  const panMap = (direction: 'up' | 'down' | 'left' | 'right') => {
+    const panAmount = 0.5; // Adjust pan distance
+    const newViewport = { ...viewport };
+
+    switch (direction) {
+      case 'up':
+        newViewport.latitude += panAmount;
+        break;
+      case 'down':
+        newViewport.latitude -= panAmount;
+        break;
+      case 'left':
+        newViewport.longitude -= panAmount;
+        break;
+      case 'right':
+        newViewport.longitude += panAmount;
+        break;
+    }
+
+    setViewport(newViewport);
+  };
+
   const layerStyle: FillLayer = {
     id: 'lga-fills',
     type: 'fill',
@@ -247,7 +269,7 @@ export default function PlaygroundPage() {
                     <Skeleton className="h-8 w-32" />
                   </div>
                 ) : (
-                  <div className="h-[600px]">
+                  <div className="h-[600px] relative">
                     <Map
                       {...viewport}
                       onMove={(evt: ViewStateChangeEvent) => setViewport(evt.viewState)}
@@ -259,6 +281,7 @@ export default function PlaygroundPage() {
                       onMouseLeave={handleMouseLeave}
                       cursor={hoveredLGA ? 'pointer' : 'grab'}
                     >
+                      <NavigationControl position="top-right" showCompass={false} />
                       {enhancedGeojson && (
                         <Source
                           key={`lgas-${selectedLGAs.join('-')}`}
@@ -271,6 +294,47 @@ export default function PlaygroundPage() {
                         </Source>
                       )}
                     </Map>
+                    {/* Custom Navigation Controls */}
+                    <div className="absolute bottom-4 left-4 flex flex-col gap-1">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="h-8 w-8 p-0 shadow-md"
+                        onClick={() => panMap('up')}
+                        title="Pan North"
+                      >
+                        <ChevronUp className="h-4 w-4" />
+                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-8 w-8 p-0 shadow-md"
+                          onClick={() => panMap('left')}
+                          title="Pan West"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-8 w-8 p-0 shadow-md"
+                          onClick={() => panMap('right')}
+                          title="Pan East"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="h-8 w-8 p-0 shadow-md"
+                        onClick={() => panMap('down')}
+                        title="Pan South"
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>

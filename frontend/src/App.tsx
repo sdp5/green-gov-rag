@@ -1,5 +1,6 @@
-import { Leaf } from 'lucide-react';
+import { Leaf, Github } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import PlaygroundPage from './pages/PlaygroundPage';
 import './index.css';
 import { useEffect, useState } from 'react';
@@ -25,17 +26,29 @@ function App() {
       {/* Header */}
       <header className="border-b bg-green-50">
         <div className="container mx-auto px-4 lg:px-8">
-          <div className="flex h-16 items-center gap-8">
+          <div className="flex h-16 items-center gap-8 justify-between">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
                 <Leaf className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-800">GreenGovRAG</h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-bold text-gray-800">GreenGovRAG</h1>
+                  <Badge className="text-xs bg-green-100 text-green-700 hover:bg-green-200 border-0 shadow-none">Beta</Badge>
+                </div>
                 <p className="text-xs text-gray-600">Australian Environmental Regulations</p>
               </div>
             </div>
 
+            <a
+              href="https://github.com/sdp5/green-gov-rag"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
+              aria-label="View on GitHub"
+            >
+              <Github className="h-6 w-6" />
+            </a>
           </div>
         </div>
       </header>

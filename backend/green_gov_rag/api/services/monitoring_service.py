@@ -1,0 +1,397 @@
+"""Monitoring service for automated document update detection.
+
+This service coordinates monitoring of document sources for updates,
+using the MonitorableSource interface from the plugin architecture.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import logging
+import uuid
+from datetime import datetime
+from typing import Any
+
+from sqlalchemy import desc
+from sqlmodel import Session, select
+
+from green_gov_rag.etl.sources.base import (
+    ChangeDetectionResult,
+    DiscoveredDocument,
+    MonitorableSource,
+)
+from green_gov_rag.etl.sources.registry import DocumentSourceRegistry
+from green_gov_rag.models import DocumentVersion, MonitoringLog
+from green_gov_rag.models.base import engine
+
+logger = logging.getLogger(__name__)
+
+
+class MonitoringService:
+    """Service for monitoring document sources for updates.
+
+    This service:
+    - Discovers new documents via web scraping
+    - Detects changes to existing documents
+    - Tracks version history
+    - Logs monitoring runs
+    - Triggers ETL pipeline for changed documents
+    """
+
+    def __init__(self):
+        """Initialize monitoring service."""
+        self.registry = DocumentSourceRegistry()
+
+    async def monitor_all_sources(self) -> dict[str, Any]:
+        """Monitor all registered sources that support monitoring.
+
+        Returns:
+            Summary of monitoring results across all sources
+        """
+        results: dict[str, Any] = {
+            "total_sources": 0,
+            "sources_checked": 0,
+            "sources_failed": 0,
+            "total_discovered": 0,
+            "total_updated": 0,
+            "total_unchanged": 0,
+            "source_results": [],
+        }
+
+        # Get all registered sources
+        all_sources = self.registry.get_all_sources()
+        results["total_sources"] = len(all_sources)
+
+        for source_type, source_class in all_sources.items():
+            # Check if source supports monitoring
+            if not issubclass(source_class, MonitorableSource):
+                logger.info(f"Skipping {source_type}: does not support monitoring")
+                continue
+
+            try:
+                # Monitor this source
+                source_result = await self.monitor_source(source_type)
+                results["sources_checked"] += 1
+                results["total_discovered"] += source_result["documents_discovered"]
+                results["total_updated"] += source_result["documents_updated"]
+                results["total_unchanged"] += source_result["documents_unchanged"]
+                results["source_results"].append(source_result)
+
+            except Exception as e:
+                logger.error(
+                    f"Failed to monitor source {source_type}: {e}", exc_info=True
+                )
+                results["sources_failed"] += 1
+
+        return results
+
+    async def monitor_source(self, source_type: str) -> dict[str, Any]:
+        """Monitor a specific document source for updates.
+
+        Args:
+            source_type: Type identifier for the source (e.g., 'cer_emissions')
+
+        Returns:
+            Monitoring results for this source
+        """
+        run_id = str(uuid.uuid4())
+        started_at = datetime.utcnow()
+
+        logger.info(f"Starting monitoring run {run_id} for source {source_type}")
+
+        # Create monitoring log
+        with Session(engine) as session:
+            log = MonitoringLog(
+                source_type=source_type,
+                run_id=run_id,
+                started_at=started_at,
+                status="running",
+            )
+            session.add(log)
+            session.commit()
+            session.refresh(log)
+            log_id = log.id
+
+        try:
+            # Get source instance
+            source = self.registry.create_source(source_type, config={})
+
+            # Verify it's monitorable
+            if not isinstance(source, MonitorableSource):
+                raise ValueError(f"Source {source_type} does not support monitoring")
+
+            # Check if monitoring is enabled for this instance
+            if not source.is_monitorable():
+                logger.info(f"Monitoring disabled for {source_type}")
+                return {
+                    "source_type": source_type,
+                    "status": "skipped",
+                    "reason": "monitoring_disabled",
+                }
+
+            # Discover documents
+            discovered = await source.discover_documents()
+            logger.info(f"Discovered {len(discovered)} documents for {source_type}")
+
+            # Track results
+            documents_new = 0
+            documents_updated = 0
+            documents_unchanged = 0
+
+            # Check each discovered document
+            for doc in discovered:
+                change_result = await self._check_document_change(
+                    source, source_type, doc
+                )
+
+                if change_result.change_type == "new":
+                    documents_new += 1
+                elif change_result.change_type == "updated":
+                    documents_updated += 1
+                elif change_result.change_type == "unchanged":
+                    documents_unchanged += 1
+
+            # Update monitoring log
+            completed_at = datetime.utcnow()
+            duration = (completed_at - started_at).total_seconds()
+
+            with Session(engine) as session:
+                statement = select(MonitoringLog).where(MonitoringLog.id == log_id)
+                log_result = session.exec(statement).first()
+                if log_result is not None:
+                    log_result.completed_at = completed_at
+                    log_result.duration_seconds = duration
+                    log_result.documents_checked = len(discovered)
+                    log_result.documents_discovered = documents_new
+                    log_result.documents_updated = documents_updated
+                    log_result.documents_unchanged = documents_unchanged
+                    log_result.status = "completed"
+                    session.add(log_result)
+                    session.commit()
+
+            result = {
+                "source_type": source_type,
+                "run_id": run_id,
+                "status": "completed",
+                "duration_seconds": duration,
+                "documents_checked": len(discovered),
+                "documents_discovered": documents_new,
+                "documents_updated": documents_updated,
+                "documents_unchanged": documents_unchanged,
+            }
+
+            logger.info(f"Completed monitoring run {run_id}: {result}")
+            return result
+
+        except Exception as e:
+            # Update monitoring log with error
+            with Session(engine) as session:
+                statement = select(MonitoringLog).where(MonitoringLog.id == log_id)
+                log_result = session.exec(statement).first()
+                if log_result is not None:
+                    log_result.completed_at = datetime.utcnow()
+                    log_result.status = "failed"
+                    log_result.error_message = str(e)
+                    session.add(log_result)
+                    session.commit()
+
+            raise
+
+    async def _check_document_change(
+        self,
+        source: MonitorableSource,
+        source_type: str,
+        discovered: DiscoveredDocument,
+    ) -> ChangeDetectionResult:
+        """Check if a discovered document is new or updated.
+
+        Args:
+            source: MonitorableSource instance
+            source_type: Source type identifier
+            discovered: Discovered document metadata
+
+        Returns:
+            ChangeDetectionResult indicating change status
+        """
+        with Session(engine) as session:
+            # Generate document ID from URL
+            doc_id = self._generate_document_id(source_type, discovered.url)
+
+            # Check if we have any versions of this document
+            # Use col() to get the SQLAlchemy column for ordering
+            from sqlmodel import col
+
+            statement = (
+                select(DocumentVersion)
+                .where(DocumentVersion.document_id == doc_id)
+                .order_by(desc(col(DocumentVersion.version_number)))
+            )
+            latest_version = session.exec(statement).first()
+
+            if not latest_version:
+                # New document - create first version
+                logger.info(f"New document discovered: {discovered.title}")
+                await self._create_document_version(
+                    session, doc_id, discovered, version_number=1, change_type="new"
+                )
+                return ChangeDetectionResult(
+                    has_changed=True, change_type="new", confidence=1.0
+                )
+
+            # Check for updates using source's change detection
+            known_document = {
+                "url": latest_version.source_url,
+                "content_hash": latest_version.content_hash,
+                "last_checked": latest_version.discovered_at,
+                "metadata": latest_version.metadata_,
+            }
+
+            change_result = await source.check_for_updates(known_document)
+
+            if change_result.has_changed:
+                # Document updated - create new version
+                logger.info(
+                    f"Document updated: {discovered.title} (confidence: {change_result.confidence})"
+                )
+                await self._create_document_version(
+                    session,
+                    doc_id,
+                    discovered,
+                    version_number=latest_version.version_number + 1,
+                    change_type="updated",
+                    change_result=change_result,
+                )
+
+                # Mark previous version as superseded
+                latest_version.is_current = False
+                latest_version.superseded_at = datetime.utcnow()
+                session.add(latest_version)
+                session.commit()
+
+            return change_result
+
+    async def _create_document_version(
+        self,
+        session: Session,
+        doc_id: str,
+        discovered: DiscoveredDocument,
+        version_number: int,
+        change_type: str,
+        change_result: ChangeDetectionResult | None = None,
+    ) -> DocumentVersion:
+        """Create a new document version record.
+
+        Args:
+            session: Database session
+            doc_id: Document identifier
+            discovered: Discovered document metadata
+            version_number: Version number (1, 2, 3...)
+            change_type: 'new' or 'updated'
+            change_result: Optional change detection result
+
+        Returns:
+            Created DocumentVersion instance
+        """
+        # Calculate content hash if not provided
+        content_hash = discovered.content_hash or self._hash_url(discovered.url)
+
+        version = DocumentVersion(
+            document_id=doc_id,
+            version_number=version_number,
+            content_hash=content_hash,
+            source_url=discovered.url,
+            file_size_bytes=discovered.file_size_bytes,
+            change_type=change_type,
+            change_summary=change_result.details if change_result else None,
+            confidence_score=change_result.confidence if change_result else 1.0,
+            discovered_at=datetime.utcnow(),
+            remote_last_modified=discovered.last_modified,
+            metadata_=discovered.metadata,
+            status="discovered",
+            is_current=True,
+        )
+
+        session.add(version)
+        session.commit()
+        session.refresh(version)
+
+        return version
+
+    def _generate_document_id(self, source_type: str, url: str) -> str:
+        """Generate unique document ID from source type and URL.
+
+        Args:
+            source_type: Source type identifier
+            url: Document URL
+
+        Returns:
+            Unique document identifier
+        """
+        # Use hash of source_type + URL for stable IDs
+        content = f"{source_type}:{url}".encode("utf-8")
+        hash_hex = hashlib.sha256(content).hexdigest()[:16]
+        return f"{source_type}_{hash_hex}"
+
+    def _hash_url(self, url: str) -> str:
+        """Generate SHA256 hash of URL as fallback content hash.
+
+        Args:
+            url: Document URL
+
+        Returns:
+            SHA256 hash hex string
+        """
+        return hashlib.sha256(url.encode("utf-8")).hexdigest()
+
+    async def get_monitoring_history(
+        self,
+        source_type: str | None = None,
+        limit: int = 10,
+    ) -> list[MonitoringLog]:
+        """Get recent monitoring logs.
+
+        Args:
+            source_type: Optional filter by source type
+            limit: Maximum number of logs to return
+
+        Returns:
+            List of recent monitoring logs
+        """
+        from sqlmodel import col
+
+        with Session(engine) as session:
+            statement = select(MonitoringLog).order_by(
+                desc(col(MonitoringLog.started_at))
+            )
+
+            if source_type:
+                statement = statement.where(MonitoringLog.source_type == source_type)
+
+            statement = statement.limit(limit)
+
+            logs = session.exec(statement).all()
+            return list(logs)
+
+    async def get_document_versions(
+        self,
+        document_id: str,
+    ) -> list[DocumentVersion]:
+        """Get version history for a document.
+
+        Args:
+            document_id: Document identifier
+
+        Returns:
+            List of versions, newest first
+        """
+        from sqlmodel import col
+
+        with Session(engine) as session:
+            statement = (
+                select(DocumentVersion)
+                .where(DocumentVersion.document_id == document_id)
+                .order_by(desc(col(DocumentVersion.version_number)))
+            )
+
+            versions = session.exec(statement).all()
+            return list(versions)

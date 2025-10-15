@@ -145,6 +145,34 @@ class QueryResponse(BaseModel):
     filters_applied: dict
     response_time_ms: Optional[float] = None
 
+    # Phase 3: Trust & Compliance Features
+    trust_score: Optional[float] = Field(
+        None,
+        description="Overall trust score (0-1) for this response",
+        ge=0.0,
+        le=1.0,
+    )
+    trust_confidence: Optional[str] = Field(
+        None,
+        description="Trust confidence level: high, medium, or low",
+    )
+    trust_breakdown: Optional[dict[str, Any]] = Field(
+        None,
+        description="Detailed trust score breakdown (citation, authority, conflict, accuracy)",
+    )
+    conflicts_detected: Optional[list[dict[str, Any]]] = Field(
+        None,
+        description="Regulatory conflicts detected between sources",
+    )
+    hierarchy_explanation: Optional[str] = Field(
+        None,
+        description="Explanation of regulatory hierarchy (Federal > State > Local)",
+    )
+    citation_warnings: Optional[list[str]] = Field(
+        None,
+        description="Warnings about citation quality or currency",
+    )
+
     class Config:
         """Schema config."""
 

@@ -11,6 +11,8 @@ from sqlmodel import Session
 from green_gov_rag.api.schemas.query import QueryResponse, SourceDocument
 from green_gov_rag.api.services.cache import CacheService
 from green_gov_rag.api.services.citation_verification import CitationVerificationService
+from green_gov_rag.api.services.regulatory_hierarchy import RegulatoryHierarchyService
+from green_gov_rag.api.services.trust_score import TrustScoreService
 from green_gov_rag.api.utils.citation_formatter import CitationFormatter
 from green_gov_rag.config import settings
 from green_gov_rag.models import QueryHistory
@@ -50,6 +52,12 @@ class QueryService:
                 staleness_threshold_days=settings.citation_staleness_threshold_days
             )
             logger.info("Citation verification enabled")
+
+        # Initialize regulatory hierarchy service
+        self.hierarchy_service = RegulatoryHierarchyService()
+
+        # Initialize trust score service
+        self.trust_service = TrustScoreService()
 
     async def execute_query(
         self,
@@ -166,8 +174,16 @@ class QueryService:
         # Calculate response time
         response_time = (time.time() - start_time) * 1000
 
+        # Phase 3: Calculate trust score and detect conflicts
+        trust_score = None
+        trust_confidence = None
+        trust_breakdown = None
+        conflicts_detected = None
+        hierarchy_explanation = None
+        citation_warnings_list = []
+        verification_results = None
+
         # Verify citations if enabled
-        citation_warnings = []
         if self.citation_service:
             try:
                 response_dict = {
@@ -181,24 +197,70 @@ class QueryService:
 
                 # Collect warnings
                 for result in verification_results:
-                    if result.warning or result.is_superseded:
-                        citation_warnings.append(
-                            {
-                                "document_id": result.document_id,
-                                "warning": result.warning,
-                                "is_superseded": result.is_superseded,
-                                "current_version": result.current_version,
-                                "cited_version": result.cited_version,
-                            }
+                    if result.warning:
+                        citation_warnings_list.append(result.warning)
+                    if result.is_superseded:
+                        citation_warnings_list.append(
+                            f"Document {result.document_id}: v{result.cited_version} superseded by v{result.current_version}"
                         )
-
-                if citation_warnings:
-                    logger.warning(
-                        f"Citation warnings found for query: {len(citation_warnings)} issues"
-                    )
 
             except Exception as e:
                 logger.error(f"Citation verification failed: {e}", exc_info=True)
+
+        # Detect regulatory conflicts
+        try:
+            source_dicts = [doc.model_dump() for doc in source_docs]
+            conflicts = await self.hierarchy_service.detect_conflicts(source_dicts)
+
+            if conflicts:
+                conflicts_detected = [
+                    {
+                        "type": c.conflict_type,
+                        "severity": c.severity,
+                        "resolution": c.resolution,
+                        "details": c.details,
+                    }
+                    for c in conflicts
+                ]
+
+            # Generate hierarchy explanation
+            hierarchy_explanation = (
+                self.hierarchy_service.generate_hierarchy_explanation(source_dicts)
+            )
+
+        except Exception as e:
+            logger.error(f"Conflict detection failed: {e}", exc_info=True)
+
+        # Calculate trust score
+        try:
+            # Already have source_dicts from above
+            # Calculate authority scores for each source
+            authority_scores = {}
+            for i, source_dict in enumerate(source_dicts):
+                authority_scores[
+                    f"source_{i}"
+                ] = self.hierarchy_service.calculate_source_authority_score(source_dict)
+
+            # Calculate composite trust score
+            trust_breakdown_obj = self.trust_service.calculate_trust_score(
+                citation_results=verification_results,
+                sources=source_dicts,
+                conflicts=conflicts if conflicts else None,
+                authority_scores=authority_scores,
+            )
+
+            trust_score = trust_breakdown_obj.overall_score
+            trust_confidence = trust_breakdown_obj.confidence_level
+            trust_breakdown = {
+                "citation_score": trust_breakdown_obj.citation_score,
+                "authority_score": trust_breakdown_obj.authority_score,
+                "conflict_score": trust_breakdown_obj.conflict_score,
+                "accuracy_score": trust_breakdown_obj.accuracy_score,
+                "warnings": trust_breakdown_obj.warnings,
+            }
+
+        except Exception as e:
+            logger.error(f"Trust score calculation failed: {e}", exc_info=True)
 
         # Save to query history
         self._save_query_history(
@@ -218,6 +280,15 @@ class QueryService:
             sources=source_docs,
             filters_applied=metadata_filters,
             response_time_ms=response_time,
+            # Phase 3 fields
+            trust_score=trust_score,
+            trust_confidence=trust_confidence,
+            trust_breakdown=trust_breakdown,
+            conflicts_detected=conflicts_detected,
+            hierarchy_explanation=hierarchy_explanation,
+            citation_warnings=citation_warnings_list
+            if citation_warnings_list
+            else None,
         )
 
     def _build_context(self, sources: list[dict]) -> str:

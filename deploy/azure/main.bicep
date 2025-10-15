@@ -18,6 +18,10 @@ param postgresPassword string
 @secure()
 param openaiApiKey string
 
+@description('MapBox Access Token')
+@secure()
+param mapboxToken string
+
 // Variables
 var resourcePrefix = '${projectName}-${environment}'
 var storageAccountName = replace('${resourcePrefix}storage', '-', '')
@@ -58,7 +62,25 @@ resource embeddingsContainer 'Microsoft.Storage/storageAccounts/blobServices/con
   }
 }
 
-// Azure Database for PostgreSQL (with PostGIS support)
+// Azure Cache for Redis
+resource redisCache 'Microsoft.Cache/redis@2023-08-01' = {
+  name: '${resourcePrefix}-redis'
+  location: location
+  properties: {
+    sku: {
+      name: 'Basic'
+      family: 'C'
+      capacity: 0
+    }
+    enableNonSslPort: false
+    minimumTlsVersion: '1.2'
+    redisConfiguration: {
+      'maxmemory-policy': 'allkeys-lru'
+    }
+  }
+}
+
+// Azure Database for PostgreSQL (with pgvector support)
 resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-03-01-preview' = {
   name: '${resourcePrefix}-postgres'
   location: location
@@ -69,7 +91,7 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-03-01-pr
   properties: {
     administratorLogin: 'dbadmin'
     administratorLoginPassword: postgresPassword
-    version: '14'
+    version: '15'
     storage: {
       storageSizeGB: 32
     }
@@ -80,6 +102,16 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-03-01-pr
     highAvailability: {
       mode: 'Disabled'
     }
+  }
+}
+
+// Enable pgvector extension
+resource postgresConfig 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2023-03-01-preview' = {
+  name: 'azure.extensions'
+  parent: postgresServer
+  properties: {
+    value: 'VECTOR,POSTGIS'
+    source: 'user-override'
   }
 }
 
@@ -143,6 +175,15 @@ resource storageConnectionSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' 
   parent: keyVault
   properties: {
     value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value};EndpointSuffix=${az.environment().suffixes.storage}'
+  }
+}
+
+// Store MapBox token in Key Vault
+resource mapboxSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  name: 'MapBoxToken'
+  parent: keyVault
+  properties: {
+    value: mapboxToken
   }
 }
 
@@ -301,6 +342,18 @@ resource apiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
               name: 'DATABASE_URL'
               secretRef: 'db-connection'
             }
+            {
+              name: 'REDIS_URL'
+              value: 'rediss://:${redisCache.listKeys().primaryKey}@${redisCache.properties.hostName}:${redisCache.properties.sslPort}/0'
+            }
+            {
+              name: 'ENABLE_REDIS_CACHE'
+              value: 'true'
+            }
+            {
+              name: 'VECTOR_STORE_TYPE'
+              value: 'faiss'
+            }
           ]
         }
       ]
@@ -317,9 +370,9 @@ resource apiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
   ]
 }
 
-// Container App - Streamlit UI
+// Container App - React Frontend (Nginx)
 resource uiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
-  name: '${resourcePrefix}-ui'
+  name: '${resourcePrefix}-frontend'
   location: location
   identity: {
     type: 'UserAssigned'
@@ -332,7 +385,7 @@ resource uiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
     configuration: {
       ingress: {
         external: true
-        targetPort: 8501
+        targetPort: 80
         transport: 'http'
         allowInsecure: false
       }
@@ -344,13 +397,8 @@ resource uiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
       ]
       secrets: [
         {
-          name: 'openai-key'
-          keyVaultUrl: openaiSecret.properties.secretUri
-          identity: managedIdentity.id
-        }
-        {
-          name: 'storage-connection'
-          keyVaultUrl: storageConnectionSecret.properties.secretUri
+          name: 'mapbox-token'
+          keyVaultUrl: mapboxSecret.properties.secretUri
           identity: managedIdentity.id
         }
       ]
@@ -358,36 +406,20 @@ resource uiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
     template: {
       containers: [
         {
-          name: 'streamlit'
-          image: '${containerRegistry.properties.loginServer}/greengovrag-ui:latest'
+          name: 'frontend'
+          image: '${containerRegistry.properties.loginServer}/greengovrag-frontend:latest'
           resources: {
-            cpu: json('0.5')
-            memory: '1Gi'
+            cpu: json('0.25')
+            memory: '0.5Gi'
           }
           env: [
             {
-              name: 'CLOUD_PROVIDER'
-              value: 'azure'
+              name: 'VITE_API_URL'
+              value: 'https://${apiContainerApp.properties.configuration.ingress.fqdn}/api'
             }
             {
-              name: 'CLOUD_REGION'
-              value: location
-            }
-            {
-              name: 'STORAGE_CONTAINER'
-              value: 'documents'
-            }
-            {
-              name: 'AZURE_STORAGE_CONNECTION_STRING'
-              secretRef: 'storage-connection'
-            }
-            {
-              name: 'OPENAI_API_KEY'
-              secretRef: 'openai-key'
-            }
-            {
-              name: 'API_URL'
-              value: 'https://${apiContainerApp.properties.configuration.ingress.fqdn}'
+              name: 'VITE_MAPBOX_TOKEN'
+              secretRef: 'mapbox-token'
             }
           ]
         }
@@ -400,8 +432,8 @@ resource uiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
   }
   dependsOn: [
     keyVaultRoleAssignment
-    storageRoleAssignment
     acrRoleAssignment
+    apiContainerApp
   ]
 }
 
@@ -411,5 +443,7 @@ output storageConnectionString string = storageAccount.listKeys().keys[0].value
 output postgresHost string = postgresServer.properties.fullyQualifiedDomainName
 output containerRegistryLoginServer string = containerRegistry.properties.loginServer
 output apiUrl string = 'https://${apiContainerApp.properties.configuration.ingress.fqdn}'
-output uiUrl string = 'https://${uiContainerApp.properties.configuration.ingress.fqdn}'
+output frontendUrl string = 'https://${uiContainerApp.properties.configuration.ingress.fqdn}'
 output keyVaultName string = keyVault.name
+output redisHost string = redisCache.properties.hostName
+output redisSslPort int = redisCache.properties.sslPort

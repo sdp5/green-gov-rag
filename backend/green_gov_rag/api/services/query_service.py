@@ -137,11 +137,9 @@ class QueryService:
             )
 
             # Build page range if available
-            page_range = None
-            if page_number:
-                # Check if chunk spans multiple pages
-                # This would require tracking in the chunk metadata
-                # For now, just use single page
+            page_range = metadata.get("page_range")
+            if not page_range and page_number:
+                # Fallback: single page range if not tracked in metadata
                 page_range = [page_number, page_number]
 
             # Create enriched source document

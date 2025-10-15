@@ -219,7 +219,7 @@ export default function PlaygroundPage() {
     <div className="flex h-[calc(100vh-4rem)]">
       {/* Left Sidebar - Map */}
       {leftSidebarOpen && (
-        <aside className="w-[600px] border-r bg-gradient-to-b from-green-50/30 to-background overflow-y-auto flex-shrink-0">
+        <aside className="hidden xl:block w-[40%] max-w-[600px] min-w-[400px] border-r bg-gradient-to-b from-green-50/30 to-background overflow-y-auto flex-shrink-0">
           <div className="px-6 py-5 border-b bg-gradient-to-r from-green-50 to-emerald-50">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-3">
@@ -235,9 +235,9 @@ export default function PlaygroundPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setLeftSidebarOpen(false)}
-                className="hover:bg-white/50"
+                className="hover:bg-white/80 hover:shadow-sm transition-all p-2"
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="h-4 w-4 text-gray-600" />
               </Button>
             </div>
           </div>
@@ -381,10 +381,12 @@ export default function PlaygroundPage() {
             variant="outline"
             size="sm"
             onClick={() => setLeftSidebarOpen(true)}
-            className="fixed left-4 top-20 z-10 bg-background shadow-md"
+            className="hidden xl:flex fixed left-4 top-20 z-10 bg-white/95 backdrop-blur-sm shadow-lg border-green-200 hover:border-green-400 hover:bg-green-50 transition-all items-center gap-2"
           >
-            <MapPin className="h-4 w-4 mr-1" />
-            Map
+            <div className="p-1 bg-green-100 rounded">
+              <MapPin className="h-3.5 w-3.5 text-green-700" />
+            </div>
+            <span className="font-medium text-sm">Map</span>
           </Button>
         )}
 
@@ -394,10 +396,12 @@ export default function PlaygroundPage() {
             variant="outline"
             size="sm"
             onClick={() => setRightSidebarOpen(true)}
-            className="fixed right-4 top-20 z-10 bg-background shadow-md"
+            className="hidden xl:flex fixed right-4 top-20 z-10 bg-white/95 backdrop-blur-sm shadow-lg border-green-200 hover:border-green-400 hover:bg-green-50 transition-all items-center gap-2"
           >
-            <BarChart3 className="h-4 w-4 mr-1" />
-            Info
+            <div className="p-1 bg-green-100 rounded">
+              <BarChart3 className="h-3.5 w-3.5 text-green-700" />
+            </div>
+            <span className="font-medium text-sm">Info</span>
           </Button>
         )}
 
@@ -685,7 +689,7 @@ export default function PlaygroundPage() {
 
       {/* Right Sidebar - Analytics & Sources */}
       {rightSidebarOpen && (
-        <aside className="w-80 border-l bg-gradient-to-b from-green-50/30 to-background overflow-y-auto flex-shrink-0">
+        <aside className="hidden xl:block w-[25%] max-w-[400px] min-w-[300px] border-l bg-gradient-to-b from-green-50/30 to-background overflow-y-auto flex-shrink-0">
           <div className="px-6 py-5 border-b bg-gradient-to-r from-green-50 to-emerald-50">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -698,9 +702,9 @@ export default function PlaygroundPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setRightSidebarOpen(false)}
-                className="hover:bg-white/50"
+                className="hover:bg-white/80 hover:shadow-sm transition-all p-2"
               >
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-4 w-4 text-gray-600" />
               </Button>
             </div>
           </div>

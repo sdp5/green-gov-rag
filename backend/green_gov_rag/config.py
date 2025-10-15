@@ -233,6 +233,78 @@ class Settings(BaseSettings):
         description="Enable semantic similarity caching (experimental)",
     )
 
+    # =========================================================================
+    # Notification Settings
+    # =========================================================================
+    enable_notifications: bool = Field(
+        default=False,
+        description="Enable email notifications for monitoring alerts",
+    )
+    smtp_host: str = Field(
+        default="localhost",
+        description="SMTP server host",
+    )
+    smtp_port: int = Field(
+        default=587,
+        description="SMTP server port",
+    )
+    smtp_username: str | None = Field(
+        default=None,
+        description="SMTP username for authentication",
+    )
+    smtp_password: str | None = Field(
+        default=None,
+        description="SMTP password for authentication",
+    )
+    smtp_use_tls: bool = Field(
+        default=True,
+        description="Use TLS for SMTP connection",
+    )
+    notification_from_email: str = Field(
+        default="noreply@green-gov-rag.local",
+        description="From email address for notifications",
+    )
+    notification_from_name: str = Field(
+        default="Green Gov RAG Monitoring",
+        description="From name for notifications",
+    )
+    notification_recipients: list[str] = Field(
+        default_factory=list,
+        description="List of email addresses to receive notifications",
+    )
+    notify_on_update: bool = Field(
+        default=True,
+        description="Send notification when documents are updated",
+    )
+    notify_on_discovery: bool = Field(
+        default=True,
+        description="Send notification when new documents are discovered",
+    )
+    notify_on_failure: bool = Field(
+        default=True,
+        description="Send notification when monitoring fails",
+    )
+    notify_on_citation_warning: bool = Field(
+        default=False,
+        description="Send notification for citation verification warnings",
+    )
+    notification_throttle_seconds: int = Field(
+        default=3600,
+        description="Minimum seconds between notifications for same event (throttling)",
+    )
+
+    # =========================================================================
+    # Citation Verification Settings
+    # =========================================================================
+    enable_citation_verification: bool = Field(
+        default=True,
+        description="Enable citation verification in query responses",
+    )
+    citation_staleness_threshold_days: int = Field(
+        default=30,
+        description="Days after which citations are considered potentially stale",
+    )
+
     def model_post_init(self, __context):
         """Validate settings after initialization."""
         # Skip validation in development if skip_validation is true or DEBUG is true

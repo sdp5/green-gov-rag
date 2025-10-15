@@ -50,7 +50,7 @@ async def query_rag(request: QueryRequest) -> QueryResponse:
         QueryResponse: Answer with source docume
     """
     try:
-        return query_service.execute_query(
+        return await query_service.execute_query(
             query=request.query,
             region=request.region,
             jurisdiction=request.jurisdiction,

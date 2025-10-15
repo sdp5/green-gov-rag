@@ -15,6 +15,12 @@ from typing import Any
 from sqlalchemy import desc
 from sqlmodel import Session, select
 
+from green_gov_rag.api.services.notification import (
+    DocumentUpdateNotification,
+    NotificationService,
+    create_notification_config_from_settings,
+)
+from green_gov_rag.config import settings
 from green_gov_rag.etl.sources.base import (
     ChangeDetectionResult,
     DiscoveredDocument,
@@ -41,6 +47,13 @@ class MonitoringService:
     def __init__(self):
         """Initialize monitoring service."""
         self.registry = DocumentSourceRegistry()
+
+        # Initialize notification service
+        self.notification_service = None
+        if settings.enable_notifications:
+            notification_config = create_notification_config_from_settings(settings)
+            self.notification_service = NotificationService(notification_config)
+            logger.info("Notifications enabled")
 
     async def monitor_all_sources(self) -> dict[str, Any]:
         """Monitor all registered sources that support monitoring.
@@ -253,7 +266,7 @@ class MonitoringService:
                 logger.info(
                     f"Document updated: {discovered.title} (confidence: {change_result.confidence})"
                 )
-                await self._create_document_version(
+                new_version = await self._create_document_version(
                     session,
                     doc_id,
                     discovered,
@@ -267,6 +280,27 @@ class MonitoringService:
                 latest_version.superseded_at = datetime.utcnow()
                 session.add(latest_version)
                 session.commit()
+
+                # Send notification if enabled
+                if self.notification_service:
+                    try:
+                        notification = DocumentUpdateNotification(
+                            document_id=doc_id,
+                            document_title=discovered.title,
+                            source_url=discovered.url,
+                            old_version=latest_version.version_number,
+                            new_version=new_version.version_number,
+                            change_summary=change_result.details,
+                            confidence_score=change_result.confidence,
+                            discovered_at=datetime.utcnow(),
+                        )
+                        await (
+                            self.notification_service.send_document_update_notification(
+                                notification
+                            )
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to send notification: {e}", exc_info=True)
 
             return change_result
 

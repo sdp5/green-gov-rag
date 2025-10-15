@@ -10,6 +10,7 @@ from sqlmodel import Session
 
 from green_gov_rag.api.schemas.query import QueryResponse, SourceDocument
 from green_gov_rag.api.services.cache import CacheService
+from green_gov_rag.api.services.citation_verification import CitationVerificationService
 from green_gov_rag.api.utils.citation_formatter import CitationFormatter
 from green_gov_rag.config import settings
 from green_gov_rag.models import QueryHistory
@@ -42,7 +43,15 @@ class QueryService:
                 settings.cache_ttl,
             )
 
-    def execute_query(
+        # Initialize citation verification service
+        self.citation_service = None
+        if settings.enable_citation_verification:
+            self.citation_service = CitationVerificationService(
+                staleness_threshold_days=settings.citation_staleness_threshold_days
+            )
+            logger.info("Citation verification enabled")
+
+    async def execute_query(
         self,
         query: str,
         region: Optional[str] = None,
@@ -156,6 +165,40 @@ class QueryService:
 
         # Calculate response time
         response_time = (time.time() - start_time) * 1000
+
+        # Verify citations if enabled
+        citation_warnings = []
+        if self.citation_service:
+            try:
+                response_dict = {
+                    "query": query,
+                    "answer": answer,
+                    "sources": [doc.model_dump() for doc in source_docs],
+                }
+                verification_results = (
+                    await self.citation_service.verify_query_response(response_dict)
+                )
+
+                # Collect warnings
+                for result in verification_results:
+                    if result.warning or result.is_superseded:
+                        citation_warnings.append(
+                            {
+                                "document_id": result.document_id,
+                                "warning": result.warning,
+                                "is_superseded": result.is_superseded,
+                                "current_version": result.current_version,
+                                "cited_version": result.cited_version,
+                            }
+                        )
+
+                if citation_warnings:
+                    logger.warning(
+                        f"Citation warnings found for query: {len(citation_warnings)} issues"
+                    )
+
+            except Exception as e:
+                logger.error(f"Citation verification failed: {e}", exc_info=True)
 
         # Save to query history
         self._save_query_history(

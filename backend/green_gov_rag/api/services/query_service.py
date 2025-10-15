@@ -10,6 +10,7 @@ from sqlmodel import Session
 
 from green_gov_rag.api.schemas.query import QueryResponse, SourceDocument
 from green_gov_rag.api.services.cache import CacheService
+from green_gov_rag.api.utils.citation_formatter import CitationFormatter
 from green_gov_rag.config import settings
 from green_gov_rag.models import QueryHistory
 from green_gov_rag.models.base import engine
@@ -84,16 +85,74 @@ class QueryService:
         # Note: Caching temporarily disabled until RAGAgent refactored
         # TODO: Add caching support by exposing retrieval and generation methods separately
 
-        # Convert sources to schema
-        source_docs = [
-            SourceDocument(
+        # Convert sources to schema with citation enrichment
+        source_docs = []
+        for src in sources[:max_sources]:
+            # Extract metadata
+            metadata = src.get("metadata", {})
+            esg_metadata = metadata.get("esg_metadata")
+            spatial_metadata = metadata.get("spatial_metadata")
+
+            # Build citation fields
+            page_number = metadata.get("page_number")
+            section_title = metadata.get("section_title")
+            section_hierarchy = metadata.get("section_hierarchy")
+            clause_reference = metadata.get("clause_reference")
+
+            # Format citation using utility
+            regulator = esg_metadata.get("regulator") if esg_metadata else None
+            citation = CitationFormatter.format_citation(
+                title=src.get("title", "Unknown"),
+                page_number=page_number,
+                section_title=section_title,
+                clause_reference=clause_reference,
+                regulator=regulator,
+            )
+
+            # Build deep link
+            section_id = CitationFormatter.extract_section_id(
+                section_hierarchy, clause_reference
+            )
+            deep_link = CitationFormatter.build_deep_link(
+                source_url=src.get("source_url", ""),
+                page_number=page_number,
+                section_id=section_id,
+            )
+
+            # Build page range if available
+            page_range = None
+            if page_number:
+                # Check if chunk spans multiple pages
+                # This would require tracking in the chunk metadata
+                # For now, just use single page
+                page_range = [page_number, page_number]
+
+            # Create enriched source document
+            source_doc = SourceDocument(
+                # Core fields
                 title=src.get("title", "Unknown"),
                 source_url=src.get("source_url", ""),
                 excerpt=src.get("excerpt"),
                 relevance_score=src.get("score"),
+                # Citation metadata
+                page_number=page_number,
+                page_range=page_range,
+                section_title=section_title,
+                section_hierarchy=section_hierarchy,
+                clause_reference=clause_reference,
+                deep_link=deep_link,
+                citation=citation,
+                # Document metadata
+                jurisdiction=metadata.get("jurisdiction"),
+                category=metadata.get("category"),
+                topic=metadata.get("topic"),
+                region=metadata.get("region"),
+                # ESG & spatial metadata
+                esg_metadata=esg_metadata,
+                spatial_metadata=spatial_metadata,
             )
-            for src in sources[:max_sources]
-        ]
+
+            source_docs.append(source_doc)
 
         # Calculate response time
         response_time = (time.time() - start_time) * 1000

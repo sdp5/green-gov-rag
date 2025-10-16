@@ -14,6 +14,7 @@ from green_gov_rag.api.admin import router as admin_router
 from green_gov_rag.api.routes import limiter
 from green_gov_rag.api.routes import router as api_router
 from green_gov_rag.api.schemas import RootResponse
+from green_gov_rag.api.startup_validation import run_startup_validation
 from green_gov_rag.config import settings
 from green_gov_rag.models.base import init_db
 
@@ -42,7 +43,11 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database on startup."""
+    """Initialize database and run startup validations."""
+    # Run startup validation checks
+    run_startup_validation()
+
+    # Initialize database
     init_db()
 
 

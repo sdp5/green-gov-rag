@@ -19,7 +19,7 @@ on:
           - azure
 
 env:
-  AWS_REGION: us-east-1
+  AWS_REGION: ap-southeast-2
   CONFIG_PATH: ${{ github.event.inputs.config_path || 'configs/documents_config.yml' }}
   CLOUD_PROVIDER: ${{ github.event.inputs.cloud_provider || 'aws' }}
 

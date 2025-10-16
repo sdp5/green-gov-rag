@@ -15,7 +15,7 @@ on:
           - azure
 
 env:
-  AWS_REGION: us-east-1
+  AWS_REGION: ap-southeast-2
   CLOUD_PROVIDER: ${{ github.event.inputs.cloud_provider || 'aws' }}
 
 jobs:

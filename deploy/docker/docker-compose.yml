@@ -67,8 +67,20 @@ services:
       QDRANT_URL: http://qdrant:6333
       VECTOR_STORE_TYPE: ${VECTOR_STORE_TYPE:-qdrant}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4}
+      # Cache Settings
+      ENABLE_CACHE: ${ENABLE_CACHE:-true}
+      ENABLE_REDIS_CACHE: ${ENABLE_REDIS_CACHE:-true}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CACHE_TTL: ${CACHE_TTL:-3600}
+      ENABLE_SEMANTIC_CACHE: ${ENABLE_SEMANTIC_CACHE:-true}
+      # Other Settings
       CORS_ORIGINS: http://localhost:3000,http://localhost:8501,http://localhost:8080
       CLOUD_PROVIDER: ${CLOUD_PROVIDER:-local}
+      APP_ENV: ${APP_ENV:-production}
+      DEBUG: ${DEBUG:-false}
     volumes:
       - ../../data:/app/data
       - ../../models:/app/models

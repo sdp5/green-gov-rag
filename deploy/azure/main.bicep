@@ -429,6 +429,31 @@ resource apiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
               name: 'OPENAI_API_KEY'
               secretRef: 'openai-api-key'
             }
+            // Cache Settings
+            {
+              name: 'ENABLE_CACHE'
+              value: 'true'
+            }
+            {
+              name: 'ENABLE_REDIS_CACHE'
+              value: 'false'
+            }
+            {
+              name: 'REDIS_HOST'
+              value: 'localhost'
+            }
+            {
+              name: 'REDIS_PORT'
+              value: '6379'
+            }
+            {
+              name: 'CACHE_TTL'
+              value: '3600'
+            }
+            {
+              name: 'ENABLE_SEMANTIC_CACHE'
+              value: 'true'
+            }
           ]
         }
       ]

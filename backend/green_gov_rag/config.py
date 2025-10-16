@@ -229,8 +229,8 @@ class Settings(BaseSettings):
         description="Cache time-to-live in seconds (default: 1 hour)",
     )
     enable_semantic_cache: bool = Field(
-        default=False,
-        description="Enable semantic similarity caching (experimental)",
+        default=True,
+        description="Enable semantic similarity caching for similar queries (production-ready, threshold: 0.95)",
     )
 
     # =========================================================================

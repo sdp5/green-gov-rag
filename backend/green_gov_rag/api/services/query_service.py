@@ -90,23 +90,63 @@ class QueryService:
         if topics:
             metadata_filters["topic"] = topics[0] if len(topics) == 1 else topics
 
-        # Execute full RAG query (retrieval + generation)
-        # TODO: Refactor RAGAgent to support caching at the generation step
-        answer, sources = self.rag_agent.query(
-            query, metadata_filters=metadata_filters or None
+        # Phase 1: Retrieve documents (always happens)
+        context, sources = self.rag_agent.retrieve(
+            query=query, metadata_filters=metadata_filters or None, k=max_sources
         )
 
-        # Build context from sources for potential caching
-        _ = self._build_context(sources[:max_sources])
+        # Phase 2: Check cache before expensive LLM generation
+        cache_hit = False
+        if self.cache_service:
+            cache_key = self.cache_service._create_cache_key(
+                query=query, context=context, filters=metadata_filters or None
+            )
 
-        # Note: Caching temporarily disabled until RAGAgent refactored
-        # TODO: Add caching support by exposing retrieval and generation methods separately
+            cached_answer = await self.cache_service.get(cache_key, query=query)
+            if cached_answer:
+                logger.info(f"Cache hit for query: {query[:50]}...")
+                answer = cached_answer
+                cache_hit = True    # noqa: F841
+            else:
+                logger.info(f"Cache miss for query: {query[:50]}...")
+                # Phase 3: Generate answer (cache miss only)
+                answer = self.rag_agent.generate(query=query, context=context)
+
+                # Store in cache with source document IDs
+                source_ids = [
+                    s.metadata.get("id") or s.metadata.get("title", "")
+                    for s in sources
+                    if hasattr(s, "metadata")
+                ]
+                await self.cache_service.set(
+                    key=cache_key,
+                    value=answer,
+                    query=query,  # Pass query for semantic caching
+                    source_documents=source_ids,
+                )
+        else:
+            # No caching - direct generation
+            answer = self.rag_agent.generate(query=query, context=context)
 
         # Convert sources to schema with citation enrichment
         source_docs = []
         for src in sources[:max_sources]:
+            # Handle both Document objects and dict sources
+            if hasattr(src, "metadata"):
+                # LangChain Document object
+                metadata = src.metadata
+                page_content = src.page_content
+                title = metadata.get("title", "Unknown")
+                source_url = metadata.get("source_url", "")
+                excerpt = page_content[:500] if page_content else None
+            else:
+                # Dict format (legacy)
+                metadata = src.get("metadata", {})
+                title = src.get("title", metadata.get("title", "Unknown"))
+                source_url = src.get("source_url", metadata.get("source_url", ""))
+                excerpt = src.get("excerpt", src.get("content", ""))
+
             # Extract metadata
-            metadata = src.get("metadata", {})
             esg_metadata = metadata.get("esg_metadata")
             spatial_metadata = metadata.get("spatial_metadata")
 
@@ -119,7 +159,7 @@ class QueryService:
             # Format citation using utility
             regulator = esg_metadata.get("regulator") if esg_metadata else None
             citation = CitationFormatter.format_citation(
-                title=src.get("title", "Unknown"),
+                title=title,
                 page_number=page_number,
                 section_title=section_title,
                 clause_reference=clause_reference,
@@ -131,7 +171,7 @@ class QueryService:
                 section_hierarchy, clause_reference
             )
             deep_link = CitationFormatter.build_deep_link(
-                source_url=src.get("source_url", ""),
+                source_url=source_url,
                 page_number=page_number,
                 section_id=section_id,
             )
@@ -145,10 +185,10 @@ class QueryService:
             # Create enriched source document
             source_doc = SourceDocument(
                 # Core fields
-                title=src.get("title", "Unknown"),
-                source_url=src.get("source_url", ""),
-                excerpt=src.get("excerpt"),
-                relevance_score=src.get("score"),
+                title=title,
+                source_url=source_url,
+                excerpt=excerpt,
+                relevance_score=metadata.get("score"),
                 # Citation metadata
                 page_number=page_number,
                 page_range=page_range,

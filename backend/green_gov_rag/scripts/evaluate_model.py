@@ -20,7 +20,7 @@ def run_sample_queries(agent: RAGAgent) -> None:
     for query in sample_queries:
         print("=" * 80)
         print(f"Query: {query}")
-        result = agent.query(query)
+        result = agent.query(query)  # type: ignore[attr-defined]
         print("Answer:\n", result.get("answer", "No answer"))
         print("Sources:")
         for s in result.get("sources", []):

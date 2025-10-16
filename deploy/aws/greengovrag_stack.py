@@ -311,6 +311,13 @@ class GreenGovRAGStack(Stack):
                 "S3_BUCKET": docs_bucket.bucket_name,
                 "DYNAMODB_CACHE_TABLE": cache_table.table_name,
                 "CLOUD_PROVIDER": "aws",
+                # Cache Settings
+                "ENABLE_CACHE": "true",
+                "ENABLE_REDIS_CACHE": "false",  # Using DynamoDB instead
+                "REDIS_HOST": "localhost",
+                "REDIS_PORT": "6379",
+                "CACHE_TTL": "3600",
+                "ENABLE_SEMANTIC_CACHE": "true",
             },
             secrets={
                 "OPENAI_API_KEY": ecs.Secret.from_ssm_parameter(

@@ -62,6 +62,8 @@ class RAGAgentTools:
 
 
 class RAGAgent:
+    """RAG Agent with separated retrieval and generation phases for caching."""
+
     def __init__(self, vector_store=None, embedder=None):
         from green_gov_rag.rag.embeddings import ChunkEmbedder
         from green_gov_rag.rag.rag_chain import RAGChain
@@ -81,17 +83,45 @@ class RAGAgent:
         self.vector_store = vector_store
         self.chain = RAGChain(self.vector_store, self.embedder)
 
-    def query(self, text: str, metadata_filters: dict | None = None):
-        """:param text: User query
-        :param metadata_filters: dict of metadata to filter retrieved documents (e.g., region, topic)
-        :return: (answer_text, list_of_source_metadata)
+    def retrieve(
+        self, query: str, metadata_filters: dict | None = None, k: int = 5
+    ) -> tuple[str, list]:
+        """Retrieve relevant documents without LLM generation.
+
+        This is Phase 1 of the RAG pipeline - allows caching layer to check
+        for cached answers before expensive LLM generation.
+
+        Args:
+            query: User query string
+            metadata_filters: Optional metadata filters (region, jurisdiction, etc.)
+            k: Number of documents to retrieve
+
+        Returns:
+            Tuple of (context_string, source_documents)
         """
-        # Call the RAGChain query method
-        result = self.chain.query(question=text, metadata_filters=metadata_filters)
-        # Extract answer and sources from result
-        answer = result.get("result", "")
-        sources = result.get("source_documents", [])
-        return answer, sources
+        # Retrieve documents from vector store
+        documents = self.chain.retrieve_documents(
+            query=query, metadata_filters=metadata_filters, k=k
+        )
+
+        # Build formatted context for LLM
+        context = self.chain.build_context_from_documents(documents)
+
+        return context, documents
+
+    def generate(self, query: str, context: str) -> str:
+        """Generate answer using LLM given pre-retrieved context.
+
+        This is Phase 2 of the RAG pipeline - called only on cache miss.
+
+        Args:
+            query: User query string
+            context: Pre-formatted context from retrieved documents
+
+        Returns:
+            Generated answer string
+        """
+        return self.chain.generate_answer(query=query, context=context)
 
     def list_documents(self):
         """Return all document metadata stored in the vector store."""

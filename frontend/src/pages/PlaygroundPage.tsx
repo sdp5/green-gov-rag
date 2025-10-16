@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQueryStore } from '@/store/queryStore';
 import { useMapStore } from '@/store/mapStore';
-import { queryAPI, documentsAPI, analyticsAPI, mapAPI } from '@/api/client';
+import { queryAPI, documentsAPI, analyticsAPI, mapAPI, coverageAPI } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,8 +16,8 @@ import {
 import { REGIONS, JURISDICTIONS, TOPICS } from '@/commons/constants';
 import Map, { Source, Layer, NavigationControl, type MapMouseEvent, type ViewStateChangeEvent } from 'react-map-gl/mapbox';
 import type { FillLayer, LineLayer } from 'mapbox-gl';
-import type { AnalyticsStats, DocumentListResponse } from '@/types/api';
-import { MAPBOX_TOKEN } from '@/config/env';
+import type { AnalyticsStats, DocumentListResponse, CoverageInfo } from '@/types/api';
+import { MAPBOX_TOKEN, GITHUB_REPO_URL } from '@/config/env';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 export default function PlaygroundPage() {
@@ -49,6 +49,7 @@ export default function PlaygroundPage() {
   const [geojson, setGeojson] = useState<unknown>(null);
   const [mapLoading, setMapLoading] = useState(true);
   const [hoveredLGA, setHoveredLGA] = useState<string | null>(null);
+  const [lgaCoverageMap, setLgaCoverageMap] = useState<Record<string, CoverageInfo>>({});
 
   // Analytics state
   const [stats, setStats] = useState<AnalyticsStats | null>(null);
@@ -97,6 +98,30 @@ export default function PlaygroundPage() {
     // Always fetch on mount (page load/refresh)
     fetchStats();
   }, []); // Empty dependency array = runs only on mount
+
+  // Fetch coverage data when LGAs are selected
+  useEffect(() => {
+    const fetchCoverageForLGAs = async () => {
+      for (const lgaName of selectedLGAs) {
+        // Skip if already fetched
+        if (lgaCoverageMap[lgaName]) continue;
+
+        try {
+          const coverage = await coverageAPI.getLGACoverage(undefined, lgaName);
+          setLgaCoverageMap(prev => ({
+            ...prev,
+            [lgaName]: coverage,
+          }));
+        } catch (err) {
+          console.error(`Failed to fetch coverage for ${lgaName}:`, err);
+        }
+      }
+    };
+
+    if (selectedLGAs.length > 0) {
+      fetchCoverageForLGAs();
+    }
+  }, [selectedLGAs, lgaCoverageMap]);
 
   // Refresh analytics when footer opens
   useEffect(() => {
@@ -657,6 +682,43 @@ export default function PlaygroundPage() {
                         </Badge>
                       ))}
                     </div>
+                    {/* Coverage Warning - Only for 'none' coverage */}
+                    {(() => {
+                      const noCoverageLGAs = selectedLGAs.filter((lga) => {
+                        const coverage = lgaCoverageMap[lga];
+                        return coverage && coverage.coverage_level === 'none';
+                      });
+
+                      if (noCoverageLGAs.length === 0) return null;
+
+                      const contributionUrl = lgaCoverageMap[noCoverageLGAs[0]]?.contribution_url || `${GITHUB_REPO_URL}/issues/new?template=add-document-source.md`;
+
+                      return (
+                        <>
+                          <div className="ml-14 mt-3 border-t border-emerald-300"></div>
+                          <div className="ml-14 mt-2 flex items-center gap-3">
+                            <p className="text-sm text-emerald-900">
+                              <span className="font-medium">Federal & State coverage only. No local documents for: </span>
+                              <span className="font-semibold">{noCoverageLGAs.join(', ')}</span>
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs"
+                              asChild
+                            >
+                              <a
+                                href={contributionUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                Contribute Documents
+                              </a>
+                            </Button>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                   <Button variant="ghost" size="sm" onClick={clearLGAs} className="hover:bg-white/60 font-semibold">
                     Clear

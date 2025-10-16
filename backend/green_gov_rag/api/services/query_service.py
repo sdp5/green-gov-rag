@@ -8,9 +8,10 @@ from typing import Optional
 
 from sqlmodel import Session
 
-from green_gov_rag.api.schemas.query import QueryResponse, SourceDocument
+from green_gov_rag.api.schemas.query import CoverageInfo, QueryResponse, SourceDocument
 from green_gov_rag.api.services.cache import CacheService
 from green_gov_rag.api.services.citation_verification import CitationVerificationService
+from green_gov_rag.api.services.coverage_service import CoverageService
 from green_gov_rag.api.services.regulatory_hierarchy import RegulatoryHierarchyService
 from green_gov_rag.api.services.trust_score import TrustScoreService
 from green_gov_rag.api.utils.citation_formatter import CitationFormatter
@@ -58,6 +59,9 @@ class QueryService:
 
         # Initialize trust score service
         self.trust_service = TrustScoreService()
+
+        # Initialize coverage service
+        self.coverage_service = CoverageService()
 
     async def execute_query(
         self,
@@ -312,6 +316,16 @@ class QueryService:
             response_time_ms=response_time,
         )
 
+        # Calculate coverage info if region filter is provided
+        coverage_info: Optional[CoverageInfo] = None
+        if region:
+            # Extract LGA code and name from region or metadata
+            lga_code, lga_name = self._extract_lga_info(region, source_docs)
+            coverage_info = self.coverage_service.get_lga_coverage(
+                lga_code=lga_code,
+                lga_name=lga_name,
+            )
+
         return QueryResponse(
             query=query,
             answer=answer,
@@ -319,6 +333,7 @@ class QueryService:
             filters_applied=metadata_filters,
             response_time_ms=response_time,
             query_id=query_id,  # Include query_id for feedback
+            coverage_info=coverage_info,  # LGA coverage information
             # Phase 3 fields
             trust_score=trust_score,
             trust_confidence=trust_confidence,
@@ -329,6 +344,29 @@ class QueryService:
             if citation_warnings_list
             else None,
         )
+
+    def _extract_lga_info(
+        self, region: str, source_docs: list[SourceDocument]
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Extract LGA code and name from region filter or source documents.
+
+        Args:
+            region: Region filter string
+            source_docs: List of source documents
+
+        Returns:
+            Tuple of (lga_code, lga_name)
+        """
+        # Try to extract from source documents' spatial metadata
+        for doc in source_docs:
+            if doc.spatial_metadata:
+                lga_codes = doc.spatial_metadata.get("lga_codes", [])
+                lga_names = doc.spatial_metadata.get("lga_names", [])
+                if lga_codes and lga_names:
+                    return lga_codes[0], lga_names[0]
+
+        # Fallback: use region as LGA name
+        return None, region
 
     def _build_context(self, sources: list[dict]) -> str:
         """Build context string from source documents.

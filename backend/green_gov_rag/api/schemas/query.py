@@ -176,6 +176,49 @@ class FeedbackResponse(BaseModel):
         }
 
 
+class CoverageInfo(BaseModel):
+    """LGA document coverage information."""
+
+    selected_lga: Optional[str] = Field(
+        None,
+        description="Selected LGA name (e.g., 'City of Adelaide')",
+    )
+    lga_code: Optional[str] = Field(
+        None,
+        description="LGA code (e.g., '40070')",
+    )
+    has_local_coverage: bool = Field(
+        ...,
+        description="Whether local documents exist for this LGA",
+    )
+    local_doc_count: int = Field(
+        0,
+        description="Number of local documents available for this LGA",
+    )
+    coverage_level: str = Field(
+        ...,
+        description="Coverage level: 'high', 'medium', 'low', or 'none'",
+    )
+    contribution_url: str = Field(
+        ...,
+        description="GitHub URL to contribute new document sources",
+    )
+
+    class Config:
+        """Schema config."""
+
+        json_schema_extra = {
+            "example": {
+                "selected_lga": "City of Adelaide",
+                "lga_code": "40070",
+                "has_local_coverage": True,
+                "local_doc_count": 15,
+                "coverage_level": "high",
+                "contribution_url": "https://github.com/sdp5/green-gov-rag/issues/new?template=add-document-source.md",
+            }
+        }
+
+
 class QueryResponse(BaseModel):
     """Query response schema."""
 
@@ -186,6 +229,12 @@ class QueryResponse(BaseModel):
     response_time_ms: Optional[float] = None
     query_id: Optional[int] = Field(
         None, description="Query history ID for feedback submission"
+    )
+
+    # Document coverage information
+    coverage_info: Optional[CoverageInfo] = Field(
+        None,
+        description="LGA document coverage information and contribution link",
     )
 
     # Phase 3: Trust & Compliance Features

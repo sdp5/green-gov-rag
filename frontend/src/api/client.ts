@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { API_URL } from '../config/env';
-import type { FeedbackRequest, FeedbackResponse } from '../types/api';
+import type { FeedbackRequest, FeedbackResponse, CoverageInfo } from '../types/api';
 
 const apiClient = axios.create({
   baseURL: API_URL,
@@ -44,6 +44,16 @@ export const analyticsAPI = {
 export const mapAPI = {
   getLGAs: async () => {
     const response = await apiClient.get('/map/lgas');
+    return response.data;
+  },
+};
+
+export const coverageAPI = {
+  getLGACoverage: async (lgaCode?: string, lgaName?: string): Promise<CoverageInfo> => {
+    const params: Record<string, string> = {};
+    if (lgaCode) params.lga_code = lgaCode;
+    if (lgaName) params.lga_name = lgaName;
+    const response = await apiClient.get('/lga-coverage', { params });
     return response.data;
   },
 };

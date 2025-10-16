@@ -62,6 +62,15 @@ export interface ConflictDetection {
   details: string;
 }
 
+export interface CoverageInfo {
+  selected_lga?: string;
+  lga_code?: string;
+  has_local_coverage: boolean;
+  local_doc_count: number;
+  coverage_level: 'high' | 'medium' | 'low' | 'none' | 'federal_only';
+  contribution_url: string;
+}
+
 export interface QueryResponse {
   query: string;
   answer: string;
@@ -69,6 +78,9 @@ export interface QueryResponse {
   filters_applied: Record<string, unknown>;
   response_time_ms?: number;
   query_id?: number;
+
+  // Document coverage information
+  coverage_info?: CoverageInfo;
 
   // Phase 3: Trust & Compliance Features
   trust_score?: number;

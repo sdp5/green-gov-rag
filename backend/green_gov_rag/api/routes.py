@@ -12,6 +12,7 @@ from slowapi.util import get_remote_address
 from green_gov_rag import __version__
 from green_gov_rag.api.schemas import (
     AnalyticsStats,
+    CoverageInfo,
     DocumentListResponse,
     DocumentResponse,
     FeedbackRequest,
@@ -25,6 +26,7 @@ from green_gov_rag.api.schemas import (
 )
 from green_gov_rag.api.services import (
     AnalyticsService,
+    CoverageService,
     DocumentService,
     QueryService,
 )
@@ -38,6 +40,7 @@ limiter = Limiter(key_func=get_remote_address)
 query_service = QueryService()
 document_service = DocumentService()
 analytics_service = AnalyticsService()
+coverage_service = CoverageService()
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -166,6 +169,30 @@ async def get_analytics() -> AnalyticsStats:
         AnalyticsStats: Overall statistics and distributions
     """
     return analytics_service.get_stats()
+
+
+@router.get("/lga-coverage", response_model=CoverageInfo)
+async def get_lga_coverage(
+    lga_code: Optional[str] = Query(None, description="LGA code (e.g., '40070')"),
+    lga_name: Optional[str] = Query(
+        None, description="LGA name (e.g., 'City of Adelaide')"
+    ),
+) -> CoverageInfo:
+    """Get document coverage information for a specific LGA.
+
+    Returns coverage metadata including:
+    - Number of local documents available
+    - Coverage level (high/medium/low/none)
+    - Contribution URL for adding new documents
+
+    Args:
+        lga_code: Optional LGA code to check coverage for
+        lga_name: Optional LGA name to check coverage for
+
+    Returns:
+        CoverageInfo: Coverage information and contribution link
+    """
+    return coverage_service.get_lga_coverage(lga_code=lga_code, lga_name=lga_name)
 
 
 @router.get("/map/lgas", response_model=GeoJSONResponse)

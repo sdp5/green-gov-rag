@@ -12,6 +12,7 @@ declare global {
     __RUNTIME_CONFIG__?: {
       API_URL: string;
       MAPBOX_TOKEN: string;
+      GITHUB_REPO_URL: string;
     };
   }
 }
@@ -27,6 +28,7 @@ const getRuntimeConfig = () => {
   return {
     API_URL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
     MAPBOX_TOKEN: import.meta.env.VITE_MAPBOX_TOKEN || '',
+    GITHUB_REPO_URL: import.meta.env.VITE_GITHUB_REPO_URL || 'https://github.com/sdp5/green-gov-rag',
   };
 };
 
@@ -41,3 +43,4 @@ export const isProduction = import.meta.env.PROD;
 // Export individual values for convenience
 export const API_URL = ENV.API_URL;
 export const MAPBOX_TOKEN = ENV.MAPBOX_TOKEN;
+export const GITHUB_REPO_URL = ENV.GITHUB_REPO_URL;

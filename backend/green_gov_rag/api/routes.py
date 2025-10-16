@@ -5,7 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from green_gov_rag import __version__
 from green_gov_rag.api.schemas import (
@@ -29,6 +31,9 @@ from green_gov_rag.api.services import (
 
 router = APIRouter()
 
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
+
 # Initialize services
 query_service = QueryService()
 document_service = DocumentService()
@@ -42,10 +47,12 @@ def health_check() -> HealthResponse:
 
 
 @router.post("/query", response_model=QueryResponse)
-async def query_rag(request: QueryRequest) -> QueryResponse:
+@limiter.limit("20/minute")
+async def query_rag(http_request: Request, request: QueryRequest) -> QueryResponse:
     """Execute RAG query with filters.
 
     Args:
+        http_request: HTTP request for rate limiting
         request: Query request with filters
 
     Returns:
@@ -115,7 +122,10 @@ async def get_document(document_id: str) -> DocumentResponse:
 
 
 @router.post("/query/{query_id}/feedback", response_model=FeedbackResponse)
-async def submit_feedback(query_id: int, request: FeedbackRequest) -> FeedbackResponse:
+@limiter.limit("5/minute")
+async def submit_feedback(
+    http_request: Request, query_id: int, request: FeedbackRequest
+) -> FeedbackResponse:
     """Submit feedback for a query.
 
     Args:

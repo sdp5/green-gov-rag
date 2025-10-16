@@ -81,7 +81,72 @@ class RAGAgent:
             vector_store = VectorStore(embeddings=self.embedder.embedder)
 
         self.vector_store = vector_store
+
+        # Validate vector store has documents
+        self._validate_vector_store()
+
         self.chain = RAGChain(self.vector_store, self.embedder)
+
+    def _validate_vector_store(self) -> None:
+        """Validate that vector store exists and has documents.
+
+        Raises:
+            RuntimeError: If vector store is empty or invalid
+        """
+        try:
+            # Try to get vector store count
+            doc_count = self._get_vector_store_count()
+
+            if doc_count == 0:
+                raise RuntimeError(
+                    "Vector store is empty. No documents found.\n\n"
+                    "To fix this, run the document ingestion pipeline:\n"
+                    "  python -m green_gov_rag.etl.ingest_documents\n\n"
+                    "Or if using Docker:\n"
+                    "  docker-compose run --rm backend python -m green_gov_rag.etl.ingest_documents"
+                )
+
+        except Exception as e:
+            if "Vector store is empty" in str(e):
+                raise
+            # If we can't validate, log warning but don't fail
+            # (allows for non-standard vector store implementations)
+            import logging
+
+            logging.warning(f"Could not validate vector store: {e}")
+
+    def _get_vector_store_count(self) -> int:
+        """Get count of documents in vector store.
+
+        Returns:
+            Number of documents in vector store
+        """
+        # Try different methods depending on vector store type
+        vs = self.vector_store.vector_store
+
+        # FAISS
+        if hasattr(vs, "index") and hasattr(vs.index, "ntotal"):
+            return vs.index.ntotal
+
+        # Qdrant
+        if hasattr(vs, "client"):
+            try:
+                collection_name = vs.collection_name
+                info = vs.client.get_collection(collection_name)
+                return info.vectors_count
+            except Exception:
+                pass
+
+        # Chroma
+        if hasattr(vs, "_collection"):
+            return vs._collection.count()
+
+        # Generic fallback - try a test search
+        try:
+            results = vs.similarity_search("test", k=1)
+            return 1 if results else 0
+        except Exception:
+            return 0
 
     def retrieve(
         self, query: str, metadata_filters: dict | None = None, k: int = 5

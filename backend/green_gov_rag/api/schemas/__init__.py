@@ -20,6 +20,7 @@ from green_gov_rag.api.schemas.common import (
     GeoJSONResponse,
     HealthResponse,
     RootResponse,
+    VectorStoreStatus,
 )
 from green_gov_rag.api.schemas.document import (
     DocumentListResponse,
@@ -49,6 +50,7 @@ __all__ = [
     "DistributionData",
     "TopicDistribution",
     "HealthResponse",
+    "VectorStoreStatus",
     "RootResponse",
     "GeoJSONFeature",
     "GeoJSONGeometry",

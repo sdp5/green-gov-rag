@@ -23,6 +23,7 @@ from green_gov_rag.api.schemas import (
     HealthResponse,
     QueryRequest,
     QueryResponse,
+    VectorStoreStatus,
 )
 from green_gov_rag.api.services import (
     AnalyticsService,
@@ -45,8 +46,61 @@ coverage_service = CoverageService()
 
 @router.get("/health", response_model=HealthResponse)
 def health_check() -> HealthResponse:
-    """Health check endpoint."""
-    return HealthResponse(status="ok", service="GreenGovRAG API", version=__version__)
+    """Health check endpoint with vector store status."""
+    # Check vector store health
+    vector_store_status = _check_vector_store_health()
+
+    # Overall status is degraded if vector store has issues
+    overall_status = "ok" if vector_store_status.status == "ok" else "degraded"
+
+    return HealthResponse(
+        status=overall_status,
+        service="GreenGovRAG API",
+        version=__version__,
+        vector_store=vector_store_status,
+    )
+
+
+def _check_vector_store_health() -> VectorStoreStatus:
+    """Check vector store health and return status.
+
+    Returns:
+        VectorStoreStatus with current status
+    """
+    try:
+        # Try to get document count from query service's RAG agent
+        if hasattr(query_service, "rag_agent"):
+            doc_count = query_service.rag_agent._get_vector_store_count()
+
+            if doc_count == 0:
+                return VectorStoreStatus(
+                    status="empty",
+                    document_count=0,
+                    error="Vector store contains no documents",
+                    remediation=(
+                        "Run document ingestion:\n"
+                        "  python -m green_gov_rag.etl.ingest_documents\n"
+                        "Or with Docker:\n"
+                        "  docker-compose run --rm backend python -m green_gov_rag.etl.ingest_documents"
+                    ),
+                )
+
+            return VectorStoreStatus(status="ok", document_count=doc_count)
+        else:
+            return VectorStoreStatus(
+                status="error",
+                document_count=0,
+                error="Query service not initialized",
+                remediation="Restart the API service",
+            )
+
+    except Exception as e:
+        return VectorStoreStatus(
+            status="error",
+            document_count=0,
+            error=str(e),
+            remediation="Check application logs for details",
+        )
 
 
 @router.post("/query", response_model=QueryResponse)

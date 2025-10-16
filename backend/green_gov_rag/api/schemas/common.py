@@ -7,12 +7,30 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
+class VectorStoreStatus(BaseModel):
+    """Vector store health status."""
+
+    status: str = Field(..., description="Vector store status: ok, empty, or error")
+    document_count: int = Field(
+        default=0, description="Number of documents in vector store"
+    )
+    error: str | None = Field(
+        default=None, description="Error message if status is error"
+    )
+    remediation: str | None = Field(
+        default=None, description="Instructions to fix the issue"
+    )
+
+
 class HealthResponse(BaseModel):
     """Health check response."""
 
     status: str = Field(..., json_schema_extra={"examples": ["ok"]})
     service: str = Field(..., json_schema_extra={"examples": ["GreenGovRAG API"]})
     version: str = Field(..., json_schema_extra={"examples": ["0.1.0"]})
+    vector_store: VectorStoreStatus | None = Field(
+        default=None, description="Vector store health status"
+    )
 
 
 class RootResponse(BaseModel):

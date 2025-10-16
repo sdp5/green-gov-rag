@@ -20,7 +20,7 @@ Now uses centralized settings from green_gov_rag.config and LLMFactory for multi
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from green_gov_rag.config import settings
 from green_gov_rag.rag.embeddings import ChunkEmbedder
@@ -31,11 +31,13 @@ from green_gov_rag.rag.vector_store import VectorStore
 if TYPE_CHECKING:
     from langchain.schema.language_model import BaseLanguageModel
 
+    from green_gov_rag.rag.vector_store_interface import VectorStoreInterface
+
 
 class RAGChain:
     def __init__(
         self,
-        vector_store: VectorStore,
+        vector_store: Union[VectorStore, "VectorStoreInterface"],
         embedder: ChunkEmbedder | None = None,
         llm_provider: str | None = None,
         llm_model: str | None = None,

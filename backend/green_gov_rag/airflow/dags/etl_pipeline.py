@@ -114,8 +114,7 @@ def task_test_rag() -> None:
     if hasattr(vector_store, "load"):
         vector_store.load(str(VECTOR_STORE_DIR))
 
-    # TODO: "RAGChain" has incompatible type "VectorStoreInterface"; expected "VectorStore"
-    rag_chain = RAGChain(vector_store)  # type: ignore[arg-type]
+    rag_chain = RAGChain(vector_store)
     query = "What are the biodiversity offsets in NSW?"
     result = rag_chain.query(query)
     print("RAG Query Result:\n", result)

@@ -1,0 +1,216 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-frontend.yml'
+  workflow_dispatch:
+    inputs:
+      cloud_provider:
+        description: 'Cloud provider (aws or azure)'
+        default: 'aws'
+        required: false
+        type: choice
+        options:
+          - aws
+          - azure
+
+env:
+  AWS_REGION: us-east-1
+  CLOUD_PROVIDER: ${{ github.event.inputs.cloud_provider || 'aws' }}
+
+jobs:
+  build:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+        env:
+          # These will be replaced at runtime via config.js
+          VITE_API_URL: PLACEHOLDER
+          VITE_MAPBOX_TOKEN: PLACEHOLDER
+
+      - name: Generate runtime config template
+        working-directory: frontend
+        run: |
+          # Copy config template to dist
+          cp public/config.template.js dist/config.js
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/dist/
+          retention-days: 1
+
+  deploy-aws:
+    name: Deploy to AWS S3 + CloudFront
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.cloud_provider == 'aws' || github.event_name == 'push' }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: dist/
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get CloudFormation outputs
+        id: cf-outputs
+        run: |
+          FRONTEND_BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`FrontendBucket`].OutputValue' \
+            --output text)
+
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`ApiGatewayURL`].OutputValue' \
+            --output text)
+
+          CF_DISTRIBUTION=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontURL`].OutputValue' \
+            --output text)
+
+          echo "bucket=$FRONTEND_BUCKET" >> $GITHUB_OUTPUT
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+          echo "cf_url=$CF_DISTRIBUTION" >> $GITHUB_OUTPUT
+
+      - name: Generate runtime config.js
+        run: |
+          cat > dist/config.js << EOF
+          // Runtime configuration for GreenGovRAG frontend
+          window.__RUNTIME_CONFIG__ = {
+            API_URL: '${{ steps.cf-outputs.outputs.api_url }}/api',
+            MAPBOX_TOKEN: '${{ secrets.VITE_MAPBOX_TOKEN }}'
+          };
+          EOF
+
+      - name: Sync to S3
+        run: |
+          aws s3 sync dist/ s3://${{ steps.cf-outputs.outputs.bucket }}/ \
+            --delete \
+            --cache-control "public, max-age=31536000" \
+            --exclude "index.html" \
+            --exclude "config.js"
+
+          # Upload index.html and config.js with no-cache
+          aws s3 cp dist/index.html s3://${{ steps.cf-outputs.outputs.bucket }}/index.html \
+            --cache-control "no-cache, no-store, must-revalidate"
+
+          aws s3 cp dist/config.js s3://${{ steps.cf-outputs.outputs.bucket }}/config.js \
+            --cache-control "no-cache, no-store, must-revalidate"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          # Get distribution ID from URL
+          DISTRIBUTION_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?contains(Aliases.Items, '${{ steps.cf-outputs.outputs.cf_url }}')].Id" \
+            --output text)
+
+          if [ -n "$DISTRIBUTION_ID" ]; then
+            aws cloudfront create-invalidation \
+              --distribution-id $DISTRIBUTION_ID \
+              --paths "/*"
+            echo "✓ CloudFront cache invalidated"
+          fi
+
+      - name: Deployment summary
+        run: |
+          echo "✓ Frontend deployed successfully"
+          echo "URL: ${{ steps.cf-outputs.outputs.cf_url }}"
+
+  deploy-azure:
+    name: Deploy to Azure Static Web App
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.cloud_provider == 'azure' }}
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: dist/
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get Azure outputs
+        id: az-outputs
+        run: |
+          API_URL=$(az deployment group show \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --name greengovrag-deployment \
+            --query properties.outputs.apiUrl.value \
+            --output tsv)
+
+          STATIC_APP=$(az deployment group show \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --name greengovrag-deployment \
+            --query properties.outputs.staticWebAppName.value \
+            --output tsv)
+
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+          echo "app_name=$STATIC_APP" >> $GITHUB_OUTPUT
+
+      - name: Generate runtime config.js
+        run: |
+          cat > dist/config.js << EOF
+          window.__RUNTIME_CONFIG__ = {
+            API_URL: '${{ steps.az-outputs.outputs.api_url }}/api',
+            MAPBOX_TOKEN: '${{ secrets.VITE_MAPBOX_TOKEN }}'
+          };
+          EOF
+
+      - name: Deploy to Azure Static Web App
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          app_location: "dist"
+          skip_app_build: true
+
+      - name: Deployment summary
+        run: |
+          FRONTEND_URL=$(az staticwebapp show \
+            --name ${{ steps.az-outputs.outputs.app_name }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --query defaultHostname \
+            --output tsv)
+
+          echo "✓ Frontend deployed successfully"
+          echo "URL: https://$FRONTEND_URL"

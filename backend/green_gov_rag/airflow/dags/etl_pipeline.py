@@ -12,7 +12,7 @@ from green_gov_rag.etl.chunker import TextChunker
 from green_gov_rag.etl.parsers import get_parser
 from green_gov_rag.rag.embeddings import ChunkEmbedder
 from green_gov_rag.rag.rag_chain import RAGChain
-from green_gov_rag.rag.vector_store import VectorStore
+from green_gov_rag.rag.vector_store_factory import VectorStoreFactory
 
 # --- DAG Default Arguments ---
 default_args = {
@@ -90,10 +90,13 @@ def task_build_vector_store() -> None:
 
     embeddings = HuggingFaceEmbeddings(model_name=MODEL_NAME)
 
-    vector_store = VectorStore(embeddings=embeddings)
+    # Use factory to create vector store (automatically uses Qdrant if configured)
+    vector_store = VectorStoreFactory.create_vector_store(
+        embeddings=embeddings,
+        index_path=str(VECTOR_STORE_DIR / "faiss_index"),  # For FAISS fallback
+    )
     vector_store.build_store(embedded_chunks)
-    if vector_store.store:
-        vector_store.store.save_local(str(VECTOR_STORE_DIR / "faiss_index"))
+    vector_store.persist()
 
 
 def task_test_rag() -> None:
@@ -102,11 +105,17 @@ def task_test_rag() -> None:
 
     embeddings = HuggingFaceEmbeddings(model_name=MODEL_NAME)
 
-    vector_store = VectorStore(
-        embeddings=embeddings, index_path=str(VECTOR_STORE_DIR / "faiss_index")
+    # Load vector store using factory
+    vector_store = VectorStoreFactory.create_vector_store(
+        embeddings=embeddings,
+        index_path=str(VECTOR_STORE_DIR / "faiss_index"),  # For FAISS fallback
     )
+    # Load existing data
+    if hasattr(vector_store, "load"):
+        vector_store.load(str(VECTOR_STORE_DIR))
 
-    rag_chain = RAGChain(vector_store)
+    # TODO: "RAGChain" has incompatible type "VectorStoreInterface"; expected "VectorStore"
+    rag_chain = RAGChain(vector_store)  # type: ignore[arg-type]
     query = "What are the biodiversity offsets in NSW?"
     result = rag_chain.query(query)
     print("RAG Query Result:\n", result)

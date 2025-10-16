@@ -269,6 +269,117 @@ def etl_tag_metadata(
     )
 
 
+@etl_app.command("monitor")
+def etl_monitor(
+    output_format: str = typer.Option(
+        "json",
+        "--format",
+        "-f",
+        help="Output format: json, table, or summary",
+    ),
+    trigger_etl: bool = typer.Option(
+        False,
+        "--trigger-etl/--no-trigger",
+        help="Automatically trigger ETL pipeline if changes detected",
+    ),
+) -> None:
+    """Monitor document sources for new or updated documents.
+
+    Checks all registered document sources for changes and reports
+    discovered documents. Can optionally trigger ETL pipeline automatically.
+
+    Example:
+    -------
+        greengovrag etl monitor --format table
+        greengovrag etl monitor --trigger-etl
+
+    """
+    import asyncio
+
+    from green_gov_rag.api.services.monitoring_service import MonitoringService
+
+    console.print("[bold blue]Monitoring document sources...[/bold blue]")
+
+    # Run monitoring service
+    service = MonitoringService()
+    loop = asyncio.get_event_loop()
+    results = loop.run_until_complete(service.monitor_all_sources())
+
+    # Display results based on format
+    if output_format == "json":
+        console.print(json.dumps(results, indent=2))
+    elif output_format == "table":
+        # Create summary table
+        table = Table(title="Document Monitoring Results")
+        table.add_column("Source", style="cyan")
+        table.add_column("Status", style="magenta")
+        table.add_column("Discovered", style="green")
+        table.add_column("Updated", style="yellow")
+        table.add_column("Unchanged", style="dim")
+        table.add_column("Duration", style="blue")
+
+        for source_result in results.get("source_results", []):
+            table.add_row(
+                source_result.get("source_type", "Unknown"),
+                source_result.get("status", "unknown"),
+                str(source_result.get("documents_discovered", 0)),
+                str(source_result.get("documents_updated", 0)),
+                str(source_result.get("documents_unchanged", 0)),
+                f"{source_result.get('duration_seconds', 0):.2f}s",
+            )
+
+        console.print(table)
+    else:  # summary
+        console.print("\n[bold]Summary:[/bold]")
+        console.print(f"  Sources checked: {results.get('sources_checked', 0)}")
+        console.print(f"  Sources failed: {results.get('sources_failed', 0)}")
+        console.print(
+            f"  Documents discovered: [green]{results.get('total_discovered', 0)}[/green]"
+        )
+        console.print(
+            f"  Documents updated: [yellow]{results.get('total_updated', 0)}[/yellow]"
+        )
+        console.print(
+            f"  Documents unchanged: [dim]{results.get('total_unchanged', 0)}[/dim]"
+        )
+
+    # Check if changes detected
+    total_changes = results.get("total_discovered", 0) + results.get("total_updated", 0)
+
+    if total_changes > 0:
+        console.print(
+            f"\n[bold green]✓ Found {total_changes} document changes[/bold green]"
+        )
+
+        if trigger_etl:
+            console.print("\n[bold blue]Triggering ETL pipeline...[/bold blue]")
+            # Import and run the pipeline command
+            from green_gov_rag.etl.pipeline import EnhancedETLPipeline
+
+            pipeline = EnhancedETLPipeline(enable_auto_tagging=True)
+            config_path = "configs/documents_config.yml"
+
+            console.print("Step 1: Loading and parsing documents...")
+            documents = pipeline.load_and_parse_documents(config_path)
+            console.print(f"  ✓ Loaded {len(documents)} documents")
+
+            console.print("Step 2: Auto-tagging with ESG metadata...")
+            documents = pipeline.auto_tag_documents(documents)
+            console.print(f"  ✓ Tagged {len(documents)} documents")
+
+            console.print("Step 3: Chunking documents...")
+            chunks = pipeline.chunk_documents(documents)
+            console.print(f"  ✓ Created {len(chunks)} chunks")
+
+            console.print("[bold green]✓ ETL Pipeline completed![/bold green]")
+        else:
+            console.print(
+                "\n[dim]Tip: Use --trigger-etl to automatically run ETL pipeline[/dim]"
+            )
+    else:
+        console.print("\n[dim]No changes detected[/dim]")
+
+
 @etl_app.command("pipeline")
 def etl_pipeline(
     config_path: str = typer.Option(

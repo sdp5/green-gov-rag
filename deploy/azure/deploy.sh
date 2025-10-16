@@ -1,110 +1,84 @@
 #!/bin/bash
-# Deployment script for Azure infrastructure
-
 set -e
 
-# Configuration
-RESOURCE_GROUP="${RESOURCE_GROUP:-greengovrag-rg}"
-LOCATION="${LOCATION:-australiaeast}"
-ENVIRONMENT="${ENVIRONMENT:-dev}"
-SUBSCRIPTION_ID="${AZURE_SUBSCRIPTION_ID}"
+# Azure deployment script for GreenGovRAG Hybrid Architecture
+# Deploys: Container Apps, PostgreSQL, Static Web App, Spot VM for Qdrant
 
-# Colors for output
-RED='\033[0;31m'
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Colors
 GREEN='\033[0;32m'
+BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+RED='\033[0;31m'
+NC='\033[0m'
 
-echo -e "${GREEN}=== GreenGovRAG Azure Deployment ===${NC}"
+echo -e "${BLUE}=== GreenGovRAG Azure Deployment ===${NC}"
 
-# Check prerequisites
+# Configuration
+RESOURCE_GROUP="${RESOURCE_GROUP:-greengovrag-prod-rg}"
+LOCATION="${LOCATION:-eastus}"
+ENVIRONMENT="${ENVIRONMENT:-prod}"
+
+# Check Azure CLI
 if ! command -v az &> /dev/null; then
-    echo -e "${RED}Error: Azure CLI is not installed${NC}"
-    echo "Install from: https://docs.microsoft.com/en-us/cli/azure/install-azure-cli"
+    echo -e "${RED}Error: Azure CLI not installed${NC}"
     exit 1
 fi
 
-# Check if logged in
+# Check login
+echo -e "${BLUE}Checking Azure login...${NC}"
 if ! az account show &> /dev/null; then
-    echo -e "${YELLOW}Not logged in to Azure. Logging in...${NC}"
     az login
 fi
 
-# Set subscription if provided
-if [ -n "$SUBSCRIPTION_ID" ]; then
-    echo -e "${YELLOW}Setting subscription to: $SUBSCRIPTION_ID${NC}"
-    az account set --subscription "$SUBSCRIPTION_ID"
-fi
+SUBSCRIPTION=$(az account show --query id -o tsv)
+echo -e "${GREEN}Subscription: $SUBSCRIPTION${NC}"
 
-# Show current subscription
-CURRENT_SUB=$(az account show --query name -o tsv)
-echo -e "${GREEN}Using subscription: $CURRENT_SUB${NC}"
+# Get parameters
+read -sp "PostgreSQL password: " POSTGRES_PASSWORD
+echo
+read -sp "OpenAI API key: " OPENAI_API_KEY
+echo
+read -p "MapBox token (optional): " MAPBOX_TOKEN
 
-# Create resource group if it doesn't exist
-echo -e "${YELLOW}Creating resource group: $RESOURCE_GROUP in $LOCATION${NC}"
+# Create resource group
+echo -e "${BLUE}Creating resource group...${NC}"
 az group create --name "$RESOURCE_GROUP" --location "$LOCATION"
 
-# Prompt for secrets if not set
-if [ -z "$POSTGRES_PASSWORD" ]; then
-    echo -e "${YELLOW}Enter PostgreSQL admin password:${NC}"
-    read -s POSTGRES_PASSWORD
-fi
-
-if [ -z "$OPENAI_API_KEY" ]; then
-    echo -e "${YELLOW}Enter OpenAI API Key:${NC}"
-    read -s OPENAI_API_KEY
-fi
-
 # Deploy infrastructure
-echo -e "${GREEN}Deploying infrastructure...${NC}"
-az deployment group create \
-  --resource-group "$RESOURCE_GROUP" \
-  --template-file main.bicep \
-  --parameters \
-    projectName=greengovrag \
-    environment="$ENVIRONMENT" \
-    location="$LOCATION" \
-    postgresPassword="$POSTGRES_PASSWORD" \
-    openaiApiKey="$OPENAI_API_KEY"
+echo -e "${BLUE}Deploying infrastructure (this may take 10-15 minutes)...${NC}"
+OUTPUTS=$(az deployment group create \
+    --resource-group "$RESOURCE_GROUP" \
+    --template-file "$SCRIPT_DIR/main.bicep" \
+    --parameters \
+        environment="$ENVIRONMENT" \
+        postgresPassword="$POSTGRES_PASSWORD" \
+        openaiApiKey="$OPENAI_API_KEY" \
+        mapboxToken="$MAPBOX_TOKEN" \
+    --query properties.outputs \
+    --output json)
 
-# Get outputs
-echo -e "${GREEN}Deployment completed successfully!${NC}"
-echo -e "${YELLOW}Retrieving deployment outputs...${NC}"
+echo -e "${GREEN}✓ Infrastructure deployed${NC}"
 
-STORAGE_ACCOUNT=$(az deployment group show \
-  --resource-group "$RESOURCE_GROUP" \
-  --name main \
-  --query properties.outputs.storageAccountName.value -o tsv)
+# Parse outputs
+API_URL=$(echo "$OUTPUTS" | jq -r '.apiUrl.value')
+FRONTEND_URL=$(echo "$OUTPUTS" | jq -r '.frontendUrl.value')
+STORAGE_ACCOUNT=$(echo "$OUTPUTS" | jq -r '.storageAccountName.value')
+STATIC_WEB_APP=$(echo "$OUTPUTS" | jq -r '.staticWebAppName.value')
+POSTGRES_HOST=$(echo "$OUTPUTS" | jq -r '.postgresHost.value')
 
-API_URL=$(az deployment group show \
-  --resource-group "$RESOURCE_GROUP" \
-  --name main \
-  --query properties.outputs.apiUrl.value -o tsv)
-
-UI_URL=$(az deployment group show \
-  --resource-group "$RESOURCE_GROUP" \
-  --name main \
-  --query properties.outputs.uiUrl.value -o tsv)
-
-ACR_LOGIN_SERVER=$(az deployment group show \
-  --resource-group "$RESOURCE_GROUP" \
-  --name main \
-  --query properties.outputs.containerRegistryLoginServer.value -o tsv)
-
-echo -e "${GREEN}=== Deployment Summary ===${NC}"
-echo "Resource Group: $RESOURCE_GROUP"
-echo "Storage Account: $STORAGE_ACCOUNT"
-echo "Container Registry: $ACR_LOGIN_SERVER"
-echo "API URL: $API_URL"
-echo "UI URL: $UI_URL"
-
-echo -e "${YELLOW}Next steps:${NC}"
-echo "1. Build and push Docker images:"
-echo "   az acr login --name ${ACR_LOGIN_SERVER%%.*}"
-echo "   docker build -t $ACR_LOGIN_SERVER/greengovrag-api:latest -f deploy/docker/api/Dockerfile ."
-echo "   docker build -t $ACR_LOGIN_SERVER/greengovrag-ui:latest -f deploy/docker/streamlit/Dockerfile ."
-echo "   docker push $ACR_LOGIN_SERVER/greengovrag-api:latest"
-echo "   docker push $ACR_LOGIN_SERVER/greengovrag-ui:latest"
+# Display results
 echo ""
-echo "2. Update container apps to use the new images"
-echo "3. Access the UI at: $UI_URL"
+echo -e "${GREEN}=== Deployment Complete ===${NC}"
+echo -e "${BLUE}API URL:${NC} $API_URL"
+echo -e "${BLUE}Frontend URL:${NC} $FRONTEND_URL"
+echo -e "${BLUE}Storage:${NC} $STORAGE_ACCOUNT"
+echo -e "${BLUE}Database:${NC} $POSTGRES_HOST"
+echo ""
+echo -e "${YELLOW}Next steps:${NC}"
+echo "1. Build and push backend container"
+echo "2. Deploy frontend to Static Web App"
+echo "3. Run ETL pipeline via GitHub Actions"
+echo ""
+echo -e "${BLUE}Monthly cost: ~\$45${NC}"

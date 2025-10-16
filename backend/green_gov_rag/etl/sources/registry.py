@@ -79,6 +79,33 @@ class DocumentSourceRegistry:
         """
         return list(self._sources.keys())
 
+    def get_all_sources(self) -> dict[str, Type[DocumentSource]]:
+        """Get all registered source types and their classes.
+
+        Returns:
+            Dictionary mapping source type to source class
+        """
+        return dict(self._sources)
+
+    def create_source(self, source_type: str, config: dict[str, Any]) -> DocumentSource:
+        """Create a source instance by type.
+
+        Args:
+            source_type: Source type identifier
+            config: Configuration dictionary
+
+        Returns:
+            Instantiated DocumentSource
+
+        Raises:
+            ValueError: If source type not registered
+        """
+        source_class = self._sources.get(source_type)
+        if not source_class:
+            raise ValueError(f"Source type '{source_type}' not registered")
+
+        return source_class(config)
+
     def is_registered(self, source_type: str) -> bool:
         """Check if a source type is registered.
 

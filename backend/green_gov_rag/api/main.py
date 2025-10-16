@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from green_gov_rag import __version__
 from green_gov_rag.api.admin import router as admin_router
+from green_gov_rag.api.routes import limiter
 from green_gov_rag.api.routes import router as api_router
 from green_gov_rag.api.schemas import RootResponse
 from green_gov_rag.config import settings
@@ -20,6 +23,10 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Add rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Add CORS middleware
 app.add_middleware(

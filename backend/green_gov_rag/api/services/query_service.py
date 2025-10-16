@@ -10,6 +10,10 @@ from sqlmodel import Session
 
 from green_gov_rag.api.schemas.query import QueryResponse, SourceDocument
 from green_gov_rag.api.services.cache import CacheService
+from green_gov_rag.api.services.citation_verification import CitationVerificationService
+from green_gov_rag.api.services.regulatory_hierarchy import RegulatoryHierarchyService
+from green_gov_rag.api.services.trust_score import TrustScoreService
+from green_gov_rag.api.utils.citation_formatter import CitationFormatter
 from green_gov_rag.config import settings
 from green_gov_rag.models import QueryHistory
 from green_gov_rag.models.base import engine
@@ -41,7 +45,21 @@ class QueryService:
                 settings.cache_ttl,
             )
 
-    def execute_query(
+        # Initialize citation verification service
+        self.citation_service = None
+        if settings.enable_citation_verification:
+            self.citation_service = CitationVerificationService(
+                staleness_threshold_days=settings.citation_staleness_threshold_days
+            )
+            logger.info("Citation verification enabled")
+
+        # Initialize regulatory hierarchy service
+        self.hierarchy_service = RegulatoryHierarchyService()
+
+        # Initialize trust score service
+        self.trust_service = TrustScoreService()
+
+    async def execute_query(
         self,
         query: str,
         region: Optional[str] = None,
@@ -72,34 +90,218 @@ class QueryService:
         if topics:
             metadata_filters["topic"] = topics[0] if len(topics) == 1 else topics
 
-        # Execute full RAG query (retrieval + generation)
-        # TODO: Refactor RAGAgent to support caching at the generation step
-        answer, sources = self.rag_agent.query(
-            query, metadata_filters=metadata_filters or None
+        # Phase 1: Retrieve documents (always happens)
+        context, sources = self.rag_agent.retrieve(
+            query=query, metadata_filters=metadata_filters or None, k=max_sources
         )
 
-        # Build context from sources for potential caching
-        _ = self._build_context(sources[:max_sources])
-
-        # Note: Caching temporarily disabled until RAGAgent refactored
-        # TODO: Add caching support by exposing retrieval and generation methods separately
-
-        # Convert sources to schema
-        source_docs = [
-            SourceDocument(
-                title=src.get("title", "Unknown"),
-                source_url=src.get("source_url", ""),
-                excerpt=src.get("excerpt"),
-                relevance_score=src.get("score"),
+        # Phase 2: Check cache before expensive LLM generation
+        cache_hit = False
+        if self.cache_service:
+            cache_key = self.cache_service._create_cache_key(
+                query=query, context=context, filters=metadata_filters or None
             )
-            for src in sources[:max_sources]
-        ]
+
+            cached_answer = await self.cache_service.get(cache_key, query=query)
+            if cached_answer:
+                logger.info(f"Cache hit for query: {query[:50]}...")
+                answer = cached_answer
+                cache_hit = True  # noqa: F841
+            else:
+                logger.info(f"Cache miss for query: {query[:50]}...")
+                # Phase 3: Generate answer (cache miss only)
+                answer = self.rag_agent.generate(query=query, context=context)
+
+                # Store in cache with source document IDs
+                source_ids = [
+                    s.metadata.get("id") or s.metadata.get("title", "")
+                    for s in sources
+                    if hasattr(s, "metadata")
+                ]
+                await self.cache_service.set(
+                    key=cache_key,
+                    value=answer,
+                    query=query,  # Pass query for semantic caching
+                    source_documents=source_ids,
+                )
+        else:
+            # No caching - direct generation
+            answer = self.rag_agent.generate(query=query, context=context)
+
+        # Convert sources to schema with citation enrichment
+        source_docs = []
+        for src in sources[:max_sources]:
+            # Handle both Document objects and dict sources
+            if hasattr(src, "metadata"):
+                # LangChain Document object
+                metadata = src.metadata
+                page_content = src.page_content
+                title = metadata.get("title", "Unknown")
+                source_url = metadata.get("source_url", "")
+                excerpt = page_content[:500] if page_content else None
+            else:
+                # Dict format (legacy)
+                metadata = src.get("metadata", {})
+                title = src.get("title", metadata.get("title", "Unknown"))
+                source_url = src.get("source_url", metadata.get("source_url", ""))
+                excerpt = src.get("excerpt", src.get("content", ""))
+
+            # Extract metadata
+            esg_metadata = metadata.get("esg_metadata")
+            spatial_metadata = metadata.get("spatial_metadata")
+
+            # Build citation fields
+            page_number = metadata.get("page_number")
+            section_title = metadata.get("section_title")
+            section_hierarchy = metadata.get("section_hierarchy")
+            clause_reference = metadata.get("clause_reference")
+
+            # Format citation using utility
+            regulator = esg_metadata.get("regulator") if esg_metadata else None
+            citation = CitationFormatter.format_citation(
+                title=title,
+                page_number=page_number,
+                section_title=section_title,
+                clause_reference=clause_reference,
+                regulator=regulator,
+            )
+
+            # Build deep link
+            section_id = CitationFormatter.extract_section_id(
+                section_hierarchy, clause_reference
+            )
+            deep_link = CitationFormatter.build_deep_link(
+                source_url=source_url,
+                page_number=page_number,
+                section_id=section_id,
+            )
+
+            # Build page range if available
+            page_range = metadata.get("page_range")
+            if not page_range and page_number:
+                # Fallback: single page range if not tracked in metadata
+                page_range = [page_number, page_number]
+
+            # Create enriched source document
+            source_doc = SourceDocument(
+                # Core fields
+                title=title,
+                source_url=source_url,
+                excerpt=excerpt,
+                relevance_score=metadata.get("score"),
+                # Citation metadata
+                page_number=page_number,
+                page_range=page_range,
+                section_title=section_title,
+                section_hierarchy=section_hierarchy,
+                clause_reference=clause_reference,
+                deep_link=deep_link,
+                citation=citation,
+                # Document metadata
+                jurisdiction=metadata.get("jurisdiction"),
+                category=metadata.get("category"),
+                topic=metadata.get("topic"),
+                region=metadata.get("region"),
+                # ESG & spatial metadata
+                esg_metadata=esg_metadata,
+                spatial_metadata=spatial_metadata,
+            )
+
+            source_docs.append(source_doc)
 
         # Calculate response time
         response_time = (time.time() - start_time) * 1000
 
-        # Save to query history
-        self._save_query_history(
+        # Phase 3: Calculate trust score and detect conflicts
+        trust_score = None
+        trust_confidence = None
+        trust_breakdown = None
+        conflicts_detected = None
+        hierarchy_explanation = None
+        citation_warnings_list = []
+        verification_results = None
+
+        # Verify citations if enabled
+        if self.citation_service:
+            try:
+                response_dict = {
+                    "query": query,
+                    "answer": answer,
+                    "sources": [doc.model_dump() for doc in source_docs],
+                }
+                verification_results = (
+                    await self.citation_service.verify_query_response(response_dict)
+                )
+
+                # Collect warnings
+                for result in verification_results:
+                    if result.warning:
+                        citation_warnings_list.append(result.warning)
+                    if result.is_superseded:
+                        citation_warnings_list.append(
+                            f"Document {result.document_id}: v{result.cited_version} superseded by v{result.current_version}"
+                        )
+
+            except Exception as e:
+                logger.error(f"Citation verification failed: {e}", exc_info=True)
+
+        # Detect regulatory conflicts
+        try:
+            source_dicts = [doc.model_dump() for doc in source_docs]
+            conflicts = await self.hierarchy_service.detect_conflicts(source_dicts)
+
+            if conflicts:
+                conflicts_detected = [
+                    {
+                        "type": c.conflict_type,
+                        "severity": c.severity,
+                        "resolution": c.resolution,
+                        "details": c.details,
+                    }
+                    for c in conflicts
+                ]
+
+            # Generate hierarchy explanation
+            hierarchy_explanation = (
+                self.hierarchy_service.generate_hierarchy_explanation(source_dicts)
+            )
+
+        except Exception as e:
+            logger.error(f"Conflict detection failed: {e}", exc_info=True)
+
+        # Calculate trust score
+        try:
+            # Already have source_dicts from above
+            # Calculate authority scores for each source
+            authority_scores = {}
+            for i, source_dict in enumerate(source_dicts):
+                authority_scores[
+                    f"source_{i}"
+                ] = self.hierarchy_service.calculate_source_authority_score(source_dict)
+
+            # Calculate composite trust score
+            trust_breakdown_obj = self.trust_service.calculate_trust_score(
+                citation_results=verification_results,
+                sources=source_dicts,
+                conflicts=conflicts if conflicts else None,
+                authority_scores=authority_scores,
+            )
+
+            trust_score = trust_breakdown_obj.overall_score
+            trust_confidence = trust_breakdown_obj.confidence_level
+            trust_breakdown = {
+                "citation_score": trust_breakdown_obj.citation_score,
+                "authority_score": trust_breakdown_obj.authority_score,
+                "conflict_score": trust_breakdown_obj.conflict_score,
+                "accuracy_score": trust_breakdown_obj.accuracy_score,
+                "warnings": trust_breakdown_obj.warnings,
+            }
+
+        except Exception as e:
+            logger.error(f"Trust score calculation failed: {e}", exc_info=True)
+
+        # Save to query history and get query_id
+        query_id = self._save_query_history(
             query=query,
             answer=answer,
             region_filter=region,
@@ -116,6 +318,16 @@ class QueryService:
             sources=source_docs,
             filters_applied=metadata_filters,
             response_time_ms=response_time,
+            query_id=query_id,  # Include query_id for feedback
+            # Phase 3 fields
+            trust_score=trust_score,
+            trust_confidence=trust_confidence,
+            trust_breakdown=trust_breakdown,
+            conflicts_detected=conflicts_detected,
+            hierarchy_explanation=hierarchy_explanation,
+            citation_warnings=citation_warnings_list
+            if citation_warnings_list
+            else None,
         )
 
     def _build_context(self, sources: list[dict]) -> str:
@@ -146,8 +358,12 @@ class QueryService:
         metadata_filters: dict,
         sources: list,
         response_time_ms: float,
-    ) -> None:
-        """Save query to history."""
+    ) -> Optional[int]:
+        """Save query to history.
+
+        Returns:
+            Query ID if successful, None otherwise
+        """
         try:
             with Session(engine) as session:
                 history = QueryHistory(
@@ -163,6 +379,47 @@ class QueryService:
                 )
                 session.add(history)
                 session.commit()
+                session.refresh(history)
+                return history.id
         except Exception as e:
             # Log error but don't fail the request
             logger.error("Failed to save query history: %s", e, exc_info=True)
+            return None
+
+    async def submit_feedback(
+        self,
+        query_id: int,
+        rating: int,
+        feedback_text: Optional[str] = None,
+    ) -> bool:
+        """Submit feedback for a query.
+
+        Args:
+            query_id: Query history ID
+            rating: Rating from 1-5
+            feedback_text: Optional feedback text
+
+        Returns:
+            True if successful, False if query not found
+        """
+        try:
+            with Session(engine) as session:
+                # Find the query
+                query = session.get(QueryHistory, query_id)
+                if not query:
+                    logger.warning(f"Query not found: {query_id}")
+                    return False
+
+                # Update feedback fields
+                query.feedback_rating = rating
+                query.feedback_text = feedback_text
+
+                session.add(query)
+                session.commit()
+
+                logger.info(f"Feedback submitted for query {query_id}: rating={rating}")
+                return True
+
+        except Exception as e:
+            logger.error(f"Failed to submit feedback: {e}", exc_info=True)
+            return False

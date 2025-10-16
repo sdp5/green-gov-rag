@@ -70,63 +70,104 @@ class RAGChain:
             max_tokens=self.max_tokens,
         )
 
-    def retrieve(self, query: str) -> list[dict]:
-        """Retrieve top_k relevant chunks for the query."""
-        query_embedding = self.embedder.embed_query(query)  # type: ignore[attr-defined]
-        return self.vector_store.store.search(query_embedding, top_k=self.top_k)  # type: ignore[union-attr,call-arg,return-value]
+    def retrieve_documents(
+        self, query: str, metadata_filters: dict | None = None, k: int | None = None
+    ) -> list:
+        """Retrieve relevant documents using vector similarity search.
 
-    def generate_answer(self, query: str) -> str:
-        """Generate answer using retrieved context and LLM."""
+        Args:
+            query: User query string
+            metadata_filters: Optional metadata filters (region, jurisdiction, etc.)
+            k: Number of documents to retrieve (defaults to self.top_k)
+
+        Returns:
+            List of Document objects with page_content and metadata
+        """
+        k = k or self.top_k
+
+        # Use vector store's similarity_search with optional filters
+        if metadata_filters:
+            documents = self.vector_store.similarity_search(
+                query,
+                k=k,
+                metadata_filters=metadata_filters,
+            )
+        else:
+            documents = self.vector_store.similarity_search(query, k=k)
+
+        return documents
+
+    def generate_answer(self, query: str, context: str) -> str:
+        """Generate answer using LLM given pre-built context.
+
+        Args:
+            query: User query string
+            context: Pre-formatted context from retrieved documents
+
+        Returns:
+            Generated answer string
+        """
         from langchain.schema import HumanMessage
 
-        retrieved = self.retrieve(query)
-        context = "\n".join(
-            [
-                r["metadata"].get("source", "")
-                + ": "
-                + r["metadata"].get("content", "")
-                for r in retrieved
-            ],
+        prompt = (
+            f"Answer the query based on the following context:\n\n"
+            f"{context}\n\n"
+            f"Query: {query}\n\n"
+            f"Answer:"
         )
-
-        prompt = f"Answer the query based on the following context:\n{context}\n\nQuery: {query}\nAnswer:"
 
         # Use LangChain's invoke method for all providers
         response = self.llm.invoke([HumanMessage(content=prompt)])
         return response.content if hasattr(response, "content") else str(response)
 
+    def build_context_from_documents(self, documents: list) -> str:
+        """Build formatted context string from documents.
+
+        Args:
+            documents: List of Document objects
+
+        Returns:
+            Formatted context string for LLM
+        """
+        context_parts = []
+        for i, doc in enumerate(documents, 1):
+            # Extract content and metadata
+            content = doc.page_content if hasattr(doc, "page_content") else str(doc)
+            metadata = doc.metadata if hasattr(doc, "metadata") else {}
+
+            # Format with source info
+            source = metadata.get("title", metadata.get("source", f"Document {i}"))
+            context_parts.append(f"[Source: {source}]\n{content}\n")
+
+        return "\n".join(context_parts)
+
     def query_with_sources(self, query: str) -> dict:
         """Return both the answer and the retrieved sources for transparency."""
-        retrieved = self.retrieve(query)
-        answer = self.generate_answer(query)
-        return {"query": query, "answer": answer, "sources": retrieved}
+        # Phase 1: Retrieve documents
+        documents = self.retrieve_documents(query)
+
+        # Phase 2: Build context and generate
+        context = self.build_context_from_documents(documents)
+        answer = self.generate_answer(query, context)
+
+        return {"query": query, "answer": answer, "sources": documents}
 
     def query_with_enhanced_citations(self, query: str, k: int = 5) -> EnhancedResponse:
         """Query with enhanced citations and deep links.
 
         Args:
-        ----
             query: User question
             k: Number of sources to retrieve
 
         Returns:
-        -------
             EnhancedResponse with inline citations and hierarchical metadata
-
         """
-        from langchain.docstore.document import Document
+        # Phase 1: Retrieve documents
+        documents = self.retrieve_documents(query, k=k)
 
-        # Retrieve documents
-        results = self.vector_store.similarity_search(query, k=k)
-
-        # Convert to Document objects if needed
-        documents: list[Document] = []
-        if results:
-            # Type narrowing - assume results is list of Documents
-            documents = results
-
-        # Generate answer
-        answer = self.generate_answer(query)
+        # Phase 2: Build context and generate
+        context = self.build_context_from_documents(documents)
+        answer = self.generate_answer(query, context)
 
         # Create enhanced response
         return ResponseFormatter.create_enhanced_response(
@@ -137,34 +178,23 @@ class RAGChain:
 
     def query(self, question: str, metadata_filters: dict | None = None, k: int = 4):
         """Query the RAG chain with optional metadata filtering.
-        :param question: User query string
-        :param metadata_filters: Optional dictionary of metadata filters
-        :param k: Number of top documents to retrieve
-        :return: dict with 'result' and 'source_documents'.
+
+        Args:
+            question: User query string
+            metadata_filters: Optional dictionary of metadata filters
+            k: Number of top documents to retrieve
+
+        Returns:
+            dict with 'result' and 'source_documents'
         """
-        # Retrieve documents with optional metadata filtering
-        if metadata_filters:
-            source_docs = self.vector_store.similarity_search(
-                question,
-                k=k,
-                metadata_filters=metadata_filters,
-            )
-        else:
-            # Use existing retrieve method
-            retrieved = self.retrieve(question)
-            # Convert to Document objects for compatibility
-            from langchain.docstore.document import Document
+        # Phase 1: Retrieve documents with optional metadata filtering
+        source_docs = self.retrieve_documents(
+            query=question, metadata_filters=metadata_filters, k=k
+        )
 
-            source_docs = [
-                Document(
-                    page_content=r.get("metadata", {}).get("content", ""),
-                    metadata=r.get("metadata", {}),
-                )
-                for r in retrieved
-            ]
-
-        # Generate answer using the LLM
-        answer = self.generate_answer(question)
+        # Phase 2: Build context and generate answer
+        context = self.build_context_from_documents(source_docs)
+        answer = self.generate_answer(question, context)
 
         return {
             "result": answer,

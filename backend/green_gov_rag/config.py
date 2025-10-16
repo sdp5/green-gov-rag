@@ -153,7 +153,7 @@ class Settings(BaseSettings):
     # Vector Store Settings
     # =========================================================================
     vector_store_type: Literal["faiss", "qdrant", "chromadb"] = Field(
-        default="faiss",
+        default="qdrant",
         description="Vector store type",
     )
     vector_store_path: str = Field(
@@ -161,7 +161,7 @@ class Settings(BaseSettings):
         description="Path to vector store files",
     )
     qdrant_url: str | None = Field(
-        default=None,
+        default="http://localhost:6333",
         description="Qdrant server URL",
     )
     qdrant_api_key: str | None = Field(

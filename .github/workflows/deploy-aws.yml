@@ -1,0 +1,110 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'deploy/docker/backend.Dockerfile'
+      - 'deploy/aws/**'
+      - '.github/workflows/deploy-aws.yml'
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: greengovrag-backend
+
+jobs:
+  deploy:
+    name: Deploy Backend to AWS ECS
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Build Docker image
+          docker build \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            -f deploy/docker/backend.Dockerfile \
+            .
+
+          # Push image to ECR
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Update SSM parameters with secrets
+        run: |
+          # Store OpenAI API key in SSM Parameter Store
+          aws ssm put-parameter \
+            --name "/greengovrag/prod/openai-api-key" \
+            --value "${{ secrets.OPENAI_API_KEY }}" \
+            --type "SecureString" \
+            --overwrite \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Force new ECS deployment
+        run: |
+          aws ecs update-service \
+            --cluster GreenGovRAG-Cluster \
+            --service GreenGovRAG-BackendService \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Wait for ECS service stability
+        run: |
+          aws ecs wait services-stable \
+            --cluster GreenGovRAG-Cluster \
+            --services GreenGovRAG-BackendService \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Get deployment status
+        run: |
+          aws ecs describe-services \
+            --cluster GreenGovRAG-Cluster \
+            --services GreenGovRAG-BackendService \
+            --region ${{ env.AWS_REGION }} \
+            --query 'services[0].deployments' \
+            --output table
+
+      - name: Run post-deployment health check
+        run: |
+          # Get API Gateway URL from CloudFormation outputs
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`ApiGatewayURL`].OutputValue' \
+            --output text \
+            --region ${{ env.AWS_REGION }})
+
+          # Health check
+          echo "Checking health at: ${API_URL}/api/health"
+          curl -f "${API_URL}/api/health" || exit 1
+          echo "✓ Deployment successful!"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "Deployment failed! Check logs above for details."
+          # Add Slack/email notification here if needed

@@ -17,9 +17,8 @@ import { REGIONS, JURISDICTIONS, TOPICS } from '@/commons/constants';
 import Map, { Source, Layer, NavigationControl, type MapMouseEvent, type ViewStateChangeEvent } from 'react-map-gl/mapbox';
 import type { FillLayer, LineLayer } from 'mapbox-gl';
 import type { AnalyticsStats, DocumentListResponse } from '@/types/api';
+import { MAPBOX_TOKEN } from '@/config/env';
 import 'mapbox-gl/dist/mapbox-gl.css';
-
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 export default function PlaygroundPage() {
   // Sidebar state

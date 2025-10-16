@@ -6,7 +6,7 @@ from green_gov_rag.etl.chunker import TextChunker
 from green_gov_rag.etl.parser import DocumentParser
 from green_gov_rag.etl.utils import clean_text
 from green_gov_rag.rag.embeddings import ChunkEmbedder
-from green_gov_rag.rag.vector_store import VectorStore
+from green_gov_rag.rag.vector_store_factory import VectorStoreFactory
 
 # Use settings for paths
 RAW_DIR = Path(settings.local_storage_path) / "raw"
@@ -20,10 +20,12 @@ def build_embeddings() -> None:
     chunker = TextChunker()
     parser = DocumentParser()
 
-    # Initialize vector store
-    vector_store = VectorStore(
-        index_path=os.path.join(PROCESSED_DIR, "faiss_index"),
+    # Initialize vector store using factory (automatically uses settings.vector_store_type)
+    vector_store = VectorStoreFactory.create_vector_store(
         embeddings=embedder.embedder,
+        index_path=os.path.join(
+            PROCESSED_DIR, "faiss_index"
+        ),  # Used for FAISS fallback
     )
 
     all_chunks = []

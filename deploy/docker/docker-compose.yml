@@ -1,15 +1,22 @@
 version: '3.8'
 
+# GreenGovRAG Docker Compose Configuration
+#
+# Default: Production-like local environment (no Airflow)
+# Dev mode: docker-compose --profile dev up (includes Airflow UI)
+
 services:
   postgres:
     image: postgres:15-alpine
     container_name: greengovrag-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-greengovrag}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
       - pg_data:/var/lib/postgresql/data
+      - ./init-pgvector.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "5432:5432"
     healthcheck:
@@ -21,6 +28,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: greengovrag-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
       - "6379:6379"
     healthcheck:
@@ -32,6 +41,7 @@ services:
   qdrant:
     image: qdrant/qdrant:latest
     container_name: greengovrag-qdrant
+    restart: unless-stopped
     ports:
       - "6333:6333"
       - "6334:6334"
@@ -48,15 +58,17 @@ services:
       context: ../..
       dockerfile: deploy/docker/backend.Dockerfile
     container_name: greengovrag-backend
+    restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-greengovrag}
       REDIS_URL: redis://redis:6379
       QDRANT_URL: http://qdrant:6333
-      VECTOR_STORE_TYPE: ${VECTOR_STORE_TYPE:-faiss}
+      VECTOR_STORE_TYPE: ${VECTOR_STORE_TYPE:-qdrant}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      CORS_ORIGINS: http://localhost:3000,http://localhost:8501
+      CORS_ORIGINS: http://localhost:3000,http://localhost:8501,http://localhost:8080
+      CLOUD_PROVIDER: ${CLOUD_PROVIDER:-local}
     volumes:
       - ../../data:/app/data
       - ../../models:/app/models
@@ -73,11 +85,14 @@ services:
       timeout: 10s
       retries: 3
 
+  # Airflow - DEVELOPMENT ONLY
+  # Start with: docker-compose --profile dev up
   airflow:
     build:
       context: ../..
       dockerfile: deploy/docker/airflow.Dockerfile
     container_name: greengovrag-airflow
+    restart: unless-stopped
     command: airflow standalone
     ports:
       - "8080:8080"
@@ -85,23 +100,44 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-greengovrag}
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-changeme}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      # Services connection
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-greengovrag}
+      REDIS_URL: redis://redis:6379
+      QDRANT_URL: http://qdrant:6333
+      VECTOR_STORE_TYPE: ${VECTOR_STORE_TYPE:-qdrant}
     volumes:
       - ../../data:/opt/airflow/data
       - ../../backend/green_gov_rag/airflow/dags:/opt/airflow/dags
+      - ../../backend/green_gov_rag:/opt/airflow/green_gov_rag
+      - ../../configs:/opt/airflow/configs
     depends_on:
       postgres:
         condition: service_healthy
       backend:
         condition: service_started
+    profiles:
+      - dev  # Only start with --profile dev
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   frontend:
     build:
       context: ../..
       dockerfile: deploy/docker/frontend.Dockerfile
     container_name: greengovrag-frontend
+    restart: unless-stopped
     ports:
       - "3000:80"
+    environment:
+      VITE_API_URL: http://localhost:8000/api
+      VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN:-}
     depends_on:
       - backend
 

@@ -27,6 +27,8 @@ from green_gov_rag.api.schemas.document import (
     DocumentsFilter,
 )
 from green_gov_rag.api.schemas.query import (
+    FeedbackRequest,
+    FeedbackResponse,
     QueryRequest,
     QueryResponse,
     SourceDocument,
@@ -39,6 +41,8 @@ __all__ = [
     "QueryRequest",
     "QueryResponse",
     "SourceDocument",
+    "FeedbackRequest",
+    "FeedbackResponse",
     "AnalyticsStats",
     "DistributionData",
     "TopicDistribution",

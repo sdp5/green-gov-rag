@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   MapPin, ChevronLeft, ChevronRight, BarChart3, FileText, ChevronUp, ChevronDown,
   Shield, AlertTriangle, Scale, Building2, ExternalLink, BookOpen, Info, CheckCircle2,
-  XCircle, AlertCircle, Sparkles, Clock, TrendingUp, Eye, EyeOff, Maximize2, Minimize2
+  XCircle, AlertCircle, Sparkles, Clock, TrendingUp, Eye, EyeOff, Maximize2, Minimize2, Star
 } from 'lucide-react';
 import { REGIONS, JURISDICTIONS, TOPICS } from '@/commons/constants';
 import Map, { Source, Layer, NavigationControl, type MapMouseEvent, type ViewStateChangeEvent } from 'react-map-gl/mapbox';
@@ -28,6 +28,11 @@ export default function PlaygroundPage() {
   // Query state
   const { query, setQuery, filters, setFilters, results, isLoading, setResults, setLoading } = useQueryStore();
   const [queryError, setQueryError] = useState<string | null>(null);
+
+  // Feedback state
+  const [feedbackRating, setFeedbackRating] = useState<number>(0);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState<boolean>(false);
+  const [feedbackLoading, setFeedbackLoading] = useState<boolean>(false);
 
   // UI state
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -137,12 +142,31 @@ export default function PlaygroundPage() {
     }
     setQueryError(null);
     setLoading(true);
+    // Reset feedback state on new query
+    setFeedbackRating(0);
+    setFeedbackSubmitted(false);
     try {
       const result = await queryAPI.execute(query, filters);
       setResults(result);
     } catch (err) {
       setQueryError(err instanceof Error ? err.message : 'Failed to execute query');
       setLoading(false);
+    }
+  };
+
+  // Feedback handler - simplified for direct star click
+  const handleFeedbackSubmit = async (rating: number) => {
+    if (!results?.query_id || rating === 0) return;
+
+    setFeedbackRating(rating);
+    setFeedbackLoading(true);
+    try {
+      await queryAPI.submitFeedback(results.query_id, { rating });
+      setFeedbackSubmitted(true);
+    } catch (err) {
+      console.error('Failed to submit feedback:', err);
+    } finally {
+      setFeedbackLoading(false);
     }
   };
 
@@ -161,6 +185,7 @@ export default function PlaygroundPage() {
     setResults({
       answer: 'Under the National Greenhouse and Energy Reporting (NGER) Act, Scope 2 emissions relate to indirect emissions from the consumption of purchased electricity, steam, heat or cooling. Facilities must report Scope 2 emissions if they meet the threshold of 50 kilotonnes CO2-e per year or more.\n\nKey requirements include:\n• Accurate measurement and reporting of all purchased electricity\n• Use of approved emission factors from the National Greenhouse Accounts\n• Quarterly data collection and annual reporting by 31 October\n• Independent audit requirements for facilities over 125 kt CO2-e\n\nRegarding jurisdictional conflicts: The NGER Act (Federal) provides the primary framework. However, Victorian facilities must also comply with the Climate Change Act 2017 (Vic), which may impose additional requirements. Where both apply, the more stringent requirement takes precedence.',
       query: 'What are my Scope 2 emissions reporting obligations for electricity consumption, and are there any conflicts between federal and state requirements?',
+      query_id: 999,  // Demo query ID for feedback
       sources: [
         {
           title: 'National Greenhouse and Energy Reporting Act 2007',
@@ -832,10 +857,45 @@ export default function PlaygroundPage() {
                     )}
                   </div>
                 </CardHeader>
-                <CardContent className="pt-6">
+                <CardContent className="pt-6 space-y-6">
                   <div className="prose prose-slate max-w-none">
                     <p className="text-base leading-relaxed whitespace-pre-wrap text-slate-800">{results.answer}</p>
                   </div>
+
+                  {/* Integrated Feedback */}
+                  {results.query_id && (
+                    <div className="pt-4 border-t border-sky-200">
+                      {!feedbackSubmitted ? (
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-slate-600">Rate this answer:</span>
+                          <div className="flex gap-1">
+                            {[1, 2, 3, 4, 5].map((rating) => (
+                              <button
+                                key={rating}
+                                onClick={() => handleFeedbackSubmit(rating)}
+                                disabled={feedbackLoading}
+                                className={`transition-all hover:scale-110 ${
+                                  rating <= feedbackRating
+                                    ? 'text-yellow-500'
+                                    : 'text-slate-300 hover:text-yellow-400'
+                                } ${feedbackLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              >
+                                <Star className={`h-6 w-6 ${rating <= feedbackRating ? 'fill-current' : ''}`} />
+                              </button>
+                            ))}
+                          </div>
+                          {feedbackLoading && (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-sky-600"></div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-sky-700">
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                          <span className="text-sm font-medium">Thanks!</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

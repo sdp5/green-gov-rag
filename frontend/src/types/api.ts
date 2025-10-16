@@ -68,6 +68,7 @@ export interface QueryResponse {
   sources: SourceDocument[];
   filters_applied: Record<string, unknown>;
   response_time_ms?: number;
+  query_id?: number;
 
   // Phase 3: Trust & Compliance Features
   trust_score?: number;
@@ -76,6 +77,17 @@ export interface QueryResponse {
   conflicts_detected?: ConflictDetection[];
   hierarchy_explanation?: string;
   citation_warnings?: string[];
+}
+
+export interface FeedbackRequest {
+  rating: number;
+  feedback_text?: string;
+}
+
+export interface FeedbackResponse {
+  success: boolean;
+  message: string;
+  query_id: number;
 }
 
 export interface Document {

@@ -106,7 +106,7 @@ class QueryService:
             if cached_answer:
                 logger.info(f"Cache hit for query: {query[:50]}...")
                 answer = cached_answer
-                cache_hit = True    # noqa: F841
+                cache_hit = True  # noqa: F841
             else:
                 logger.info(f"Cache miss for query: {query[:50]}...")
                 # Phase 3: Generate answer (cache miss only)
@@ -300,8 +300,8 @@ class QueryService:
         except Exception as e:
             logger.error(f"Trust score calculation failed: {e}", exc_info=True)
 
-        # Save to query history
-        self._save_query_history(
+        # Save to query history and get query_id
+        query_id = self._save_query_history(
             query=query,
             answer=answer,
             region_filter=region,
@@ -318,6 +318,7 @@ class QueryService:
             sources=source_docs,
             filters_applied=metadata_filters,
             response_time_ms=response_time,
+            query_id=query_id,  # Include query_id for feedback
             # Phase 3 fields
             trust_score=trust_score,
             trust_confidence=trust_confidence,
@@ -357,8 +358,12 @@ class QueryService:
         metadata_filters: dict,
         sources: list,
         response_time_ms: float,
-    ) -> None:
-        """Save query to history."""
+    ) -> Optional[int]:
+        """Save query to history.
+
+        Returns:
+            Query ID if successful, None otherwise
+        """
         try:
             with Session(engine) as session:
                 history = QueryHistory(
@@ -374,6 +379,47 @@ class QueryService:
                 )
                 session.add(history)
                 session.commit()
+                session.refresh(history)
+                return history.id
         except Exception as e:
             # Log error but don't fail the request
             logger.error("Failed to save query history: %s", e, exc_info=True)
+            return None
+
+    async def submit_feedback(
+        self,
+        query_id: int,
+        rating: int,
+        feedback_text: Optional[str] = None,
+    ) -> bool:
+        """Submit feedback for a query.
+
+        Args:
+            query_id: Query history ID
+            rating: Rating from 1-5
+            feedback_text: Optional feedback text
+
+        Returns:
+            True if successful, False if query not found
+        """
+        try:
+            with Session(engine) as session:
+                # Find the query
+                query = session.get(QueryHistory, query_id)
+                if not query:
+                    logger.warning(f"Query not found: {query_id}")
+                    return False
+
+                # Update feedback fields
+                query.feedback_rating = rating
+                query.feedback_text = feedback_text
+
+                session.add(query)
+                session.commit()
+
+                logger.info(f"Feedback submitted for query {query_id}: rating={rating}")
+                return True
+
+        except Exception as e:
+            logger.error(f"Failed to submit feedback: {e}", exc_info=True)
+            return False

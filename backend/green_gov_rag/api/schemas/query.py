@@ -136,6 +136,46 @@ class QueryRequest(BaseModel):
         }
 
 
+class FeedbackRequest(BaseModel):
+    """Feedback submission for a query."""
+
+    rating: int = Field(
+        ..., ge=1, le=5, description="Rating from 1 (poor) to 5 (excellent)"
+    )
+    feedback_text: Optional[str] = Field(
+        None, max_length=1000, description="Optional text feedback"
+    )
+
+    class Config:
+        """Schema config."""
+
+        json_schema_extra = {
+            "example": {
+                "rating": 5,
+                "feedback_text": "Very helpful answer with accurate citations!",
+            }
+        }
+
+
+class FeedbackResponse(BaseModel):
+    """Response after submitting feedback."""
+
+    success: bool
+    message: str
+    query_id: int
+
+    class Config:
+        """Schema config."""
+
+        json_schema_extra = {
+            "example": {
+                "success": True,
+                "message": "Feedback submitted successfully",
+                "query_id": 42,
+            }
+        }
+
+
 class QueryResponse(BaseModel):
     """Query response schema."""
 
@@ -144,6 +184,9 @@ class QueryResponse(BaseModel):
     sources: list[SourceDocument]
     filters_applied: dict
     response_time_ms: Optional[float] = None
+    query_id: Optional[int] = Field(
+        None, description="Query history ID for feedback submission"
+    )
 
     # Phase 3: Trust & Compliance Features
     trust_score: Optional[float] = Field(

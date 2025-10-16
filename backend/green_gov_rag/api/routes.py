@@ -12,6 +12,8 @@ from green_gov_rag.api.schemas import (
     AnalyticsStats,
     DocumentListResponse,
     DocumentResponse,
+    FeedbackRequest,
+    FeedbackResponse,
     GeoJSONFeature,
     GeoJSONGeometry,
     GeoJSONResponse,
@@ -110,6 +112,40 @@ async def get_document(document_id: str) -> DocumentResponse:
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     return doc
+
+
+@router.post("/query/{query_id}/feedback", response_model=FeedbackResponse)
+async def submit_feedback(query_id: int, request: FeedbackRequest) -> FeedbackResponse:
+    """Submit feedback for a query.
+
+    Args:
+        query_id: Query history ID
+        request: Feedback request with rating and optional text
+
+    Returns:
+        FeedbackResponse: Feedback submission confirmation
+
+    Raises:
+        HTTPException: If query not found or feedback submission fails
+    """
+    try:
+        success = await query_service.submit_feedback(
+            query_id=query_id,
+            rating=request.rating,
+            feedback_text=request.feedback_text,
+        )
+        if not success:
+            raise HTTPException(status_code=404, detail="Query not found")
+
+        return FeedbackResponse(
+            success=True, message="Feedback submitted successfully", query_id=query_id
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to submit feedback: {str(e)}"
+        )
 
 
 @router.get("/analytics/stats", response_model=AnalyticsStats)

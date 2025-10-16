@@ -64,6 +64,7 @@ dependencies = [
     "pydantic-settings ~= 2.0",
     "llmsherpa ~= 0.1.4",
     "redis ~= 5.0.0",
+    "slowapi ~= 0.1.9",
 ]
 requires-python = "~=3.12.3"
 

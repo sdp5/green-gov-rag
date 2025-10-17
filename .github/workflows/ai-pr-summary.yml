@@ -19,6 +19,34 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Run Ruff format check
+        id: ruff
+        run: |
+          set -e
+          echo "Running Ruff formatter..."
+          cd backend && make format
+        continue-on-error: true  # Don’t fail workflow, just report
+
+      - name: Report Ruff results
+        if: steps.ruff.outcome != 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "⚠ **Ruff detected formatting issues.** Please run `make format` locally and commit the changes."
+            })
+
       - name: Get PR diff
         run: |
           git fetch origin ${{ github.event.pull_request.base.ref }}:${{ github.event.pull_request.base.ref }}
@@ -34,7 +62,7 @@ jobs:
             model: "gpt-4o-mini",
             messages: [
               {"role": "system", "content": "You are a helpful assistant that summarizes code changes in a GitHub pull request."},
-              {"role": "user", "content": "Summarize the following PR diff in concise bullet points highlighting key changes, purpose, and potential impact:\n\n\($diff)"}
+              {"role": "user", "content": "Summarize the PR diff briefly in a 2 or 3 bullet points highlighting key changes and potential impact:\n\n\($diff) between 80-120 words.\n\nGive one improvement suggestion if applicable."}
             ]
           }')
 
@@ -54,7 +82,7 @@ jobs:
           PR_SUMMARY: ${{ env.PR_SUMMARY }}
         with:
           script: |
-            const body = `## AI-Generated PR Summary\n\n${process.env.PR_SUMMARY}`;
+            const body = `### Summary\n\n${process.env.PR_SUMMARY}`;
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,

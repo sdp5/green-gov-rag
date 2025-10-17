@@ -5,25 +5,16 @@ on:
     branches: [main]
     paths:
       - 'frontend/**'
-      - '.github/workflows/deploy-frontend.yml'
+      - '.github/workflows/aws/deploy-frontend.yml'
   workflow_dispatch:
-    inputs:
-      cloud_provider:
-        description: 'Cloud provider (aws or azure)'
-        default: 'aws'
-        required: false
-        type: choice
-        options:
-          - aws
-          - azure
 
 env:
   AWS_REGION: ap-southeast-2
-  CLOUD_PROVIDER: ${{ github.event.inputs.cloud_provider || 'aws' }}
 
 jobs:
   build:
-    if: false  # Change to true to enable deployment
+    # Disabled - change to true to enable deployment
+    if: false
     name: Build Frontend
     runs-on: ubuntu-latest
 
@@ -67,7 +58,8 @@ jobs:
     name: Deploy to AWS S3 + CloudFront
     needs: build
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.cloud_provider == 'aws' || github.event_name == 'push' }}
+    # Disabled - change to true to enable deployment
+    if: false
     permissions:
       id-token: write
       contents: read
@@ -150,68 +142,3 @@ jobs:
         run: |
           echo "✓ Frontend deployed successfully"
           echo "URL: ${{ steps.cf-outputs.outputs.cf_url }}"
-
-  deploy-azure:
-    name: Deploy to Azure Static Web App
-    needs: build
-    runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.cloud_provider == 'azure' }}
-
-    steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-build
-          path: dist/
-
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Get Azure outputs
-        id: az-outputs
-        run: |
-          API_URL=$(az deployment group show \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --name greengovrag-deployment \
-            --query properties.outputs.apiUrl.value \
-            --output tsv)
-
-          STATIC_APP=$(az deployment group show \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --name greengovrag-deployment \
-            --query properties.outputs.staticWebAppName.value \
-            --output tsv)
-
-          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
-          echo "app_name=$STATIC_APP" >> $GITHUB_OUTPUT
-
-      - name: Generate runtime config.js
-        run: |
-          cat > dist/config.js << EOF
-          window.__RUNTIME_CONFIG__ = {
-            API_URL: '${{ steps.az-outputs.outputs.api_url }}/api',
-            MAPBOX_TOKEN: '${{ secrets.VITE_MAPBOX_TOKEN }}'
-          };
-          EOF
-
-      - name: Deploy to Azure Static Web App
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: "upload"
-          app_location: "dist"
-          skip_app_build: true
-
-      - name: Deployment summary
-        run: |
-          FRONTEND_URL=$(az staticwebapp show \
-            --name ${{ steps.az-outputs.outputs.app_name }} \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --query defaultHostname \
-            --output tsv)
-
-          echo "✓ Frontend deployed successfully"
-          echo "URL: https://$FRONTEND_URL"

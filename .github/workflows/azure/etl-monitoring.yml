@@ -1,0 +1,266 @@
+name: ETL Pipeline - Monitoring Driven
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+  workflow_dispatch:
+
+jobs:
+  # Azure monitoring
+  monitor-sources-azure:
+    name: Monitor Document Sources (Azure)
+    runs-on: ubuntu-latest
+    # Disabled - change to true to enable monitoring
+    if: false
+    timeout-minutes: 30
+    outputs:
+      changes_detected: ${{ steps.check-changes.outputs.has_changes }}
+      total_discovered: ${{ steps.check-changes.outputs.discovered }}
+      total_updated: ${{ steps.check-changes.outputs.updated }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Run monitoring via Azure Container App Job
+        id: run-monitoring
+        run: |
+          # Run monitoring using Azure Container Apps job
+          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
+          JOB_NAME="greengovrag-monitoring-job"
+
+          # Start job execution
+          JOB_EXECUTION=$(az containerapp job start \
+            --name $JOB_NAME \
+            --resource-group $RESOURCE_GROUP \
+            --query 'name' \
+            --output tsv)
+
+          echo "job_execution=$JOB_EXECUTION" >> $GITHUB_OUTPUT
+          echo "✓ Started monitoring job: $JOB_EXECUTION"
+
+      - name: Wait for monitoring job completion
+        id: wait-monitoring
+        run: |
+          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
+          JOB_NAME="greengovrag-monitoring-job"
+          JOB_EXECUTION="${{ steps.run-monitoring.outputs.job_execution }}"
+
+          echo "Waiting for monitoring job to complete..."
+
+          # Wait for job completion (max 20 minutes)
+          for i in {1..40}; do
+            STATUS=$(az containerapp job execution show \
+              --name $JOB_NAME \
+              --resource-group $RESOURCE_GROUP \
+              --job-execution-name $JOB_EXECUTION \
+              --query 'properties.status' \
+              --output tsv)
+
+            echo "[$i/40] Job status: $STATUS"
+
+            if [ "$STATUS" == "Succeeded" ]; then
+              echo "✓ Monitoring job completed successfully"
+              break
+            elif [ "$STATUS" == "Failed" ]; then
+              echo "✗ Monitoring job failed"
+              exit 1
+            fi
+
+            sleep 30
+          done
+
+      - name: Get monitoring results from logs
+        id: get-results
+        run: |
+          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
+          JOB_NAME="greengovrag-monitoring-job"
+          JOB_EXECUTION="${{ steps.run-monitoring.outputs.job_execution }}"
+
+          # Get logs from Azure Container App
+          LOGS=$(az containerapp job execution logs show \
+            --name $JOB_NAME \
+            --resource-group $RESOURCE_GROUP \
+            --job-execution-name $JOB_EXECUTION \
+            --query 'logs[*].message' \
+            --output tsv)
+
+          echo "Monitoring logs:"
+          echo "$LOGS"
+
+          # Extract JSON from logs
+          MONITORING_JSON=$(echo "$LOGS" | grep -A 50 '{"sources_checked"' | head -1 || echo '{}')
+
+          echo "monitoring_results<<EOF" >> $GITHUB_OUTPUT
+          echo "$MONITORING_JSON" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Check if changes detected
+        id: check-changes
+        run: |
+          RESULTS='${{ steps.get-results.outputs.monitoring_results }}'
+
+          if [ -z "$RESULTS" ] || [ "$RESULTS" == "{}" ]; then
+            echo "⚠ No monitoring results found, assuming no changes"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "discovered=0" >> $GITHUB_OUTPUT
+            echo "updated=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          DISCOVERED=$(echo "$RESULTS" | jq -r '.total_discovered // 0')
+          UPDATED=$(echo "$RESULTS" | jq -r '.total_updated // 0')
+          TOTAL=$((DISCOVERED + UPDATED))
+
+          echo "discovered=$DISCOVERED" >> $GITHUB_OUTPUT
+          echo "updated=$UPDATED" >> $GITHUB_OUTPUT
+
+          if [ "$TOTAL" -gt 0 ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "✓ Changes detected - ETL pipeline will be triggered"
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "✓ No changes detected - ETL pipeline will be skipped"
+          fi
+
+  # Step 2: Run ETL pipeline if changes detected
+  etl-pipeline-azure:
+    name: Run ETL Pipeline (Azure)
+    needs: monitor-sources-azure
+    if: needs.monitor-sources-azure.outputs.changes_detected == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Upload config to Blob Storage
+        run: |
+          az storage blob upload \
+            --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
+            --container-name configs \
+            --name documents_config.yml \
+            --file configs/documents_config.yml \
+            --overwrite
+
+      - name: Run ETL via Azure Container App Job
+        id: run-etl-azure
+        run: |
+          # Get resource group and container app job name
+          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
+          JOB_NAME="greengovrag-etl-job"
+
+          echo "Starting Azure Container App Job: $JOB_NAME"
+
+          # Start the ETL job execution
+          JOB_EXECUTION=$(az containerapp job start \
+            --name $JOB_NAME \
+            --resource-group $RESOURCE_GROUP \
+            --query 'name' \
+            --output tsv)
+
+          echo "job_execution=$JOB_EXECUTION" >> $GITHUB_OUTPUT
+          echo "✓ Started ETL job execution: $JOB_EXECUTION"
+
+      - name: Monitor ETL job execution
+        run: |
+          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
+          JOB_NAME="greengovrag-etl-job"
+          JOB_EXECUTION="${{ steps.run-etl-azure.outputs.job_execution }}"
+
+          echo "Monitoring Azure Container App Job execution..."
+
+          # Poll job status (max 60 minutes = 120 polls at 30s intervals)
+          for i in {1..120}; do
+            STATUS=$(az containerapp job execution show \
+              --name $JOB_NAME \
+              --resource-group $RESOURCE_GROUP \
+              --job-execution-name $JOB_EXECUTION \
+              --query 'properties.status' \
+              --output tsv)
+
+            echo "[$i/120] Job status: $STATUS"
+
+            if [ "$STATUS" == "Succeeded" ]; then
+              echo "✓ ETL job completed successfully"
+              exit 0
+            elif [ "$STATUS" == "Failed" ]; then
+              echo "✗ ETL job failed"
+
+              # Get logs for debugging
+              echo "Fetching logs..."
+              az containerapp job execution logs show \
+                --name $JOB_NAME \
+                --resource-group $RESOURCE_GROUP \
+                --job-execution-name $JOB_EXECUTION \
+                --tail 50
+
+              exit 1
+            fi
+
+            sleep 30
+          done
+
+          echo "✗ ETL job timeout after 60 minutes"
+          exit 1
+
+      - name: Get ETL job logs
+        if: success()
+        run: |
+          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
+          JOB_NAME="greengovrag-etl-job"
+          JOB_EXECUTION="${{ steps.run-etl-azure.outputs.job_execution }}"
+
+          echo "Fetching ETL job logs (last 100 lines)..."
+          az containerapp job execution logs show \
+            --name $JOB_NAME \
+            --resource-group $RESOURCE_GROUP \
+            --job-execution-name $JOB_EXECUTION \
+            --tail 100
+
+      - name: Verify Qdrant update
+        if: success()
+        run: |
+          echo "✓ ETL pipeline completed successfully on Azure"
+          echo "Discovered documents: ${{ needs.monitor-sources-azure.outputs.total_discovered }}"
+          echo "Updated documents: ${{ needs.monitor-sources-azure.outputs.total_updated }}"
+
+  # Summary job
+  summary:
+    name: Monitoring Summary
+    needs: [monitor-sources-azure, etl-pipeline-azure]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Print summary
+        run: |
+          echo "=== Monitoring-Driven ETL Summary ==="
+          echo ""
+          echo "Changes detected: ${{ needs.monitor-sources-azure.outputs.changes_detected }}"
+          echo "Documents discovered: ${{ needs.monitor-sources-azure.outputs.total_discovered }}"
+          echo "Documents updated: ${{ needs.monitor-sources-azure.outputs.total_updated }}"
+          echo ""
+
+          if [ "${{ needs.monitor-sources-azure.outputs.changes_detected }}" == "true" ]; then
+            if [ "${{ needs.etl-pipeline-azure.result }}" == "success" ]; then
+              echo "✓ ETL pipeline completed successfully"
+            elif [ "${{ needs.etl-pipeline-azure.result }}" == "failure" ]; then
+              echo "✗ ETL pipeline failed"
+            else
+              echo "⚠ ETL pipeline status: ${{ needs.etl-pipeline-azure.result }}"
+            fi
+          else
+            echo "✓ No changes detected - ETL skipped"
+          fi

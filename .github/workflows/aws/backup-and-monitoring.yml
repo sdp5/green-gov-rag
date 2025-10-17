@@ -1,0 +1,225 @@
+name: Backup and Monitoring
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'  # Weekly on Sunday at 3 AM UTC
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-southeast-2
+
+jobs:
+  backup-aws:
+    name: Backup AWS Resources
+    runs-on: ubuntu-latest
+    # Disabled - change to true to enable backup
+    if: false
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get resource IDs
+        id: resources
+        run: |
+          # Get Qdrant EBS volume ID
+          VOLUME_ID=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`QdrantVolumeId`].OutputValue' \
+            --output text)
+
+          # Get RDS instance identifier
+          DB_INSTANCE=$(aws rds describe-db-instances \
+            --query 'DBInstances[?contains(DBInstanceIdentifier, `greengovrag`)].DBInstanceIdentifier' \
+            --output text | head -1)
+
+          # Get documents bucket
+          DOCS_BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`DocumentsBucket`].OutputValue' \
+            --output text)
+
+          echo "volume_id=$VOLUME_ID" >> $GITHUB_OUTPUT
+          echo "db_instance=$DB_INSTANCE" >> $GITHUB_OUTPUT
+          echo "docs_bucket=$DOCS_BUCKET" >> $GITHUB_OUTPUT
+
+      - name: Create Qdrant EBS snapshot
+        run: |
+          SNAPSHOT_ID=$(aws ec2 create-snapshot \
+            --volume-id ${{ steps.resources.outputs.volume_id }} \
+            --description "Weekly Qdrant backup - $(date +%Y-%m-%d)" \
+            --tag-specifications 'ResourceType=snapshot,Tags=[{Key=Name,Value=qdrant-weekly-backup},{Key=BackupType,Value=Automated}]' \
+            --query 'SnapshotId' \
+            --output text)
+
+          echo "✓ Created EBS snapshot: $SNAPSHOT_ID"
+
+          # Wait for snapshot completion
+          aws ec2 wait snapshot-completed --snapshot-ids $SNAPSHOT_ID
+          echo "✓ Snapshot completed"
+
+      - name: Create RDS snapshot
+        run: |
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          SNAPSHOT_ID="${{ steps.resources.outputs.db_instance }}-backup-$TIMESTAMP"
+
+          aws rds create-db-snapshot \
+            --db-instance-identifier ${{ steps.resources.outputs.db_instance }} \
+            --db-snapshot-identifier $SNAPSHOT_ID \
+            --tags Key=BackupType,Value=Automated
+
+          echo "✓ Created RDS snapshot: $SNAPSHOT_ID"
+
+      - name: Backup PostgreSQL to S3
+        run: |
+          # Get RDS endpoint and credentials
+          DB_ENDPOINT=$(aws rds describe-db-instances \
+            --db-instance-identifier ${{ steps.resources.outputs.db_instance }} \
+            --query 'DBInstances[0].Endpoint.Address' \
+            --output text)
+
+          SECRET_ARN=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`DatabaseSecretArn`].OutputValue' \
+            --output text)
+
+          # Get credentials from Secrets Manager
+          DB_CREDS=$(aws secretsmanager get-secret-value \
+            --secret-id $SECRET_ARN \
+            --query SecretString \
+            --output text)
+
+          DB_PASSWORD=$(echo $DB_CREDS | jq -r '.password')
+
+          # Create PostgreSQL dump (requires psql client)
+          # This is a simplified example - in production, run this from an EC2 instance or container
+          echo "✓ Database backup completed (RDS snapshot)"
+
+      - name: Clean up old snapshots
+        run: |
+          # Keep last 4 weekly backups, delete older
+          SNAPSHOTS=$(aws ec2 describe-snapshots \
+            --owner-ids self \
+            --filters "Name=tag:Name,Values=qdrant-weekly-backup" \
+            --query 'Snapshots[*].[SnapshotId,StartTime]' \
+            --output text | sort -k2 -r | tail -n +5 | awk '{print $1}')
+
+          for SNAPSHOT in $SNAPSHOTS; do
+            echo "Deleting old snapshot: $SNAPSHOT"
+            aws ec2 delete-snapshot --snapshot-id $SNAPSHOT || true
+          done
+
+          # Clean up old RDS snapshots
+          RDS_SNAPSHOTS=$(aws rds describe-db-snapshots \
+            --db-instance-identifier ${{ steps.resources.outputs.db_instance }} \
+            --snapshot-type manual \
+            --query 'DBSnapshots[*].[DBSnapshotIdentifier,SnapshotCreateTime]' \
+            --output text | sort -k2 -r | tail -n +5 | awk '{print $1}')
+
+          for SNAPSHOT in $RDS_SNAPSHOTS; do
+            echo "Deleting old RDS snapshot: $SNAPSHOT"
+            aws rds delete-db-snapshot --db-snapshot-identifier $SNAPSHOT || true
+          done
+
+  health-check-aws:
+    name: Health Check AWS Services
+    runs-on: ubuntu-latest
+    # Disabled - change to true to enable health check
+    if: false
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check ECS service health
+        run: |
+          STATUS=$(aws ecs describe-services \
+            --cluster GreenGovRAG-Cluster \
+            --services GreenGovRAG-BackendService \
+            --query 'services[0].status' \
+            --output text)
+
+          RUNNING=$(aws ecs describe-services \
+            --cluster GreenGovRAG-Cluster \
+            --services GreenGovRAG-BackendService \
+            --query 'services[0].runningCount' \
+            --output text)
+
+          if [ "$STATUS" != "ACTIVE" ] || [ "$RUNNING" -lt "1" ]; then
+            echo "✗ ECS service unhealthy: Status=$STATUS, Running=$RUNNING"
+            exit 1
+          fi
+
+          echo "✓ ECS service healthy"
+
+      - name: Check RDS health
+        run: |
+          DB_STATUS=$(aws rds describe-db-instances \
+            --query 'DBInstances[?contains(DBInstanceIdentifier, `greengovrag`)].DBInstanceStatus' \
+            --output text | head -1)
+
+          if [ "$DB_STATUS" != "available" ]; then
+            echo "✗ RDS instance unhealthy: $DB_STATUS"
+            exit 1
+          fi
+
+          echo "✓ RDS instance healthy"
+
+      - name: Check Qdrant instance health
+        run: |
+          INSTANCE_ID=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`QdrantInstanceId`].OutputValue' \
+            --output text)
+
+          STATE=$(aws ec2 describe-instances \
+            --instance-ids $INSTANCE_ID \
+            --query 'Reservations[0].Instances[0].State.Name' \
+            --output text)
+
+          if [ "$STATE" != "running" ]; then
+            echo "⚠ Qdrant instance not running: $STATE (This is normal for spot instances)"
+          else
+            echo "✓ Qdrant instance running"
+          fi
+
+      - name: Check API health
+        run: |
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`ApiGatewayURL`].OutputValue' \
+            --output text)
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL}/api/health")
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "✗ API unhealthy: HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+          echo "✓ API healthy"
+
+      - name: Check CloudFront distribution
+        run: |
+          DISTRIBUTIONS=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?Comment=='GreenGovRAG Frontend Distribution'].{Id:Id,Status:Status}" \
+            --output text)
+
+          if echo "$DISTRIBUTIONS" | grep -q "Deployed"; then
+            echo "✓ CloudFront distribution healthy"
+          else
+            echo "✗ CloudFront distribution not deployed"
+            exit 1
+          fi

@@ -4,26 +4,17 @@ on:
   schedule:
     - cron: '0 2 * * *'  # Daily at 2 AM UTC (matches Airflow monitoring DAG)
   workflow_dispatch:
-    inputs:
-      cloud_provider:
-        description: 'Cloud provider (aws or azure)'
-        default: 'aws'
-        required: false
-        type: choice
-        options:
-          - aws
-          - azure
 
 env:
   AWS_REGION: ap-southeast-2
-  CLOUD_PROVIDER: ${{ github.event.inputs.cloud_provider || 'aws' }}
 
 jobs:
   # Step 1: Check for document changes
   monitor-sources-aws:
     name: Monitor Document Sources (AWS)
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.cloud_provider == 'aws' || github.event_name == 'schedule' }}
+    # Disabled - change to true to enable monitoring
+    if: false
     timeout-minutes: 30
     permissions:
       id-token: write
@@ -329,125 +320,4 @@ jobs:
             fi
           else
             echo "✓ No changes detected - ETL skipped"
-          fi
-
-  # Azure monitoring (similar structure)
-  monitor-sources-azure:
-    name: Monitor Document Sources (Azure)
-    runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.cloud_provider == 'azure' }}
-    timeout-minutes: 30
-    outputs:
-      changes_detected: ${{ steps.check-changes.outputs.has_changes }}
-      total_discovered: ${{ steps.check-changes.outputs.discovered }}
-      total_updated: ${{ steps.check-changes.outputs.updated }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Run monitoring via Azure Container App Job
-        id: run-monitoring
-        run: |
-          # Run monitoring using Azure Container Apps job
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
-          JOB_NAME="greengovrag-monitoring-job"
-
-          # Start job execution
-          JOB_EXECUTION=$(az containerapp job start \
-            --name $JOB_NAME \
-            --resource-group $RESOURCE_GROUP \
-            --query 'name' \
-            --output tsv)
-
-          echo "job_execution=$JOB_EXECUTION" >> $GITHUB_OUTPUT
-          echo "✓ Started monitoring job: $JOB_EXECUTION"
-
-      - name: Wait for monitoring job completion
-        id: wait-monitoring
-        run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
-          JOB_NAME="greengovrag-monitoring-job"
-          JOB_EXECUTION="${{ steps.run-monitoring.outputs.job_execution }}"
-
-          echo "Waiting for monitoring job to complete..."
-
-          # Wait for job completion (max 20 minutes)
-          for i in {1..40}; do
-            STATUS=$(az containerapp job execution show \
-              --name $JOB_NAME \
-              --resource-group $RESOURCE_GROUP \
-              --job-execution-name $JOB_EXECUTION \
-              --query 'properties.status' \
-              --output tsv)
-
-            echo "[$i/40] Job status: $STATUS"
-
-            if [ "$STATUS" == "Succeeded" ]; then
-              echo "✓ Monitoring job completed successfully"
-              break
-            elif [ "$STATUS" == "Failed" ]; then
-              echo "✗ Monitoring job failed"
-              exit 1
-            fi
-
-            sleep 30
-          done
-
-      - name: Get monitoring results from logs
-        id: get-results
-        run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
-          JOB_NAME="greengovrag-monitoring-job"
-          JOB_EXECUTION="${{ steps.run-monitoring.outputs.job_execution }}"
-
-          # Get logs from Azure Container App
-          LOGS=$(az containerapp job execution logs show \
-            --name $JOB_NAME \
-            --resource-group $RESOURCE_GROUP \
-            --job-execution-name $JOB_EXECUTION \
-            --query 'logs[*].message' \
-            --output tsv)
-
-          echo "Monitoring logs:"
-          echo "$LOGS"
-
-          # Extract JSON from logs
-          MONITORING_JSON=$(echo "$LOGS" | grep -A 50 '{"sources_checked"' | head -1 || echo '{}')
-
-          echo "monitoring_results<<EOF" >> $GITHUB_OUTPUT
-          echo "$MONITORING_JSON" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Check if changes detected
-        id: check-changes
-        run: |
-          RESULTS='${{ steps.get-results.outputs.monitoring_results }}'
-
-          if [ -z "$RESULTS" ] || [ "$RESULTS" == "{}" ]; then
-            echo "⚠ No monitoring results found, assuming no changes"
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "discovered=0" >> $GITHUB_OUTPUT
-            echo "updated=0" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          DISCOVERED=$(echo "$RESULTS" | jq -r '.total_discovered // 0')
-          UPDATED=$(echo "$RESULTS" | jq -r '.total_updated // 0')
-          TOTAL=$((DISCOVERED + UPDATED))
-
-          echo "discovered=$DISCOVERED" >> $GITHUB_OUTPUT
-          echo "updated=$UPDATED" >> $GITHUB_OUTPUT
-
-          if [ "$TOTAL" -gt 0 ]; then
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "✓ Changes detected - ETL pipeline will be triggered"
-          else
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "✓ No changes detected - ETL pipeline will be skipped"
           fi

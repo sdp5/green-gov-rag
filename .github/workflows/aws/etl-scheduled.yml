@@ -9,25 +9,17 @@ on:
         description: 'Path to documents config'
         default: 'configs/documents_config.yml'
         required: false
-      cloud_provider:
-        description: 'Cloud provider (aws or azure)'
-        default: 'aws'
-        required: false
-        type: choice
-        options:
-          - aws
-          - azure
 
 env:
   AWS_REGION: ap-southeast-2
   CONFIG_PATH: ${{ github.event.inputs.config_path || 'configs/documents_config.yml' }}
-  CLOUD_PROVIDER: ${{ github.event.inputs.cloud_provider || 'aws' }}
 
 jobs:
   etl-aws:
     name: Run ETL on AWS
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.cloud_provider == 'aws' || github.event_name == 'schedule' }}
+    # Disabled - change to true to enable ETL pipeline
+    if: false
     timeout-minutes: 120
     permissions:
       id-token: write
@@ -146,115 +138,3 @@ jobs:
         run: |
           echo "✗ ETL pipeline failed. Check logs above for details."
           # Add Slack/email notification here
-
-  etl-azure:
-    name: Run ETL on Azure
-    runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.cloud_provider == 'azure' }}
-    timeout-minutes: 120
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Upload config to Blob Storage
-        run: |
-          az storage blob upload \
-            --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
-            --container-name configs \
-            --name documents_config.yml \
-            --file ${{ env.CONFIG_PATH }} \
-            --overwrite
-
-      - name: Run ETL via Azure Container App Job
-        id: run-etl-azure
-        run: |
-          # Get resource group and container app job name
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
-          JOB_NAME="greengovrag-etl-job"
-
-          echo "Starting Azure Container App Job: $JOB_NAME"
-
-          # Start the ETL job execution
-          JOB_EXECUTION=$(az containerapp job start \
-            --name $JOB_NAME \
-            --resource-group $RESOURCE_GROUP \
-            --query 'name' \
-            --output tsv)
-
-          echo "job_execution=$JOB_EXECUTION" >> $GITHUB_OUTPUT
-          echo "✓ Started ETL job execution: $JOB_EXECUTION"
-
-      - name: Monitor ETL job execution
-        run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
-          JOB_NAME="greengovrag-etl-job"
-          JOB_EXECUTION="${{ steps.run-etl-azure.outputs.job_execution }}"
-
-          echo "Monitoring Azure Container App Job execution..."
-
-          # Poll job status (max 60 minutes = 120 polls at 30s intervals)
-          for i in {1..120}; do
-            STATUS=$(az containerapp job execution show \
-              --name $JOB_NAME \
-              --resource-group $RESOURCE_GROUP \
-              --job-execution-name $JOB_EXECUTION \
-              --query 'properties.status' \
-              --output tsv)
-
-            echo "[$i/120] Job status: $STATUS"
-
-            if [ "$STATUS" == "Succeeded" ]; then
-              echo "✓ ETL job completed successfully"
-              exit 0
-            elif [ "$STATUS" == "Failed" ]; then
-              echo "✗ ETL job failed"
-
-              # Get logs for debugging
-              echo "Fetching logs..."
-              az containerapp job execution logs show \
-                --name $JOB_NAME \
-                --resource-group $RESOURCE_GROUP \
-                --job-execution-name $JOB_EXECUTION \
-                --tail 50
-
-              exit 1
-            fi
-
-            sleep 30
-          done
-
-          echo "✗ ETL job timeout after 60 minutes"
-          exit 1
-
-      - name: Get ETL job logs
-        if: success()
-        run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
-          JOB_NAME="greengovrag-etl-job"
-          JOB_EXECUTION="${{ steps.run-etl-azure.outputs.job_execution }}"
-
-          echo "Fetching ETL job logs (last 100 lines)..."
-          az containerapp job execution logs show \
-            --name $JOB_NAME \
-            --resource-group $RESOURCE_GROUP \
-            --job-execution-name $JOB_EXECUTION \
-            --tail 100
-
-      - name: Verify Qdrant update
-        if: success()
-        run: |
-          echo "✓ ETL pipeline completed successfully on Azure"
-          echo "Documents have been processed and uploaded to Qdrant"
-
-      - name: Notify on failure
-        if: failure()
-        run: |
-          echo "✗ ETL pipeline failed on Azure"
-          echo "Check logs above for details"
-          # Add Slack/email notification here if configured

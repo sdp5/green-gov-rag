@@ -1,0 +1,142 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'deploy/docker/backend.Dockerfile'
+      - 'deploy/azure/**'
+      - '.github/workflows/azure/deploy-backend.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    # Disabled - change to true to enable deployment
+    if: false
+    name: Deploy Backend to Azure Container Apps
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build and push to Azure Container Registry
+        id: build-image
+        run: |
+          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
+          ACR_NAME="${{ secrets.AZURE_CONTAINER_REGISTRY }}"
+          IMAGE_TAG="${{ github.sha }}"
+
+          # Login to ACR
+          az acr login --name $ACR_NAME
+
+          # Build and push Docker image
+          docker build \
+            -t $ACR_NAME.azurecr.io/greengovrag-backend:$IMAGE_TAG \
+            -t $ACR_NAME.azurecr.io/greengovrag-backend:latest \
+            -f deploy/docker/backend.Dockerfile \
+            .
+
+          docker push $ACR_NAME.azurecr.io/greengovrag-backend:$IMAGE_TAG
+          docker push $ACR_NAME.azurecr.io/greengovrag-backend:latest
+
+          echo "image=$ACR_NAME.azurecr.io/greengovrag-backend:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Update secrets in Key Vault
+        run: |
+          KEYVAULT_NAME="${{ secrets.AZURE_KEYVAULT_NAME }}"
+
+          # Store OpenAI API key in Key Vault
+          az keyvault secret set \
+            --vault-name $KEYVAULT_NAME \
+            --name openai-api-key \
+            --value "${{ secrets.OPENAI_API_KEY }}"
+
+      - name: Update Container App with new image
+        run: |
+          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
+          CONTAINER_APP=$(az containerapp list \
+            --resource-group $RESOURCE_GROUP \
+            --query "[?contains(name, 'greengovrag')].name" \
+            --output tsv | head -1)
+
+          # Update container app with new image
+          az containerapp update \
+            --name $CONTAINER_APP \
+            --resource-group $RESOURCE_GROUP \
+            --image ${{ steps.build-image.outputs.image }}
+
+          echo "✓ Container App updated with new image"
+
+      - name: Wait for deployment to complete
+        run: |
+          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
+          CONTAINER_APP=$(az containerapp list \
+            --resource-group $RESOURCE_GROUP \
+            --query "[?contains(name, 'greengovrag')].name" \
+            --output tsv | head -1)
+
+          echo "Waiting for deployment to complete..."
+
+          # Wait for provisioning to complete (max 10 minutes)
+          for i in {1..60}; do
+            STATUS=$(az containerapp show \
+              --resource-group $RESOURCE_GROUP \
+              --name $CONTAINER_APP \
+              --query "properties.provisioningState" \
+              --output tsv)
+
+            echo "[$i/60] Provisioning status: $STATUS"
+
+            if [ "$STATUS" == "Succeeded" ]; then
+              echo "✓ Deployment completed successfully"
+              break
+            elif [ "$STATUS" == "Failed" ]; then
+              echo "✗ Deployment failed"
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+      - name: Get deployment status
+        run: |
+          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
+          CONTAINER_APP=$(az containerapp list \
+            --resource-group $RESOURCE_GROUP \
+            --query "[?contains(name, 'greengovrag')].name" \
+            --output tsv | head -1)
+
+          az containerapp revision list \
+            --name $CONTAINER_APP \
+            --resource-group $RESOURCE_GROUP \
+            --query "[].{Name:name, Active:properties.active, Created:properties.createdTime}" \
+            --output table
+
+      - name: Run post-deployment health check
+        run: |
+          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
+
+          # Get Container App URL
+          API_URL=$(az deployment group show \
+            --resource-group $RESOURCE_GROUP \
+            --name greengovrag-deployment \
+            --query properties.outputs.apiUrl.value \
+            --output tsv)
+
+          # Health check
+          echo "Checking health at: ${API_URL}/api/health"
+          curl -f "${API_URL}/api/health" || exit 1
+          echo "✓ Deployment successful!"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "Deployment failed! Check logs above for details."
+          # Add Slack/email notification here if needed

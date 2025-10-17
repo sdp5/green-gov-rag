@@ -1,4 +1,4 @@
-name: Deploy to AWS
+name: Deploy Backend
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
       - 'backend/**'
       - 'deploy/docker/backend.Dockerfile'
       - 'deploy/aws/**'
-      - '.github/workflows/deploy-aws.yml'
+      - '.github/workflows/aws/deploy-backend.yml'
   workflow_dispatch:
 
 env:

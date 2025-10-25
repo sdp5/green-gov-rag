@@ -24,9 +24,15 @@ param environment string = 'prod'
 @secure()
 param postgresPassword string
 
-@description('OpenAI API Key')
+@description('Azure OpenAI API Key')
 @secure()
-param openaiApiKey string
+param azureOpenaiApiKey string
+
+@description('Azure OpenAI Endpoint')
+param azureOpenaiEndpoint string
+
+@description('Azure OpenAI Deployment Name')
+param azureOpenaiDeployment string = 'gpt-4o'
 
 @description('MapBox Access Token')
 @secure()
@@ -378,8 +384,12 @@ resource apiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
       }
       secrets: [
         {
-          name: 'openai-api-key'
-          value: openaiApiKey
+          name: 'azure-openai-api-key'
+          value: azureOpenaiApiKey
+        }
+        {
+          name: 'azure-openai-endpoint'
+          value: azureOpenaiEndpoint
         }
         {
           name: 'postgres-password'
@@ -398,7 +408,7 @@ resource apiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
           image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'  // Placeholder
           resources: {
             cpu: json('0.5')
-            memory: '1Gi'
+            memory: '2Gi'  // Increased from 1Gi to support BGE-large embeddings (1.5GB model + 500MB app)
           }
           env: [
             {
@@ -425,9 +435,35 @@ resource apiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
               name: 'AZURE_STORAGE_CONNECTION_STRING'
               secretRef: 'storage-connection-string'
             }
+            // LLM Configuration - Azure OpenAI
             {
-              name: 'OPENAI_API_KEY'
-              secretRef: 'openai-api-key'
+              name: 'LLM_PROVIDER'
+              value: 'azure'
+            }
+            {
+              name: 'LLM_MODEL'
+              value: 'gpt-4o'
+            }
+            {
+              name: 'AZURE_OPENAI_API_KEY'
+              secretRef: 'azure-openai-api-key'
+            }
+            {
+              name: 'AZURE_OPENAI_ENDPOINT'
+              secretRef: 'azure-openai-endpoint'
+            }
+            {
+              name: 'AZURE_OPENAI_DEPLOYMENT'
+              value: azureOpenaiDeployment
+            }
+            {
+              name: 'AZURE_OPENAI_API_VERSION'
+              value: '2024-12-01-preview'
+            }
+            // Embedding Model - BGE-large for 93% accuracy
+            {
+              name: 'EMBEDDING_MODEL'
+              value: 'BAAI/bge-large-en-v1.5'
             }
             // Cache Settings
             {

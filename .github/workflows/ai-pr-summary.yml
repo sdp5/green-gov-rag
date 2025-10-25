@@ -62,7 +62,7 @@ jobs:
             model: "gpt-4o-mini",
             messages: [
               {"role": "system", "content": "You are a helpful assistant that summarizes code changes in a GitHub pull request."},
-              {"role": "user", "content": "Summarize the PR diff briefly in a 2 or 3 bullet points highlighting key changes and potential impact:\n\n\($diff) between 80-120 words.\n\nGive one improvement suggestion if applicable."}
+              {"role": "user", "content": "Thank the submission.\n\nSummarize the PR diff briefly in a 2 or 3 bullet points highlighting key changes and potential impact:\n\n\($diff) between 80-120 words."}
             ]
           }')
 

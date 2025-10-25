@@ -309,6 +309,9 @@ addopts = [
     "--strict-config",
     "--showlocals",
 ]
+filterwarnings = [
+    "ignore::DeprecationWarning:.*swigvarlink.*",
+]
 
 # Test markers
 markers = [

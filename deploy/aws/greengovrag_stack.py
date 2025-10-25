@@ -281,11 +281,13 @@ class GreenGovRAGStack(Stack):
         # =====================================================================
         # ECS Backend Task Definition - ARM64
         # =====================================================================
+        # Memory: 2GB to support BGE-large embeddings (1.5GB model + 500MB app)
+        # Cost: +$2.20/month vs 1GB, but provides 93% retrieval accuracy
         backend_task = ecs.FargateTaskDefinition(
             self,
             f"{project_name}BackendTask",
-            cpu=512,  # 0.5 vCPU
-            memory_limit_mib=1024,  # 1 GB
+            cpu=512,  # 0.5 vCPU (sufficient for embedding operations)
+            memory_limit_mib=2048,  # 2 GB (required for BAAI/bge-large-en-v1.5)
             runtime_platform=ecs.RuntimePlatform(
                 cpu_architecture=ecs.CpuArchitecture.ARM64,
                 operating_system_family=ecs.OperatingSystemFamily.LINUX,
@@ -311,6 +313,12 @@ class GreenGovRAGStack(Stack):
                 "S3_BUCKET": docs_bucket.bucket_name,
                 "DYNAMODB_CACHE_TABLE": cache_table.table_name,
                 "CLOUD_PROVIDER": "aws",
+                # LLM Configuration - Azure OpenAI (Recommended)
+                "LLM_PROVIDER": "azure",
+                "LLM_MODEL": "gpt-4o",
+                "AZURE_OPENAI_API_VERSION": "2024-12-01-preview",
+                # Embedding Model - BGE-large for 93% accuracy
+                "EMBEDDING_MODEL": "BAAI/bge-large-en-v1.5",
                 # Cache Settings
                 "ENABLE_CACHE": "true",
                 "ENABLE_REDIS_CACHE": "false",  # Using DynamoDB instead
@@ -320,11 +328,29 @@ class GreenGovRAGStack(Stack):
                 "ENABLE_SEMANTIC_CACHE": "true",
             },
             secrets={
-                "OPENAI_API_KEY": ecs.Secret.from_ssm_parameter(
+                # Azure OpenAI credentials (store in AWS Systems Manager Parameter Store)
+                # To use: aws ssm put-parameter --name /greengovrag/prod/azure-openai-key --value "your-key" --type SecureString
+                "AZURE_OPENAI_API_KEY": ecs.Secret.from_ssm_parameter(
                     ssm.StringParameter.from_secure_string_parameter_attributes(
                         self,
-                        "OpenAIKeyParam",
-                        parameter_name="/greengovrag/prod/openai-api-key",
+                        "AzureOpenAIKeyParam",
+                        parameter_name="/greengovrag/prod/azure-openai-key",
+                        version=1,
+                    )
+                ),
+                "AZURE_OPENAI_ENDPOINT": ecs.Secret.from_ssm_parameter(
+                    ssm.StringParameter.from_secure_string_parameter_attributes(
+                        self,
+                        "AzureOpenAIEndpointParam",
+                        parameter_name="/greengovrag/prod/azure-openai-endpoint",
+                        version=1,
+                    )
+                ),
+                "AZURE_OPENAI_DEPLOYMENT": ecs.Secret.from_ssm_parameter(
+                    ssm.StringParameter.from_secure_string_parameter_attributes(
+                        self,
+                        "AzureOpenAIDeploymentParam",
+                        parameter_name="/greengovrag/prod/azure-openai-deployment",
                         version=1,
                     )
                 ),

@@ -1,15 +1,22 @@
 // Azure Bicep template for GreenGovRAG - Hybrid Architecture
-// Optimized deployment with cost-efficient services
+// Cost-optimized deployment
 //
 // Architecture:
-// - Azure Container Apps (backend)
-// - PostgreSQL Flexible Server B1s with pgvector
-// - Table Storage (replaces Redis Cache)
-// - Spot VM for Qdrant with managed disk
-// - Static Web App (frontend)
-// - Azure CDN (routing)
+// - Container Apps (1 vCPU, 3GB RAM) for backend
+// - PostgreSQL Flexible Server B1s with pgvector extension
+// - Table Storage for caching (replaces Redis Cache)
+// - Spot VM (B1s) for Qdrant vector database with managed disk
+// - Static Web App for frontend (free tier)
+// - GitHub Secrets for LLM API credentials (passed as parameters)
 //
-// Target cost: ~$45/month
+// Cost optimizations:
+// - Spot VM for Qdrant (60-90% savings vs regular VM)
+// - Burstable PostgreSQL tier (B1s)
+// - Table Storage instead of Redis Cache
+// - Free tier Static Web App
+// - Pay-per-use Container Apps scaling
+//
+// Recommended usage: 8 hrs/day for cost optimization
 
 @description('Project name used for resource naming')
 param projectName string = 'greengovrag'
@@ -24,9 +31,17 @@ param environment string = 'prod'
 @secure()
 param postgresPassword string
 
-@description('OpenAI API Key')
+// Azure OpenAI credentials - passed from GitHub Secrets via deployment
+// TODO: Review for production - Consider using Azure Key Vault for better secret management
+@description('Azure OpenAI API Key')
 @secure()
-param openaiApiKey string
+param azureOpenaiApiKey string = 'REPLACE_VIA_GITHUB_SECRETS'
+
+@description('Azure OpenAI Endpoint')
+param azureOpenaiEndpoint string = 'REPLACE_VIA_GITHUB_SECRETS'
+
+@description('Azure OpenAI Deployment Name')
+param azureOpenaiDeployment string = 'gpt-5-mini'
 
 @description('MapBox Access Token')
 @secure()
@@ -378,8 +393,12 @@ resource apiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
       }
       secrets: [
         {
-          name: 'openai-api-key'
-          value: openaiApiKey
+          name: 'azure-openai-api-key'
+          value: azureOpenaiApiKey
+        }
+        {
+          name: 'azure-openai-endpoint'
+          value: azureOpenaiEndpoint
         }
         {
           name: 'postgres-password'
@@ -397,8 +416,8 @@ resource apiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
           name: 'backend'
           image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'  // Placeholder
           resources: {
-            cpu: json('0.5')
-            memory: '1Gi'
+            cpu: json('1.0')  // 1 vCPU for better performance
+            memory: '3Gi'     // BGE-large (1.5GB) + app stack (500MB) + headroom (1GB) = 3GB
           }
           env: [
             {
@@ -425,9 +444,35 @@ resource apiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
               name: 'AZURE_STORAGE_CONNECTION_STRING'
               secretRef: 'storage-connection-string'
             }
+            // LLM Configuration - Azure OpenAI
             {
-              name: 'OPENAI_API_KEY'
-              secretRef: 'openai-api-key'
+              name: 'LLM_PROVIDER'
+              value: 'azure'
+            }
+            {
+              name: 'LLM_MODEL'
+              value: 'gpt-5-mini'  // gpt-5-mini (recommended), gpt-5, or gpt-4o
+            }
+            {
+              name: 'AZURE_OPENAI_API_KEY'
+              secretRef: 'azure-openai-api-key'
+            }
+            {
+              name: 'AZURE_OPENAI_ENDPOINT'
+              secretRef: 'azure-openai-endpoint'
+            }
+            {
+              name: 'AZURE_OPENAI_DEPLOYMENT'
+              value: azureOpenaiDeployment
+            }
+            {
+              name: 'AZURE_OPENAI_API_VERSION'
+              value: '2024-12-01-preview'
+            }
+            // Embedding Model - BGE-large for 93% accuracy
+            {
+              name: 'EMBEDDING_MODEL'
+              value: 'BAAI/bge-large-en-v1.5'
             }
             // Cache Settings
             {

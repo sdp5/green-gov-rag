@@ -192,6 +192,7 @@ cython_debug/
 
 # Claude
 .claude
+CLAUDE.md
 
 # Cursor
 #  Cursor is an AI-powered code editor. `.cursorignore` specifies files/directories to
@@ -209,3 +210,5 @@ npm-debug.log
 yarn-error.log
 yarn-debug.log
 pnpm-debug.log
+
+docs/.local

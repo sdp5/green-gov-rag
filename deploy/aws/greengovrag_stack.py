@@ -1,17 +1,26 @@
 """AWS CDK Stack for GreenGovRAG - Hybrid Architecture.
 
-Optimized deployment with:
+Cost-optimized deployment with:
 - VPC with public subnets only (no NAT Gateway)
-- ECS Fargate backend (ARM64 for cost efficiency)
-- RDS PostgreSQL t4g.micro with pgvector
+- ECS Fargate backend (1 vCPU, 3GB ARM64)
+- RDS PostgreSQL t4g.micro with pgvector (30% utilization for 8 hrs/day)
 - DynamoDB for caching (replaces ElastiCache)
-- EC2 Spot instance for Qdrant with auto-recovery
-- CloudFront + S3 for frontend
-- API Gateway HTTP API (replaces ALB)
-- Systems Manager Parameter Store (replaces Secrets Manager)
-- VPC Endpoints for S3 and SSM
+- EC2 Spot instance (t4g.micro) for Qdrant with auto-recovery
+- CloudFront + S3 for frontend (global CDN)
+- API Gateway HTTP API (direct integration, no VPC Link)
+- GitHub Secrets for LLM API keys (no SSM endpoint needed)
+- S3 Gateway Endpoint (free)
 
-Target cost: ~$47/month
+Architecture optimizations:
+- No NAT Gateway (saves $32-45/mo)
+- No VPC Link (saves $14-17/mo)
+- No SSM endpoint (saves $10/mo)
+- Spot instances for non-critical workloads (84% discount)
+- ARM64/Graviton processors (20% cost reduction)
+- Pay-per-request DynamoDB (vs provisioned ElastiCache)
+- Direct API Gateway → ECS integration via Cloud Map DNS
+
+Estimated usage: 8 hrs/day for cost optimization
 """
 
 from aws_cdk import (
@@ -86,16 +95,19 @@ class GreenGovRAGStack(Stack):
             service=ec2.GatewayVpcEndpointAwsService.S3,
         )
 
-        # SSM Interface Endpoint (for secrets) - $7.31/month for 1 AZ
-        ssm_endpoint = vpc.add_interface_endpoint(
-            f"{project_name}SSMEndpoint",
-            service=ec2.InterfaceVpcEndpointAwsService.SSM,
-            subnets=ec2.SubnetSelection(
-                subnet_type=ec2.SubnetType.PUBLIC,
-                availability_zones=[vpc.availability_zones[0]],  # 1 AZ only
-            ),
-            private_dns_enabled=True,
-        )
+        # SSM Interface Endpoint (for secrets) - $10/month for 1 AZ
+        # COMMENTED OUT: Using GitHub Secrets injected as env vars to save SSM costs
+        # TODO: Review later - SSM provides better security, audit logs, and rotation
+        # Uncomment below for production deployment with proper secret management
+        # ssm_endpoint = vpc.add_interface_endpoint(
+        #     f"{project_name}SSMEndpoint",
+        #     service=ec2.InterfaceVpcEndpointAwsService.SSM,
+        #     subnets=ec2.SubnetSelection(
+        #         subnet_type=ec2.SubnetType.PUBLIC,
+        #         availability_zones=[vpc.availability_zones[0]],  # 1 AZ only
+        #     ),
+        #     private_dns_enabled=True,
+        # )
 
         # =====================================================================
         # Security Groups
@@ -281,11 +293,14 @@ class GreenGovRAGStack(Stack):
         # =====================================================================
         # ECS Backend Task Definition - ARM64
         # =====================================================================
+        # CPU: 1 vCPU for better performance
+        # Memory: 3GB to support BGE-large embeddings with headroom
+        # BGE-large (1.5GB) + FastAPI/LangChain (500MB) + buffer (1GB) = 3GB
         backend_task = ecs.FargateTaskDefinition(
             self,
             f"{project_name}BackendTask",
-            cpu=512,  # 0.5 vCPU
-            memory_limit_mib=1024,  # 1 GB
+            cpu=1024,  # 1 vCPU for better performance
+            memory_limit_mib=3072,  # 3 GB (safe for BAAI/bge-large-en-v1.5 + app stack)
             runtime_platform=ecs.RuntimePlatform(
                 cpu_architecture=ecs.CpuArchitecture.ARM64,
                 operating_system_family=ecs.OperatingSystemFamily.LINUX,
@@ -311,6 +326,20 @@ class GreenGovRAGStack(Stack):
                 "S3_BUCKET": docs_bucket.bucket_name,
                 "DYNAMODB_CACHE_TABLE": cache_table.table_name,
                 "CLOUD_PROVIDER": "aws",
+                # LLM Configuration - Supports Azure OpenAI, AWS Bedrock, or OpenAI
+                # Set via GitHub Actions secrets: LLM_PROVIDER, LLM_MODEL, etc.
+                # Azure: AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT
+                # AWS Bedrock: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
+                # OpenAI: OPENAI_API_KEY
+                # TODO: Review for production - Use SSM Parameter Store for better secret management
+                "LLM_PROVIDER": "azure",  # or "bedrock" or "openai" - override via GitHub Secrets
+                "LLM_MODEL": "gpt-5-mini",  # gpt-5-mini (recommended), gpt-5, or gpt-4o
+                "AZURE_OPENAI_API_VERSION": "2024-12-01-preview",
+                "AZURE_OPENAI_API_KEY": "REPLACE_VIA_GITHUB_SECRETS",  # Injected from GitHub Actions
+                "AZURE_OPENAI_ENDPOINT": "REPLACE_VIA_GITHUB_SECRETS",  # Injected from GitHub Actions
+                "AZURE_OPENAI_DEPLOYMENT": "gpt-5-mini",  # Match LLM_MODEL
+                # Embedding Model - BGE-large for 93% accuracy
+                "EMBEDDING_MODEL": "BAAI/bge-large-en-v1.5",
                 # Cache Settings
                 "ENABLE_CACHE": "true",
                 "ENABLE_REDIS_CACHE": "false",  # Using DynamoDB instead
@@ -320,14 +349,7 @@ class GreenGovRAGStack(Stack):
                 "ENABLE_SEMANTIC_CACHE": "true",
             },
             secrets={
-                "OPENAI_API_KEY": ecs.Secret.from_ssm_parameter(
-                    ssm.StringParameter.from_secure_string_parameter_attributes(
-                        self,
-                        "OpenAIKeyParam",
-                        parameter_name="/greengovrag/prod/openai-api-key",
-                        version=1,
-                    )
-                ),
+                # Database password still uses Secrets Manager (auto-generated by RDS, no extra cost)
                 "DATABASE_PASSWORD": ecs.Secret.from_secrets_manager(db_instance.secret, "password"),
             },
             health_check=ecs.HealthCheck(
@@ -498,15 +520,8 @@ class GreenGovRAGStack(Stack):
         # =====================================================================
         # API Gateway HTTP API (replaces ALB)
         # =====================================================================
-        # VPC Link for private integration to ECS
-        vpc_link = apigw.VpcLink(
-            self,
-            f"{project_name}VpcLink",
-            vpc=vpc,
-            subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
-        )
-
-        # HTTP API
+        # HTTP API - Direct integration to ECS public endpoint (no VPC Link needed)
+        # ECS tasks have public IPs and are accessible via service discovery
         http_api = apigw.HttpApi(
             self,
             f"{project_name}ApiGateway",
@@ -518,16 +533,11 @@ class GreenGovRAGStack(Stack):
             ),
         )
 
-        # Service discovery integration
-        backend_integration = apigw.HttpIntegration(
-            self,
+        # Direct HTTP integration to ECS service via Cloud Map DNS
+        # Uses public endpoint - saves VPC Link costs
+        backend_integration = apigw_integrations.HttpUrlIntegration(
             f"{project_name}BackendIntegration",
-            http_api=http_api,
-            integration_type=apigw.HttpIntegrationType.HTTP_PROXY,
-            integration_uri=apigw.HttpIntegrationSubtype.CLOUDMAP,
-            vpc_link=vpc_link,
-            method=apigw.HttpMethod.ANY,
-            connection_type=apigw.HttpConnectionType.VPC_LINK,
+            f"http://backend.greengovrag.local:8000/{{proxy}}",
         )
 
         http_api.add_routes(

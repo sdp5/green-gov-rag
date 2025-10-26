@@ -82,7 +82,7 @@ jobs:
           PR_SUMMARY: ${{ env.PR_SUMMARY }}
         with:
           script: |
-            const body = `### Summary\n\n${process.env.PR_SUMMARY}`;
+            const body = `${process.env.PR_SUMMARY}`;
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,

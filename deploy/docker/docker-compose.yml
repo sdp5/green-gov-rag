@@ -61,15 +61,15 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
-    # NOTE: BGE-large embeddings require ~2GB RAM (1.5GB model + 500MB app)
+    # NOTE: BGE-large embeddings require ~3GB RAM (1.5GB model + 500MB app + 1GB headroom)
     # Docker Desktop: Ensure you have at least 4GB allocated in settings
     # Linux: No limit by default, ensure host has sufficient memory
     deploy:
       resources:
         limits:
-          memory: 2G  # Recommended for BGE-large
+          memory: 3G  # Safe limit for BGE-large + app stack
         reservations:
-          memory: 1G
+          memory: 2G  # Minimum guaranteed
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-greengovrag}
       REDIS_URL: redis://redis:6379

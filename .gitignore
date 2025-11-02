@@ -203,6 +203,8 @@ CLAUDE.md
 
 data/processed/
 data/raw/
+backend/data/
+backend/logs/
 
 # Node
 node_modules/
@@ -212,3 +214,4 @@ yarn-debug.log
 pnpm-debug.log
 
 docs/.local
+temp.py

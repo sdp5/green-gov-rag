@@ -23,6 +23,17 @@ import yaml
 
 from green_gov_rag.config import settings
 from green_gov_rag.etl.storage_adapter import ETLStorageAdapter
+from green_gov_rag.types import (
+    DEFAULT_DOWNLOAD_BACKOFF,
+    DEFAULT_DOWNLOAD_RETRIES,
+    DEFAULT_DOWNLOAD_TIMEOUT,
+    DEFAULT_DOWNLOADED_FILENAME,
+    DEFAULT_HASH_CHUNK_SIZE,
+    DEFAULT_HTTP_HEADERS,
+    DOWNLOAD_ERRORS_LOG_FILENAME,
+    FAILED_DOWNLOADS_FILENAME,
+    METADATA_FILE_SUFFIX,
+)
 
 # Paths (for backward compatibility with local mode)
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -33,7 +44,7 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 # Logging setup
 logging.basicConfig(
-    filename=LOG_DIR / "download_errors.log",
+    filename=LOG_DIR / DOWNLOAD_ERRORS_LOG_FILENAME,
     level=logging.ERROR,
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
@@ -50,25 +61,83 @@ def sha256sum(file_path):
     """Compute SHA256 hash of a file."""
     h = hashlib.sha256()
     with open(file_path, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
+        for chunk in iter(lambda: f.read(DEFAULT_HASH_CHUNK_SIZE), b""):
             h.update(chunk)
     return h.hexdigest()
 
 
-def download_file(url, dest_path, retries=3, backoff=2) -> bool:
-    """Download file with retry logic."""
+def download_file(
+    url,
+    dest_path,
+    retries=DEFAULT_DOWNLOAD_RETRIES,
+    backoff=DEFAULT_DOWNLOAD_BACKOFF,
+) -> bool:
+    """Download file with retry logic.
+
+    Uses browser-like headers to avoid bot detection (Cloudflare, etc.).
+
+    Args:
+        url: URL to download
+        dest_path: Destination file path
+        retries: Number of retry attempts
+        backoff: Backoff multiplier for retries
+
+    Returns:
+        True if successful, False otherwise
+    """
     attempt = 0
+    last_status_code = None
+
     while attempt < retries:
         try:
-            resp = requests.get(url, timeout=30)
+            resp = requests.get(
+                url,
+                timeout=DEFAULT_DOWNLOAD_TIMEOUT,
+                headers=DEFAULT_HTTP_HEADERS,
+                allow_redirects=True,
+            )
+            last_status_code = resp.status_code
+
+            # Check for bot protection (403/503 from Cloudflare, etc.)
+            if resp.status_code in (403, 503):
+                # Check if it's Cloudflare protection
+                is_cloudflare = (
+                    "cloudflare" in resp.headers.get("Server", "").lower()
+                    or "cf-ray" in resp.headers
+                    or "cf-mitigated" in resp.headers
+                )
+                if is_cloudflare:
+                    logger.warning(
+                        f"Cloudflare protection detected for {url}. "
+                        "Manual download required."
+                    )
+                    # Don't retry Cloudflare-protected URLs
+                    return False
+
             resp.raise_for_status()
+
             with open(dest_path, "wb") as f:
                 f.write(resp.content)
             return True
+
+        except requests.exceptions.HTTPError as e:
+            attempt += 1
+            if last_status_code in (403, 403):
+                logger.error(
+                    f"Access denied (HTTP {last_status_code}) for {url}. "
+                    "Likely bot protection. Skipping retries."
+                )
+                break
+            logger.error(f"HTTP error downloading {url}: {e} (attempt {attempt})")
+            if attempt < retries:
+                time.sleep(backoff**attempt)
+
         except Exception as e:
             attempt += 1
             logger.error(f"Error downloading {url}: {e} (attempt {attempt})")
-            time.sleep(backoff**attempt)
+            if attempt < retries:
+                time.sleep(backoff**attempt)
+
     return False
 
 
@@ -76,7 +145,7 @@ def safe_filename(url):
     """Generate a safe filename from a URL."""
     parsed = urlparse(url)
     filename = os.path.basename(parsed.path)
-    return filename or "downloaded_file"
+    return filename or DEFAULT_DOWNLOADED_FILENAME
 
 
 def process_document(
@@ -160,14 +229,18 @@ def _process_document_local(doc: dict[str, Any], metadata: dict[str, Any]) -> No
         metadata["sha256"] = sha256sum(dest_path)
 
         with open(
-            dest_dir / f"{filename}.metadata.json",
+            dest_dir / f"{filename}{METADATA_FILE_SUFFIX}",
             "w",
             encoding="utf-8",
         ) as mf:
             json.dump(metadata, mf, indent=2)
         print(f"✅ Downloaded: {url}")
     else:
-        print(f"❌ Failed to download: {url}")
+        # Save failed URL to manual review list
+        failed_urls_file = LOG_DIR / FAILED_DOWNLOADS_FILENAME
+        with open(failed_urls_file, "a", encoding="utf-8") as f:
+            f.write(f"{datetime.utcnow().isoformat()} | {url} | {metadata['title']}\n")
+        print(f"❌ Failed to download: {url} (saved to {failed_urls_file})")
 
 
 def download_documents(docs: list[dict], output_dir: str) -> list[str]:

@@ -2,7 +2,7 @@ version: '3'
 
 services:
   postgres:
-    image: postgres:15
+    image: postgres:17.6
     container_name: postgres_airflow
     restart: always
     environment:

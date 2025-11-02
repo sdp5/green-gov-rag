@@ -792,9 +792,9 @@ documents:
       applies_to_point: false
 
   - title: Queensland Vegetation Management Act 1999
-    source_url: https://www.legislation.qld.gov.au/view/html/inforce/current/act-1999-068
+    source_url: https://www.legislation.qld.gov.au/view/pdf/current/act-1999-090
     download_urls:
-      - https://www.legislation.qld.gov.au/view/pdf/inforce/current/act-1999-068
+      - https://www.legislation.qld.gov.au/view/pdf/current/act-1999-090
     jurisdiction: state
     category: legislation
     topic: vegetation_management
@@ -862,9 +862,7 @@ documents:
   - title: Planning and Design Code (SA)
     source_url: https://code.plan.sa.gov.au/
     download_urls:
-      - https://code.plan.sa.gov.au/__data/assets/pdf_file/0008/1405817/Full-Code-31072025-1.pdf
-      - https://plan.sa.gov.au/__data/assets/pdf_file/0008/597842/Fact_Sheet_-_Native_Vegetation.pdf
-      - https://plan.sa.gov.au/__data/assets/pdf_file/0010/799939/Guide_to_the_Planning_and_Design_Code.pdf
+      - https://code.plan.sa.gov.au/__data/assets/pdf_file/0008/1405817/Full-Code-23102025.pdf
     jurisdiction: state
     category: planning
     topic: land_use
@@ -943,10 +941,10 @@ documents:
   - title: City of Adelaide Development Guidelines
     source_url: https://www.cityofadelaide.com.au/planning
     download_urls:
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0007/593080/City_of_Adelaide_-_Council_Specific_Code_Extract.pdf
       - https://d31atr86jnqrq2.cloudfront.net/docs/guidelines-adelaide-park-lands-buildings.pdf
       - https://d31atr86jnqrq2.cloudfront.net/docs/guidelines-infrastructure-design-city-of-adelaide.pdf
       - https://d31atr86jnqrq2.cloudfront.net/docs/uec-lighting-electrical-design.pdf
-      - https://plan.sa.gov.au/__data/assets/pdf_file/0007/593080/City_of_Adelaide_-_Council_Specific_Code_Extract.pdf
     jurisdiction: local
     category: development_plan
     topic: zoning
@@ -1073,8 +1071,8 @@ documents:
   - title: Adelaide Airport Master Plan
     source_url: https://corporate.adelaideairport.com.au/community/adelaide-airport-master-plan/
     download_urls:
-      - https://corporate.adelaideairport.com.au/wp-content/uploads/2019/08/adelaide-airport-preliminary-draft-master-plan-2019-chapter-10.pdf
-      - https://corporate.adelaideairport.com.au/wp-content/uploads/2020/05/Master-Plan-Chapter-9-Commercial-Development.pdf
+      - https://corporate.adelaideairport.com.au/media/bcmair2w/090-nj01311_mp_final_-digital_fa-compressed.pdf
+      - https://corporate.adelaideairport.com.au/media/aoihzh1y/master-plan-chapter-4-planning-framework.pdf
     jurisdiction: federal
     category: planning
     topic: airport_development
@@ -1095,7 +1093,7 @@ documents:
   - title: WA Environmental Protection Act 1986
     source_url: https://www.legislation.wa.gov.au/legislation/statutes.nsf/main_mrtitle_304_homepage.html
     download_urls:
-      - https://www.legislation.wa.gov.au/legislation/prod/filestore.nsf/FileURL/mrdoc_48028.pdf/$FILE/Environmental%20Protection%20Act%201986%20-%20%5B09-f0-00%5D.pdf
+      - https://www.legislation.wa.gov.au/legislation/prod/filestore.nsf/FileURL/mrdoc_17587.pdf/$FILE/Environmental%20Protection%20Act%201986%20-%20%5B04-00-01%5D.pdf?OpenElement
     jurisdiction: state
     category: legislation
     topic: environment_protection
@@ -1112,7 +1110,7 @@ documents:
   - title: WA Planning and Development Act 2005
     source_url: https://www.legislation.wa.gov.au/legislation/statutes.nsf/main_mrtitle_722_homepage.html
     download_urls:
-      - https://www.legislation.wa.gov.au/legislation/prod/filestore.nsf/FileURL/mrdoc_48537.pdf/$FILE/Planning%20and%20Development%20Act%202005%20-%20%5B14-h0-00%5D.pdf
+      - https://www.legislation.wa.gov.au/legislation/prod/filestore.nsf/FileURL/mrdoc_29428.pdf/$FILE/Planning%20and%20Development%20Act%202005%20-%20%5B04-c0-02%5D.pdf?OpenElement
     jurisdiction: state
     category: legislation
     topic: planning
@@ -1129,7 +1127,7 @@ documents:
   - title: WA Biodiversity Conservation Act 2016
     source_url: https://www.legislation.wa.gov.au/legislation/statutes.nsf/main_mrtitle_13738_homepage.html
     download_urls:
-      - https://www.legislation.wa.gov.au/legislation/prod/filestore.nsf/FileURL/mrdoc_45255.pdf/$FILE/Biodiversity%20Conservation%20Act%202016%20-%20%5B01-e0-02%5D.pdf
+      - https://www.legislation.wa.gov.au/legislation/prod/filestore.nsf/FileURL/mrdoc_48894.pdf/$FILE/Biodiversity%20Conservation%20Act%202016%20-%20%5B00-i0-00%5D.pdf?OpenElement
     jurisdiction: state
     category: legislation
     topic: biodiversity
@@ -1145,6 +1143,8 @@ documents:
 
   - title: WA EPA Environmental Impact Assessment Procedures Manual
     source_url: https://www.epa.wa.gov.au/procedures-manual
+    download_urls:
+      - https://www.epa.wa.gov.au/sites/default/files/Policies_and_Guidance/EIA%20%28Part%20IV%20Divisions%201%20and%202%29%20Procedures%20Manual_2.pdf
     jurisdiction: state
     category: guidelines
     topic: environmental_assessment
@@ -1173,8 +1173,36 @@ documents:
       applies_to_all_lgas: true  # State documents apply to all LGAs in WA
       applies_to_point: false
 
-  - title: WA Planning Commission - State Planning Policies (HTML)
+  - title: WA Planning Commission - State Planning Policies
     source_url: https://www.dplh.wa.gov.au/policy-and-legislation/state-planning-framework/state-planning-policies
+    download_urls:
+      - https://www.wa.gov.au/system/files/2021-06/SPP_1_State_Planning_Framework.pdf
+      - https://www.wa.gov.au/system/files/2021-06/SPP_2-5_Rural_Planning.pdf
+      - https://www.wa.gov.au/system/files/2021-06/SPP_3_urban_growth_settlement.pdf
+      - https://www.wa.gov.au/system/files/2022-07/SPP_4.1-Industrial-Interface-July-2022_0.pdf
+      - https://www.wa.gov.au/system/files/2021-06/SPP-5_2_Telecommunications_Infrastructure.pdf
+    jurisdiction: state
+    category: policy
+    topic: planning
+    region: Western Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: WA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in WA
+      applies_to_point: false
+
+  - title: WA Planning Commission - Development control and operational policies
+    source_url: https://www.dplh.wa.gov.au/policy-and-legislation/state-planning-framework/state-planning-policies
+    download_urls:
+      - https://www.wa.gov.au/system/files/2021-07/OP_1-1_Subdivision_of_Land.pdf
+      - https://www.wa.gov.au/system/files/2021-06/DCP_1-3_Strata_Titles.pdf
+      - https://www.wa.gov.au/system/files/2021-07/DCP_1-6_transit_use.pdf
+      - https://www.wa.gov.au/system/files/2024-09/dc-policy-19-amendment-to-region-scheme-repealed.pdf
+      - https://www.wa.gov.au/system/files/2024-05/op_policy_2.2_residential_subdivision-31may24-active_0.pdf
+      - https://www.wa.gov.au/system/files/2021-07/DCP_4-1_industrial_subdivision.pdf
     jurisdiction: state
     category: policy
     topic: planning

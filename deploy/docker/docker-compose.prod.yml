@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:17.6
     container_name: greengovrag-postgres-prod
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -20,7 +20,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: redis:latest
     container_name: greengovrag-redis-prod
     networks:
       - greengovrag-network

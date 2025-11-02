@@ -48,32 +48,29 @@ def etl_ingest(
         "-c",
         help="Path to documents configuration YAML file",
     ),
-    output_dir: str = typer.Option(
-        "data/raw",
-        "--output",
-        "-o",
-        help="Output directory for downloaded documents",
-    ),
 ) -> None:
     """Download documents listed in the configuration file.
 
     Fetches ESG/NGER documents from URLs specified in the config and saves
-    them to the output directory with appropriate metadata.
+    them to a hierarchical directory structure organized by jurisdiction,
+    category, and topic.
+
+    Documents are saved to: data/raw/{jurisdiction}/{category}/{topic}/
 
     Example:
     -------
         green-gov-rag-cli etl ingest --config configs/my_docs.yml
 
     """
-    from green_gov_rag.etl import ingest, loader
+    from green_gov_rag.etl import ingest
 
     console.print(f"[bold blue]Loading config from {config_path}...[/bold blue]")
-    docs = loader.load_documents_config(config_path)
-    console.print(f"Found {len(docs)} documents to download")
 
-    ingest.download_documents(docs, output_dir)
+    # Use ingest_documents() which creates hierarchical structure
+    ingest.ingest_documents(use_cloud=False, config_path=config_path)
+
     console.print(
-        f"[bold green]✓ Downloaded {len(docs)} documents to {output_dir}[/bold green]",
+        "[bold green]✓ Ingestion complete. Processed documents saved to data/raw/[/bold green]",
     )
 
 

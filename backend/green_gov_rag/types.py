@@ -512,6 +512,27 @@ DEFAULT_CHUNK_SIZE = 1000
 DEFAULT_CHUNK_OVERLAP = 100
 DEFAULT_TOP_K = 10
 
+# HTTP headers for document downloads (mimics browser to avoid bot detection)
+DEFAULT_HTTP_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Accept-Encoding": "gzip, deflate, br",
+    "DNT": "1",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+}
+
+# ETL file and directory constants
+DEFAULT_DOWNLOAD_TIMEOUT = 30  # seconds
+DEFAULT_DOWNLOAD_RETRIES = 3
+DEFAULT_DOWNLOAD_BACKOFF = 2  # exponential backoff multiplier
+DEFAULT_HASH_CHUNK_SIZE = 8192  # bytes for file hashing
+FAILED_DOWNLOADS_FILENAME = "failed_downloads.txt"
+DOWNLOAD_ERRORS_LOG_FILENAME = "download_errors.log"
+METADATA_FILE_SUFFIX = ".metadata.json"
+DEFAULT_DOWNLOADED_FILENAME = "downloaded_file"
+
 # ============================================================================
 # LLM Provider Types
 # ============================================================================

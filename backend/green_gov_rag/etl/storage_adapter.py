@@ -17,6 +17,7 @@ import requests
 
 from green_gov_rag.cloud.storage import StorageClient
 from green_gov_rag.config import settings
+from green_gov_rag.types import DEFAULT_HTTP_HEADERS
 
 logger = logging.getLogger(__name__)
 
@@ -156,14 +157,41 @@ class ETLStorageAdapter:
             doc_id = self._generate_document_id(url, title)
             return doc_id
 
-        # Download with retries
+        # Download with retries (using browser-like headers to avoid bot detection)
         attempt = 0
-        last_error = None
+        last_error: Exception | None = None
+        last_status_code = None
 
         while attempt < retries:
             try:
                 logger.info(f"Downloading {url} (attempt {attempt + 1}/{retries})")
-                response = requests.get(url, timeout=30)
+                response = requests.get(
+                    url,
+                    timeout=30,
+                    headers=DEFAULT_HTTP_HEADERS,
+                    allow_redirects=True,
+                )
+                last_status_code = response.status_code
+
+                # Check for bot protection (403/503 from Cloudflare, etc.)
+                if response.status_code in (403, 503):
+                    # Check if it's Cloudflare protection
+                    is_cloudflare = (
+                        "cloudflare" in response.headers.get("Server", "").lower()
+                        or "cf-ray" in response.headers
+                        or "cf-mitigated" in response.headers
+                    )
+                    if is_cloudflare:
+                        logger.warning(
+                            f"Cloudflare protection detected for {url}. "
+                            "Manual download required."
+                        )
+                        msg = (
+                            f"Cloudflare bot protection blocking access to {url}. "
+                            "Please download manually or use alternative methods."
+                        )
+                        raise RuntimeError(msg)
+
                 response.raise_for_status()
 
                 # Upload document to storage
@@ -191,6 +219,25 @@ class ETLStorageAdapter:
 
                 logger.info(f"Successfully downloaded and stored: {doc_path}")
                 return doc_id
+
+            except requests.exceptions.HTTPError as e:
+                last_error = e
+                attempt += 1
+
+                # Don't retry on 403/401 - likely bot protection
+                if last_status_code in (403, 401):
+                    logger.error(
+                        f"Access denied (HTTP {last_status_code}) for {url}. "
+                        "Likely bot protection or authentication required."
+                    )
+                    break
+
+                logger.warning(
+                    f"HTTP error on attempt {attempt} for {url}: {e}",
+                    exc_info=True,
+                )
+                if attempt < retries:
+                    time.sleep(backoff**attempt)
 
             except Exception as e:
                 last_error = e

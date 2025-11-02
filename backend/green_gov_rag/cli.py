@@ -468,6 +468,12 @@ def rag_index(
         "--mode",
         help="Indexing mode: 'full' (rebuild entire index), 'delta' (update only changed), 'auto' (default, use delta if changed_files provided)",
     ),
+    batch_size: int = typer.Option(
+        100,
+        "--batch-size",
+        "-b",
+        help="Number of chunks to process per batch (default: 100, recommended: 50-200)",
+    ),
 ) -> None:
     """Build vector search index from document chunks.
 
@@ -549,6 +555,7 @@ def rag_index(
     console.print(f"Vector store: {vector_store}")
     console.print(f"Embedding model: {embedding_model}")
     console.print(f"Indexing mode: {indexing_mode}")
+    console.print(f"Batch size: {batch_size}")
 
     # Load chunks
     all_chunks = []

@@ -72,15 +72,19 @@ class RegulatoryHierarchyService:
         """Initialize regulatory hierarchy service."""
         pass
 
-    def get_jurisdiction_precedence(self, jurisdiction: str) -> int:
+    def get_jurisdiction_precedence(self, jurisdiction: str | None) -> int:
         """Get precedence level for a jurisdiction.
 
         Args:
-            jurisdiction: Jurisdiction string ('federal', 'state', 'local')
+            jurisdiction: Jurisdiction string ('federal', 'state', 'local') or None
 
         Returns:
             Precedence level (higher = more authoritative)
         """
+        if not jurisdiction:
+            logger.warning("Jurisdiction is None or empty, defaulting to 0")
+            return 0
+
         try:
             level = JurisdictionLevel(jurisdiction.lower())
             return JURISDICTION_PRECEDENCE[level]
@@ -191,13 +195,19 @@ class RegulatoryHierarchyService:
 
         # Check if lower jurisdictions contradict higher ones
         federal_docs = [
-            d for d in sorted_docs if d.get("jurisdiction", "").lower() == "federal"
+            d
+            for d in sorted_docs
+            if d.get("jurisdiction") and str(d.get("jurisdiction")).lower() == "federal"
         ]
         state_docs = [
-            d for d in sorted_docs if d.get("jurisdiction", "").lower() == "state"
+            d
+            for d in sorted_docs
+            if d.get("jurisdiction") and str(d.get("jurisdiction")).lower() == "state"
         ]
         local_docs = [
-            d for d in sorted_docs if d.get("jurisdiction", "").lower() == "local"
+            d
+            for d in sorted_docs
+            if d.get("jurisdiction") and str(d.get("jurisdiction")).lower() == "local"
         ]
 
         # If we have federal + state/local on same topic, flag potential conflict
@@ -249,7 +259,8 @@ class RegulatoryHierarchyService:
         # Group by jurisdiction level
         by_level: dict[str, list[dict[str, Any]]] = {}
         for doc in documents:
-            level = doc.get("jurisdiction", "").lower()
+            jurisdiction = doc.get("jurisdiction")
+            level = jurisdiction.lower() if jurisdiction else ""
             if level not in by_level:
                 by_level[level] = []
             by_level[level].append(doc)
@@ -302,20 +313,22 @@ class RegulatoryHierarchyService:
         score = 0.0
 
         # Jurisdiction precedence (0.4 weight)
-        jurisdiction = source.get("jurisdiction", "").lower()
-        precedence = self.get_jurisdiction_precedence(jurisdiction)
+        jurisdiction = source.get("jurisdiction")
+        jurisdiction_str = jurisdiction.lower() if jurisdiction else ""
+        precedence = self.get_jurisdiction_precedence(jurisdiction_str)
         max_precedence = max(JURISDICTION_PRECEDENCE.values())
         score += (precedence / max_precedence) * 0.4
 
         # Source type (0.2 weight)
-        category = source.get("category", "").lower()
+        category = source.get("category")
+        category_str = category.lower() if category else ""
         category_weights = {
             "legislation": 1.0,
             "regulation": 0.9,
             "guideline": 0.7,
             "policy": 0.6,
         }
-        score += category_weights.get(category, 0.5) * 0.2
+        score += category_weights.get(category_str, 0.5) * 0.2
 
         # Sovereignty (0.2 weight) - official government source
         is_sovereign = source.get("sovereign", True)
@@ -383,7 +396,10 @@ class RegulatoryHierarchyService:
         if len(sources) <= 1:
             return None
 
-        jurisdictions = [s.get("jurisdiction", "").lower() for s in sources]
+        jurisdictions = [
+            str(s.get("jurisdiction")).lower() if s.get("jurisdiction") else ""
+            for s in sources
+        ]
         unique_jurisdictions = set(jurisdictions)
 
         if len(unique_jurisdictions) == 1:

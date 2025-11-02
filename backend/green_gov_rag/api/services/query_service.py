@@ -250,6 +250,8 @@ class QueryService:
                 logger.error(f"Citation verification failed: {e}", exc_info=True)
 
         # Detect regulatory conflicts
+        conflicts = None
+        source_dicts = []
         try:
             source_dicts = [doc.model_dump() for doc in source_docs]
             conflicts = await self.hierarchy_service.detect_conflicts(source_dicts)
@@ -272,10 +274,12 @@ class QueryService:
 
         except Exception as e:
             logger.error(f"Conflict detection failed: {e}", exc_info=True)
+            # Re-build source_dicts if it failed
+            if not source_dicts:
+                source_dicts = [doc.model_dump() for doc in source_docs]
 
         # Calculate trust score
         try:
-            # Already have source_dicts from above
             # Calculate authority scores for each source
             authority_scores = {}
             for i, source_dict in enumerate(source_dicts):
@@ -403,6 +407,27 @@ class QueryService:
             Query ID if successful, None otherwise
         """
         try:
+            # Convert Document objects to serializable dicts
+            sources_serializable = []
+            for src in sources:
+                if hasattr(src, "metadata") and hasattr(src, "page_content"):
+                    # LangChain Document object - convert to dict
+                    sources_serializable.append(
+                        {
+                            "content": src.page_content,
+                            "metadata": src.metadata,
+                        }
+                    )
+                elif isinstance(src, dict):
+                    # Already a dict
+                    sources_serializable.append(src)
+                else:
+                    # Unknown type - convert to string
+                    logger.warning(
+                        f"Unknown source type: {type(src)}, converting to string"
+                    )
+                    sources_serializable.append({"content": str(src)})
+
             with Session(engine) as session:
                 history = QueryHistory(
                     query_text=query,
@@ -411,8 +436,8 @@ class QueryService:
                     jurisdiction_filter=jurisdiction_filter,
                     topic_filter=topic_filter,
                     metadata_filters=metadata_filters,
-                    source_documents=sources,
-                    source_count=len(sources),
+                    source_documents=sources_serializable,
+                    source_count=len(sources_serializable),
                     response_time_ms=response_time_ms,
                 )
                 session.add(history)

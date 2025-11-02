@@ -11,7 +11,7 @@ from langchain_core.embeddings import Embeddings
 from green_gov_rag.rag.vector_store_interface import VectorStoreInterface
 
 if TYPE_CHECKING:
-    from langchain_qdrant import Qdrant
+    from langchain_qdrant import QdrantVectorStore as LangChainQdrantVectorStore
     from qdrant_client import QdrantClient
 
 logger = logging.getLogger(__name__)
@@ -45,15 +45,15 @@ class QdrantVectorStore(VectorStoreInterface):
         self.url = url
         self.api_key = api_key
         self.collection_name = collection_name
-        self.store: Optional[Qdrant] = None
+        self.store: Optional[LangChainQdrantVectorStore] = None
         self.client: Optional[QdrantClient] = None
 
         # Lazy import - only when Qdrant is actually used
         try:
-            from langchain_qdrant import Qdrant
+            from langchain_qdrant import QdrantVectorStore as LangChainQdrantVectorStore
             from qdrant_client import QdrantClient
 
-            self.Qdrant = Qdrant
+            self.LangChainQdrantVectorStore = LangChainQdrantVectorStore
             self.QdrantClient = QdrantClient
             self._initialize_client()
         except ImportError as e:
@@ -98,22 +98,43 @@ class QdrantVectorStore(VectorStoreInterface):
         self.store.add_documents(docs)
         logger.info(f"Added {len(docs)} documents to Qdrant")
 
-    def build_store(self, chunks: list[dict]) -> None:
-        """Build Qdrant collection from chunks."""
-        if not hasattr(self, "Qdrant") or self.Qdrant is None:
+    def build_store(self, chunks: list[dict], batch_size: int = 100) -> None:
+        """Build Qdrant collection from chunks using batched processing.
+
+        Args:
+            chunks: List of chunk dictionaries
+            batch_size: Number of documents to process per batch (default: 100)
+        """
+        if (
+            not hasattr(self, "LangChainQdrantVectorStore")
+            or self.LangChainQdrantVectorStore is None
+        ):
             raise ImportError("Qdrant not available")
 
-        assert self.Qdrant is not None  # Help MyPy
+        assert self.LangChainQdrantVectorStore is not None  # Help MyPy
 
+        if not chunks:
+            logger.warning("No chunks provided for indexing")
+            return
+
+        total_batches = (len(chunks) + batch_size - 1) // batch_size
+        logger.info(
+            f"Building Qdrant collection '{self.collection_name}' "
+            f"with {len(chunks)} chunks in {total_batches} batches"
+        )
+
+        # Process first batch to create collection
+        first_batch_size = min(batch_size, len(chunks))
+        first_batch = chunks[:first_batch_size]
         documents = [
             Document(
                 page_content=chunk["content"],
                 metadata=chunk.get("metadata", {}),
             )
-            for chunk in chunks
+            for chunk in first_batch
         ]
 
-        self.store = self.Qdrant.from_documents(
+        self.store = self.LangChainQdrantVectorStore.from_documents(
             documents,
             self.embeddings,
             url=self.url,
@@ -121,8 +142,30 @@ class QdrantVectorStore(VectorStoreInterface):
             collection_name=self.collection_name,
             prefer_grpc=False,  # Use HTTP for compatibility
         )
+        logger.info(f"Created collection with first batch of {len(first_batch)} chunks")
+
+        # Process remaining batches if any
+        if len(chunks) > first_batch_size:
+            for i in range(first_batch_size, len(chunks), batch_size):
+                batch = chunks[i : i + batch_size]
+                batch_num = (i // batch_size) + 1
+
+                documents = [
+                    Document(
+                        page_content=chunk["content"],
+                        metadata=chunk.get("metadata", {}),
+                    )
+                    for chunk in batch
+                ]
+
+                self.add_documents(documents)
+                logger.info(
+                    f"Added batch {batch_num}/{total_batches}: {len(documents)} chunks"
+                )
+
         logger.info(
-            f"Built Qdrant collection '{self.collection_name}' with {len(chunks)} chunks"
+            f"Completed building Qdrant collection '{self.collection_name}' "
+            f"with {len(chunks)} total chunks"
         )
 
     def add_chunks(self, chunks: list[dict]) -> None:
@@ -150,7 +193,7 @@ class QdrantVectorStore(VectorStoreInterface):
             raise ValueError("Vector store not initialized.")
 
         # Qdrant supports native metadata filtering
-        filter_dict = None
+        filter_dict: Any = None
         if metadata_filters:
             # Convert to Qdrant filter format
             filter_dict = self._build_qdrant_filter(metadata_filters)
@@ -163,7 +206,7 @@ class QdrantVectorStore(VectorStoreInterface):
 
         return results
 
-    def _build_qdrant_filter(self, metadata_filters: dict) -> dict | None:
+    def _build_qdrant_filter(self, metadata_filters: dict) -> Any:
         """Build Qdrant filter from metadata dictionary.
 
         Qdrant uses a specific filter format:
@@ -202,16 +245,19 @@ class QdrantVectorStore(VectorStoreInterface):
         """
         if not self.client:
             self._initialize_client()
-        if not hasattr(self, "Qdrant") or self.Qdrant is None:
+        if (
+            not hasattr(self, "LangChainQdrantVectorStore")
+            or self.LangChainQdrantVectorStore is None
+        ):
             raise ImportError("Qdrant not available")
 
-        assert self.Qdrant is not None  # Help MyPy
+        assert self.LangChainQdrantVectorStore is not None  # Help MyPy
         assert self.client is not None
 
-        self.store = self.Qdrant(
+        self.store = self.LangChainQdrantVectorStore(
             client=self.client,
             collection_name=self.collection_name,
-            embeddings=self.embeddings,
+            embedding=self.embeddings,
         )
         logger.info(f"Loaded Qdrant collection '{self.collection_name}'")
 

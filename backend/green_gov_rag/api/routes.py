@@ -1,11 +1,10 @@
 """API routes for GreenGovRAG."""
 
-from __future__ import annotations
-
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Request
+from fastapi import Query as QueryParam
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -105,23 +104,23 @@ def _check_vector_store_health() -> VectorStoreStatus:
 
 @router.post("/query", response_model=QueryResponse)
 @limiter.limit("20/minute")
-async def query_rag(http_request: Request, request: QueryRequest) -> QueryResponse:
+async def query_rag(request: Request, query_request: QueryRequest) -> QueryResponse:
     """Execute RAG query with filters.
 
     Args:
-        http_request: HTTP request for rate limiting
-        request: Query request with filters
+        request: HTTP request for rate limiting
+        query_request: Query request with filters
 
     Returns:
-        QueryResponse: Answer with source docume
+        QueryResponse: Answer with source documents
     """
     try:
         return await query_service.execute_query(
-            query=request.query,
-            region=request.region,
-            jurisdiction=request.jurisdiction,
-            topics=request.topics,
-            max_sources=request.max_sources,
+            query=query_request.query,
+            region=query_request.region,
+            jurisdiction=query_request.jurisdiction,
+            topics=query_request.topics,
+            max_sources=query_request.max_sources,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -129,12 +128,14 @@ async def query_rag(http_request: Request, request: QueryRequest) -> QueryRespon
 
 @router.get("/documents", response_model=DocumentListResponse)
 async def list_documents(
-    jurisdiction: Optional[str] = Query(None, description="Filter by jurisdiction"),
-    topic: Optional[str] = Query(None, description="Filter by topic"),
-    region: Optional[str] = Query(None, description="Filter by region"),
-    status: Optional[str] = Query(None, description="Filter by status"),
-    limit: int = Query(50, ge=1, le=500, description="Max results"),
-    offset: int = Query(0, ge=0, description="Pagination offset"),
+    jurisdiction: Optional[str] = QueryParam(
+        None, description="Filter by jurisdiction"
+    ),
+    topic: Optional[str] = QueryParam(None, description="Filter by topic"),
+    region: Optional[str] = QueryParam(None, description="Filter by region"),
+    status: Optional[str] = QueryParam(None, description="Filter by status"),
+    limit: int = QueryParam(50, ge=1, le=500, description="Max results"),
+    offset: int = QueryParam(0, ge=0, description="Pagination offset"),
 ) -> DocumentListResponse:
     """List documents with optional filters.
 
@@ -181,13 +182,14 @@ async def get_document(document_id: str) -> DocumentResponse:
 @router.post("/query/{query_id}/feedback", response_model=FeedbackResponse)
 @limiter.limit("5/minute")
 async def submit_feedback(
-    http_request: Request, query_id: int, request: FeedbackRequest
+    request: Request, query_id: int, feedback_request: FeedbackRequest
 ) -> FeedbackResponse:
     """Submit feedback for a query.
 
     Args:
+        request: HTTP request for rate limiting
         query_id: Query history ID
-        request: Feedback request with rating and optional text
+        feedback_request: Feedback request with rating and optional text
 
     Returns:
         FeedbackResponse: Feedback submission confirmation
@@ -198,8 +200,8 @@ async def submit_feedback(
     try:
         success = await query_service.submit_feedback(
             query_id=query_id,
-            rating=request.rating,
-            feedback_text=request.feedback_text,
+            rating=feedback_request.rating,
+            feedback_text=feedback_request.feedback_text,
         )
         if not success:
             raise HTTPException(status_code=404, detail="Query not found")
@@ -227,8 +229,8 @@ async def get_analytics() -> AnalyticsStats:
 
 @router.get("/lga-coverage", response_model=CoverageInfo)
 async def get_lga_coverage(
-    lga_code: Optional[str] = Query(None, description="LGA code (e.g., '40070')"),
-    lga_name: Optional[str] = Query(
+    lga_code: Optional[str] = QueryParam(None, description="LGA code (e.g., '40070')"),
+    lga_name: Optional[str] = QueryParam(
         None, description="LGA name (e.g., 'City of Adelaide')"
     ),
 ) -> CoverageInfo:

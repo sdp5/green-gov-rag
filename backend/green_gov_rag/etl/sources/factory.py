@@ -208,3 +208,26 @@ class GenericDocumentSource(DocumentSource):
             'generic'
         """
         return "generic"
+
+    def get_document_id(self, url: str) -> str:
+        """Generate document ID using default implementation.
+
+        Args:
+            url: Download URL
+
+        Returns:
+            Document ID
+        """
+        return self._generate_document_id(url)
+
+    def get_destination_path(self, url: str, base_dir: str = "data/raw") -> str:
+        """Generate destination path using default implementation.
+
+        Args:
+            url: Download URL
+            base_dir: Base directory
+
+        Returns:
+            Destination path
+        """
+        return self._generate_destination_path(url, base_dir)

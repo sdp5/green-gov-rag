@@ -276,7 +276,13 @@ def ingest_documents(
     use_cloud: bool | None = None,
     config_path: str | Path | None = None,
 ) -> list[str]:
-    """Ingest documents from config using cloud or local storage.
+    """Ingest documents from config using plugin system (single source of truth).
+
+    This function uses the document source plugin architecture to:
+    - Validate configurations
+    - Generate consistent document IDs (for delta indexing)
+    - Create hierarchical directory structures
+    - Extract metadata using source-specific logic
 
     Args:
         use_cloud: Whether to use cloud storage. If None, uses CLOUD_PROVIDER setting.
@@ -285,6 +291,8 @@ def ingest_documents(
     Returns:
         List of document IDs (cloud mode) or file paths (local mode)
     """
+    from green_gov_rag.etl.sources.factory import DocumentSourceFactory
+
     # Determine storage mode
     if use_cloud is None:
         use_cloud = settings.cloud_provider != "local"
@@ -300,36 +308,110 @@ def ingest_documents(
     print(f"Found {len(documents)} documents in config.")
     print(f"Storage mode: {'cloud' if use_cloud else 'local'}")
 
-    # Initialize storage adapter if using cloud
+    # Initialize factory and storage adapter
+    factory = DocumentSourceFactory()
     storage_adapter = ETLStorageAdapter() if use_cloud else None
 
-    # Process documents
+    # Process documents using plugin system
     document_ids = []
-    for doc in documents:
-        if use_cloud:
-            # Cloud mode - returns document IDs
-            for url in doc.get("download_urls", []):
-                try:
-                    metadata = {
-                        "title": doc.get("title", "untitled"),
-                        "jurisdiction": doc.get("jurisdiction", "unknown"),
-                        "category": doc.get("category", "misc"),
-                        "topic": doc.get("topic", "general"),
-                        "source_url": url,
-                        "esg_metadata": doc.get("esg_metadata", {}),
-                        "spatial_metadata": doc.get("spatial_metadata", {}),
-                    }
-                    if storage_adapter:
-                        doc_id = storage_adapter.download_from_url(url, metadata)
-                        document_ids.append(doc_id)
-                        print(f"✅ Downloaded to cloud: {url} (ID: {doc_id})")
-                except Exception as e:
-                    logger.error(f"Failed to download {url}: {e}", exc_info=True)
-                    print(f"❌ Failed: {url}")
-        else:
-            # Local mode - process using existing logic
-            process_document(doc, storage_adapter=None, use_cloud=False)
+    for doc_config in documents:
+        try:
+            # 1. Create source plugin (auto-detects type)
+            source = factory.create_source(doc_config)
 
+            # 2. Validate configuration
+            validation = source.validate()
+            if not validation.is_valid:
+                logger.error(
+                    f"Invalid config for {doc_config.get('title', 'unknown')}: {validation.errors}"
+                )
+                print(f"❌ Validation failed: {doc_config.get('title')}")
+                for error in validation.errors:
+                    print(f"   - {error}")
+                continue
+
+            # 3. Log warnings if any
+            if validation.warnings:
+                for warning in validation.warnings:
+                    logger.warning(f"{doc_config.get('title')}: {warning}")
+
+            # 4. Get URLs from plugin
+            urls = source.get_download_urls()
+
+            # 5. Get metadata from plugin (single source of truth)
+            metadata = source.get_metadata()
+
+            # 6. Process each URL
+            for url in urls:
+                try:
+                    # Generate document ID using plugin (consistent with monitoring)
+                    doc_id = source.get_document_id(url)
+
+                    if use_cloud:
+                        # Cloud mode - upload to S3/Azure Blob
+                        if storage_adapter:
+                            cloud_id = storage_adapter.download_from_url(url, metadata)
+                            document_ids.append(cloud_id)
+                            print(f"✅ Downloaded to cloud: {url} (ID: {cloud_id})")
+                    else:
+                        # Local mode - use plugin-generated path
+                        dest_path = source.get_destination_path(
+                            url, base_dir=str(RAW_DATA_DIR)
+                        )
+                        dest_path_obj = Path(dest_path)
+
+                        # Create directory
+                        dest_path_obj.parent.mkdir(parents=True, exist_ok=True)
+
+                        # Skip if exists
+                        if dest_path_obj.exists():
+                            logger.info(f"Skipping {url} — already exists")
+                            document_ids.append(doc_id)
+                            continue
+
+                        # Download file
+                        if download_file(url, str(dest_path_obj)):
+                            # Save metadata
+                            metadata_with_file = metadata.copy()
+                            metadata_with_file["filename"] = dest_path_obj.name
+                            metadata_with_file[
+                                "download_timestamp"
+                            ] = datetime.utcnow().isoformat()
+                            metadata_with_file["sha256"] = sha256sum(dest_path_obj)
+                            metadata_with_file[
+                                "document_id"
+                            ] = doc_id  # NEW: for delta indexing
+
+                            metadata_path = (
+                                dest_path_obj.parent
+                                / f"{dest_path_obj.name}{METADATA_FILE_SUFFIX}"
+                            )
+                            with open(metadata_path, "w", encoding="utf-8") as mf:
+                                json.dump(metadata_with_file, mf, indent=2)
+
+                            print(f"✅ Downloaded: {url} (ID: {doc_id})")
+                            document_ids.append(doc_id)
+                        else:
+                            # Log failed download
+                            failed_urls_file = LOG_DIR / FAILED_DOWNLOADS_FILENAME
+                            with open(failed_urls_file, "a", encoding="utf-8") as f:
+                                f.write(
+                                    f"{datetime.utcnow().isoformat()} | {url} | {metadata.get('title')} | {doc_id}\n"
+                                )
+                            print(f"❌ Failed: {url} (logged to {failed_urls_file})")
+
+                except Exception as e:
+                    logger.error(f"Failed to process {url}: {e}", exc_info=True)
+                    print(f"❌ Error processing {url}: {e}")
+
+        except Exception as e:
+            logger.error(
+                f"Failed to create source for {doc_config.get('title', 'unknown')}: {e}",
+                exc_info=True,
+            )
+            print(f"❌ Failed to process document config: {doc_config.get('title')}")
+
+    print(f"\n✅ Ingestion complete. Processed {len(document_ids)} document(s).")
     return document_ids
 
 

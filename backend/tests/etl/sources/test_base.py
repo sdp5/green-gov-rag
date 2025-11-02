@@ -45,6 +45,12 @@ class ConcreteDocumentSource(DocumentSource):
     def get_metadata(self) -> dict:
         return {"title": self.config.get("title")}
 
+    def get_document_id(self, url: str) -> str:
+        return self._generate_document_id(url)
+
+    def get_destination_path(self, url: str, base_dir: str = "data/raw") -> str:
+        return self._generate_destination_path(url, base_dir)
+
 
 class TestDocumentSource:
     """Tests for DocumentSource abstract base class."""

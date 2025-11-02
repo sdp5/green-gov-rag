@@ -162,8 +162,8 @@ class MonitoringService:
                     source, source_type, doc
                 )
 
-                # Generate document ID
-                doc_id = self._generate_document_id(source_type, doc.url)
+                # Generate document ID using source plugin (consistent with ingestion)
+                doc_id = self._generate_document_id(source, doc.url)
 
                 if change_result.change_type == "new":
                     documents_new += 1
@@ -238,8 +238,8 @@ class MonitoringService:
             ChangeDetectionResult indicating change status
         """
         with Session(engine) as session:
-            # Generate document ID from URL
-            doc_id = self._generate_document_id(source_type, discovered.url)
+            # Generate document ID using source plugin (consistent with ingestion)
+            doc_id = self._generate_document_id(source, discovered.url)
 
             # Check if we have any versions of this document
             # Use col() to get the SQLAlchemy column for ordering
@@ -362,20 +362,28 @@ class MonitoringService:
 
         return version
 
-    def _generate_document_id(self, source_type: str, url: str) -> str:
-        """Generate unique document ID from source type and URL.
+    def _generate_document_id(self, source: Any, url: str) -> str:
+        """Generate unique document ID using source plugin (single source of truth).
+
+        Uses the source plugin's get_document_id() method to ensure consistency
+        between monitoring and ingestion. This is critical for delta indexing.
 
         Args:
-            source_type: Source type identifier
+            source: DocumentSource instance (with get_document_id method)
             url: Document URL
 
         Returns:
             Unique document identifier
         """
-        # Use hash of source_type + URL for stable IDs
-        content = f"{source_type}:{url}".encode("utf-8")
+        # Use plugin's document ID generation (same as ingestion)
+        if hasattr(source, "get_document_id"):
+            return source.get_document_id(url)
+
+        # Fallback for non-plugin sources (shouldn't happen in production)
+        logger.warning(f"Source {source} doesn't have get_document_id, using fallback")
+        content = f"{source.get_source_type()}:{url}".encode("utf-8")
         hash_hex = hashlib.sha256(content).hexdigest()[:16]
-        return f"{source_type}_{hash_hex}"
+        return f"{source.get_source_type()}_{hash_hex}"
 
     def _hash_url(self, url: str) -> str:
         """Generate SHA256 hash of URL as fallback content hash.

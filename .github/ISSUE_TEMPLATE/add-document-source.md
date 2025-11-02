@@ -49,6 +49,8 @@ Add the following document to the project's document configuration:
 **Additional for Monitoring Support:**
 - [ ] Custom source class created in `green_gov_rag/etl/sources/`
 - [ ] Implements `MonitorableSource` mixin interface
+- [ ] `get_document_id()` method implemented (for delta indexing)
+- [ ] `get_destination_path()` method implemented (for file storage)
 - [ ] `discover_documents()` method scrapes source website
 - [ ] `check_for_updates()` method detects changes
 - [ ] Monitoring schedule and priority configured
@@ -167,10 +169,33 @@ class [YourSource]Source([BaseSourceClass], MonitorableSource):
     - Change detection via HTTP headers and content hashing
     - [Monitoring schedule] monitoring
     - [Priority] priority
+    - Consistent document ID generation (for delta indexing)
     """
 
     # Website URLs to scrape
     GUIDELINES_URL = "https://..."
+
+    def get_document_id(self, url: str) -> str:
+        """Generate unique document ID for delta indexing.
+
+        This ID MUST be consistent between monitoring and ingestion!
+        Uses default implementation from base class unless you need custom logic.
+
+        Returns:
+            Document ID like "federal_legislation_epbc_act_2025"
+        """
+        return self._generate_document_id(url)  # Use base class default
+
+    def get_destination_path(self, url: str, base_dir: str = "data/raw") -> str:
+        """Get filesystem path for downloaded document.
+
+        Creates hierarchical structure: {base_dir}/{jurisdiction}/{category}/{topic}/{filename}
+        Uses default implementation from base class unless you need custom logic.
+
+        Returns:
+            Full path where file should be saved
+        """
+        return self._generate_destination_path(url, base_dir)  # Use base class default
 
     async def discover_documents(self) -> list[DiscoveredDocument]:
         """Discover documents by scraping [source] website.

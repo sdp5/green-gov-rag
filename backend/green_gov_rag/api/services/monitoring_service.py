@@ -68,6 +68,7 @@ class MonitoringService:
             "total_discovered": 0,
             "total_updated": 0,
             "total_unchanged": 0,
+            "changed_document_ids": [],  # NEW: aggregated changed doc IDs
             "source_results": [],
         }
 
@@ -88,6 +89,9 @@ class MonitoringService:
                 results["total_discovered"] += source_result["documents_discovered"]
                 results["total_updated"] += source_result["documents_updated"]
                 results["total_unchanged"] += source_result["documents_unchanged"]
+                results["changed_document_ids"].extend(
+                    source_result.get("changed_document_ids", [])
+                )
                 results["source_results"].append(source_result)
 
             except Exception as e:
@@ -150,6 +154,7 @@ class MonitoringService:
             documents_new = 0
             documents_updated = 0
             documents_unchanged = 0
+            changed_document_ids = []  # Track changed document IDs
 
             # Check each discovered document
             for doc in discovered:
@@ -157,10 +162,15 @@ class MonitoringService:
                     source, source_type, doc
                 )
 
+                # Generate document ID
+                doc_id = self._generate_document_id(source_type, doc.url)
+
                 if change_result.change_type == "new":
                     documents_new += 1
+                    changed_document_ids.append(doc_id)
                 elif change_result.change_type == "updated":
                     documents_updated += 1
+                    changed_document_ids.append(doc_id)
                 elif change_result.change_type == "unchanged":
                     documents_unchanged += 1
 
@@ -191,6 +201,7 @@ class MonitoringService:
                 "documents_discovered": documents_new,
                 "documents_updated": documents_updated,
                 "documents_unchanged": documents_unchanged,
+                "changed_document_ids": changed_document_ids,  # NEW: for delta indexing
             }
 
             logger.info(f"Completed monitoring run {run_id}: {result}")

@@ -153,6 +153,7 @@ jobs:
             echo "has_changes=false" >> $GITHUB_OUTPUT
             echo "discovered=0" >> $GITHUB_OUTPUT
             echo "updated=0" >> $GITHUB_OUTPUT
+            echo "changed_doc_ids=[]" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -160,12 +161,17 @@ jobs:
           UPDATED=$(echo "$RESULTS" | jq -r '.total_updated // 0')
           TOTAL=$((DISCOVERED + UPDATED))
 
+          # Extract changed document IDs for delta indexing
+          CHANGED_IDS=$(echo "$RESULTS" | jq -c '.changed_document_ids // []')
+
           echo "Documents discovered: $DISCOVERED"
           echo "Documents updated: $UPDATED"
           echo "Total changes: $TOTAL"
+          echo "Changed document IDs: $CHANGED_IDS"
 
           echo "discovered=$DISCOVERED" >> $GITHUB_OUTPUT
           echo "updated=$UPDATED" >> $GITHUB_OUTPUT
+          echo "changed_doc_ids=$CHANGED_IDS" >> $GITHUB_OUTPUT
 
           if [ "$TOTAL" -gt 0 ]; then
             echo "has_changes=true" >> $GITHUB_OUTPUT
@@ -206,6 +212,30 @@ jobs:
           aws s3 cp configs/documents_config.yml \
             s3://${BUCKET}/configs/documents_config.yml
 
+      - name: Create changed files JSON for delta indexing
+        run: |
+          CHANGED_IDS='${{ needs.monitor-sources-aws.outputs.changed_doc_ids }}'
+          TOTAL_CHANGED=${{ needs.monitor-sources-aws.outputs.total_discovered }} + ${{ needs.monitor-sources-aws.outputs.total_updated }}
+
+          echo "Creating changed_files.json with ${TOTAL_CHANGED} documents"
+
+          cat > changed_files.json <<EOF
+          {
+            "changed_document_ids": ${CHANGED_IDS},
+            "total_changed": ${TOTAL_CHANGED}
+          }
+          EOF
+
+          cat changed_files.json
+
+          # Upload to S3 for ECS task
+          BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`DocumentsBucket`].OutputValue' \
+            --output text)
+
+          aws s3 cp changed_files.json s3://${BUCKET}/configs/changed_files.json
+
       - name: Run ETL via ECS Task
         id: run-etl
         run: |
@@ -224,23 +254,37 @@ jobs:
             --query 'SecurityGroups[0].GroupId' \
             --output text)
 
-          # Run ETL task
+          # Get S3 bucket for environment
+          BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`DocumentsBucket`].OutputValue' \
+            --output text)
+
+          # Run delta ETL task (ingest to S3, parse, chunk, delta index to Qdrant)
+          # Note: Documents stored in S3, vectors in Qdrant
+          # Delta indexing: Only process changed documents, update vectors incrementally
           TASK_ARN=$(aws ecs run-task \
             --cluster $CLUSTER \
             --task-definition $TASK_FAMILY \
             --launch-type FARGATE \
             --platform-version LATEST \
             --network-configuration "awsvpcConfiguration={subnets=[$SUBNET],securityGroups=[$SG],assignPublicIp=ENABLED}" \
-            --overrides '{
-              "containerOverrides": [{
-                "name": "backend",
-                "command": [
-                  "python", "-m", "green_gov_rag.cli",
-                  "etl", "pipeline",
-                  "--config", "/app/data/configs/documents_config.yml"
+            --overrides "{
+              \"containerOverrides\": [{
+                \"name\": \"backend\",
+                \"environment\": [
+                  {\"name\": \"CLOUD_PROVIDER\", \"value\": \"aws\"},
+                  {\"name\": \"AWS_REGION\", \"value\": \"$AWS_REGION\"},
+                  {\"name\": \"STORAGE_CONTAINER\", \"value\": \"$BUCKET\"},
+                  {\"name\": \"VECTOR_STORE_TYPE\", \"value\": \"qdrant\"},
+                  {\"name\": \"EMBEDDING_MODEL\", \"value\": \"${EMBEDDING_MODEL:-BAAI/bge-large-en-v1.5}\"}
+                ],
+                \"command\": [
+                  \"sh\", \"-c\",
+                  \"aws s3 cp s3://$BUCKET/configs/changed_files.json /tmp/changed_files.json && python -m green_gov_rag.cli etl ingest --config /app/data/configs/documents_config.yml && python -m green_gov_rag.cli etl parse --input data/raw --output data/processed && python -m green_gov_rag.cli etl chunk --input data/processed --output data/chunks --chunk-size 500 --chunk-overlap 100 && python -m green_gov_rag.cli rag index --chunks data/chunks --vector-store qdrant --collection greengovrag --model \\$EMBEDDING_MODEL --changed-files /tmp/changed_files.json --mode delta\"
                 ]
               }]
-            }' \
+            }" \
             --query 'tasks[0].taskArn' \
             --output text)
 

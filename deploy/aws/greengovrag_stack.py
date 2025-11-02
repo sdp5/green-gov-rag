@@ -301,6 +301,7 @@ class GreenGovRAGStack(Stack):
             f"{project_name}BackendTask",
             cpu=1024,  # 1 vCPU for better performance
             memory_limit_mib=3072,  # 3 GB (safe for BAAI/bge-large-en-v1.5 + app stack)
+            ephemeral_storage_gib=30,  # 30 GB for model cache and temporary files
             runtime_platform=ecs.RuntimePlatform(
                 cpu_architecture=ecs.CpuArchitecture.ARM64,
                 operating_system_family=ecs.OperatingSystemFamily.LINUX,
@@ -323,9 +324,11 @@ class GreenGovRAGStack(Stack):
                 "DATABASE_URL": f"postgresql://postgres:PASSWORD@{db_instance.db_instance_endpoint_address}:5432/greengovrag",
                 "QDRANT_URL": "http://qdrant.greengovrag.local:6333",
                 "VECTOR_STORE_TYPE": "qdrant",
+                "EMBEDDING_MODEL": "BAAI/bge-large-en-v1.5",  # Production model
                 "S3_BUCKET": docs_bucket.bucket_name,
                 "DYNAMODB_CACHE_TABLE": cache_table.table_name,
                 "CLOUD_PROVIDER": "aws",
+                "STORAGE_CONTAINER": docs_bucket.bucket_name,
                 # LLM Configuration - Supports Azure OpenAI, AWS Bedrock, or OpenAI
                 # Set via GitHub Actions secrets: LLM_PROVIDER, LLM_MODEL, etc.
                 # Azure: AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT

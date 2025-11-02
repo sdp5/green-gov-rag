@@ -91,21 +91,21 @@ class VectorStoreFactory:
         """Create Qdrant vector store."""
         from green_gov_rag.rag.stores import QdrantVectorStore
 
-        url: str = kwargs.get("url") or settings.qdrant_url or ""
+        url: str = kwargs.pop("url", None) or settings.qdrant_url or ""
         if not url:
             raise ValueError(
                 "Qdrant URL not configured. Set QDRANT_URL in environment or pass url parameter."
             )
 
-        api_key: str | None = kwargs.get("api_key") or settings.qdrant_api_key
-        collection_name: str = str(kwargs.get("collection_name", "greengovrag"))
+        api_key: str | None = kwargs.pop("api_key", None) or settings.qdrant_api_key
+        collection_name: str = str(kwargs.pop("collection_name", "greengovrag"))
 
         return QdrantVectorStore(
             embeddings=embeddings,
             url=url,
             api_key=api_key,
             collection_name=collection_name,
-            **kwargs,
+            **kwargs,  # Any remaining kwargs
         )
 
     @staticmethod

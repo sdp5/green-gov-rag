@@ -427,19 +427,30 @@ def etl_pipeline(
 # ============================================================================
 
 
-@rag_app.command("build-index")
-def rag_build_index(
+@rag_app.command("index")
+def rag_index(
     chunks_dir: str = typer.Option(
         "data/chunks",
         "--chunks",
         "-c",
         help="Directory containing chunked documents",
     ),
-    index_path: str = typer.Option(
-        "data/vector_store/faiss.index",
+    vector_store: str = typer.Option(
+        "faiss",
+        "--vector-store",
+        "-v",
+        help="Vector store type: faiss or qdrant (chromadb coming soon)",
+    ),
+    collection: str = typer.Option(
+        "greengovrag",
+        "--collection",
+        help="Collection/index name (for qdrant/chromadb)",
+    ),
+    output_path: Optional[str] = typer.Option(
+        None,
         "--output",
         "-o",
-        help="Output path for vector store index",
+        help="Output path for index (FAISS only, default: data/vector_store/<store_type>)",
     ),
     embedding_model: str = typer.Option(
         "all-MiniLM-L6-v2",
@@ -447,48 +458,236 @@ def rag_build_index(
         "-m",
         help="Embedding model to use",
     ),
+    changed_files: Optional[str] = typer.Option(
+        None,
+        "--changed-files",
+        help="JSON file with list of changed document IDs (for delta/incremental indexing)",
+    ),
+    mode: str = typer.Option(
+        "auto",
+        "--mode",
+        help="Indexing mode: 'full' (rebuild entire index), 'delta' (update only changed), 'auto' (default, use delta if changed_files provided)",
+    ),
 ) -> None:
     """Build vector search index from document chunks.
 
-    Creates a vector store (FAISS) from chunked documents with embeddings
-    for semantic similarity search.
+    Supports FAISS (local) and Qdrant (server-based). ChromaDB support coming soon.
 
-    Example:
-    -------
-        green-gov-rag-cli rag build-index --chunks data/chunks
+    Indexing modes:
+    - Full: Rebuild entire index from all chunks (default when no --changed-files)
+    - Delta: Update only changed documents (use with --changed-files)
+    - Auto: Automatically use delta if --changed-files provided, otherwise full
+
+    Examples:
+    --------
+        # Full indexing - FAISS (local, file-based - recommended for development)
+        green-gov-rag-cli rag index --chunks data/chunks --vector-store faiss
+
+        # Full indexing - Qdrant (server-based - recommended for production)
+        green-gov-rag-cli rag index --chunks data/chunks --vector-store qdrant --collection greengovrag
+
+        # Delta indexing - Only index changed documents (incremental update)
+        green-gov-rag-cli rag index --chunks data/chunks --vector-store qdrant \\
+            --collection greengovrag --changed-files changed_docs.json --mode delta
+
+    Changed files format (JSON):
+    --------
+        {
+            "changed_document_ids": ["doc_id_1", "doc_id_2", ...],
+            "total_changed": 5
+        }
 
     """
     from green_gov_rag.rag.embeddings import ChunkEmbedder
-    from green_gov_rag.rag.vector_store import VectorStore
+    from green_gov_rag.rag.vector_store_factory import create_vector_store
+
+    # Validate vector store type
+    valid_stores = ["faiss", "qdrant"]
+    available_stores = ["faiss", "qdrant", "chromadb (coming soon)"]
+    if vector_store.lower() not in valid_stores:
+        console.print(
+            f"[red]✗ Invalid vector store: {vector_store}[/red]",
+            style="bold",
+        )
+        console.print(f"Available options: {', '.join(available_stores)}")
+        raise typer.Exit(1)
+
+    # Determine indexing mode
+    if mode == "auto":
+        indexing_mode = "delta" if changed_files else "full"
+    else:
+        indexing_mode = mode
+
+    # Validate mode
+    if indexing_mode not in ["full", "delta"]:
+        console.print(
+            f"[red]✗ Invalid mode: {indexing_mode}[/red]",
+            style="bold",
+        )
+        console.print("Valid modes: full, delta, auto")
+        raise typer.Exit(1)
+
+    # Load changed document IDs if provided
+    changed_doc_ids = set()
+    if changed_files:
+        if not Path(changed_files).exists():
+            console.print(
+                f"[red]✗ Changed files JSON not found: {changed_files}[/red]",
+                style="bold",
+            )
+            raise typer.Exit(1)
+
+        with open(changed_files, encoding="utf-8") as f:
+            changed_data = json.load(f)
+            changed_doc_ids = set(changed_data.get("changed_document_ids", []))
+
+        console.print(
+            f"[dim]Loaded {len(changed_doc_ids)} changed document IDs from {changed_files}[/dim]"
+        )
 
     console.print("[bold blue]Building vector search index...[/bold blue]")
+    console.print(f"Vector store: {vector_store}")
     console.print(f"Embedding model: {embedding_model}")
+    console.print(f"Indexing mode: {indexing_mode}")
 
     # Load chunks
     all_chunks = []
+    skipped_files = 0
+    processed_files = 0
+
     for chunk_file in Path(chunks_dir).rglob("*_chunks.json"):
+        # Extract document ID from chunk filename
+        # Format: <doc_id>_chunks.json or path/to/<doc_id>_chunks.json
+        doc_id = chunk_file.stem.replace("_chunks", "")
+
+        # In delta mode, skip chunks not in changed set
+        if indexing_mode == "delta" and changed_doc_ids:
+            if doc_id not in changed_doc_ids:
+                skipped_files += 1
+                continue
+
         with open(chunk_file, encoding="utf-8") as f:
             chunks = json.load(f)
-            all_chunks.extend(chunks)
+
+            # Normalize chunks to dict format
+            # Chunks can be either strings or dicts with 'content' and 'metadata'
+            normalized_chunks = []
+            for i, chunk in enumerate(chunks):
+                if isinstance(chunk, str):
+                    # Convert string chunks to dict format
+                    normalized_chunks.append(
+                        {
+                            "content": chunk,
+                            "metadata": {
+                                "source": str(chunk_file.stem),
+                                "chunk_index": i,
+                                "document_id": doc_id,
+                            },
+                        }
+                    )
+                elif isinstance(chunk, dict):
+                    # Already in dict format - ensure document_id is set
+                    if "metadata" not in chunk:
+                        chunk["metadata"] = {}
+                    chunk["metadata"]["document_id"] = doc_id
+                    normalized_chunks.append(chunk)
+                else:
+                    console.print(
+                        f"[yellow]⚠ Skipping invalid chunk type: {type(chunk)}[/yellow]"
+                    )
+
+            all_chunks.extend(normalized_chunks)
+            processed_files += 1
+
+    if indexing_mode == "delta":
+        console.print(
+            f"[dim]Delta mode: Processed {processed_files} changed files, skipped {skipped_files} unchanged files[/dim]"
+        )
+
+    if not all_chunks:
+        console.print(f"[red]✗ No chunks found in {chunks_dir}[/red]")
+        raise typer.Exit(1)
 
     console.print(f"Loaded {len(all_chunks)} chunks")
 
     # Create embeddings
     console.print("Generating embeddings...")
+    console.print(
+        f"[dim]Note: This may take 20-60 minutes for {len(all_chunks)} chunks on CPU[/dim]"
+    )
     embedder = ChunkEmbedder(provider="huggingface", model_name=embedding_model)
 
     # Build vector store
-    console.print("Building vector store...")
-    vector_store = VectorStore(embeddings=embedder.embedder)
-    vector_store.build_store(all_chunks)
-
-    # Save index
-    Path(index_path).parent.mkdir(parents=True, exist_ok=True)
-    vector_store.persist(index_path)
-
+    console.print(f"Building {vector_store} vector store...")
     console.print(
-        f"[bold green]✓ Vector index built and saved to {index_path}[/bold green]",
+        "[dim]Embedding and indexing in progress (no progress bar available yet)...[/dim]"
     )
+
+    # Determine output path
+    if output_path is None:
+        output_path = f"data/vector_store/{vector_store}"
+        if vector_store == "faiss":
+            output_path += ".index"
+
+    store_kwargs = {}
+    if vector_store == "qdrant":
+        store_kwargs["collection_name"] = collection
+    elif vector_store == "chromadb":
+        store_kwargs["collection_name"] = collection
+        store_kwargs["persist_directory"] = output_path
+    elif vector_store == "faiss":
+        store_kwargs["index_path"] = output_path
+
+    try:
+        vs = create_vector_store(
+            embeddings=embedder.embedder,
+            store_type=vector_store,
+            **store_kwargs,
+        )
+
+        # Handle delta vs full indexing
+        if indexing_mode == "delta" and changed_doc_ids:
+            # Delta mode: Delete old versions of changed docs, then add new versions
+            console.print(
+                "[dim]Delta mode: Deleting old versions of changed documents...[/dim]"
+            )
+
+            total_deleted = 0
+            for doc_id in changed_doc_ids:
+                try:
+                    deleted = vs.delete_by_metadata({"document_id": doc_id})
+                    total_deleted += deleted
+                except Exception as e:
+                    console.print(
+                        f"[yellow]⚠ Failed to delete old version of {doc_id}: {e}[/yellow]"
+                    )
+
+            console.print(f"[dim]Deleted {total_deleted} old chunks[/dim]")
+
+            # Add new chunks (only for changed documents)
+            console.print("[dim]Adding updated chunks...[/dim]")
+            vs.add_chunks(all_chunks)
+
+        else:
+            # Full mode: Rebuild entire index
+            vs.build_store(all_chunks)
+
+        # Persist for file-based stores
+        if vector_store in ["faiss", "chromadb"]:
+            Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+            vs.persist(output_path)
+            console.print(
+                f"[bold green]✓ Vector index built and saved to {output_path}[/bold green]",
+            )
+        else:
+            mode_str = f" ({indexing_mode} mode)" if indexing_mode == "delta" else ""
+            console.print(
+                f"[bold green]✓ Vector index built in {vector_store} collection: {collection}{mode_str}[/bold green]",
+            )
+
+    except Exception as e:
+        console.print(f"[red]✗ Failed to build vector store: {e}[/red]")
+        raise typer.Exit(1)
 
 
 @rag_app.command("query")
@@ -713,7 +912,7 @@ def show_info() -> None:
     console.print("[bold]Quick start:[/bold]")
     console.print("  1. green-gov-rag-cli etl ingest")
     console.print("  2. green-gov-rag-cli etl parse")
-    console.print("  3. green-gov-rag-cli rag build-index")
+    console.print("  3. green-gov-rag-cli rag index")
     console.print("  4. green-gov-rag-cli rag query 'your question here'\n")
 
     console.print("Use --help with any command for more details")

@@ -15,8 +15,14 @@
 // - Table Storage instead of Redis Cache
 // - Free tier Static Web App
 // - Pay-per-use Container Apps scaling
+// - Delta indexing for incremental updates (faster, cheaper)
 //
 // Recommended usage: 8 hrs/day for cost optimization
+//
+// Delta Indexing:
+// - Monitoring workflow uploads changed_files.json to blob storage
+// - ETL job reads it and runs: rag index --changed-files --mode delta
+// - Only re-indexes changed documents (5-20 min vs 60 min full reindex)
 
 @description('Project name used for resource naming')
 param projectName string = 'greengovrag'
@@ -433,8 +439,16 @@ resource apiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: 'qdrant'
             }
             {
+              name: 'EMBEDDING_MODEL'
+              value: 'BAAI/bge-large-en-v1.5'
+            }
+            {
               name: 'CLOUD_PROVIDER'
               value: 'azure'
+            }
+            {
+              name: 'STORAGE_CONTAINER'
+              value: storageAccount.name
             }
             {
               name: 'AZURE_STORAGE_ACCOUNT'

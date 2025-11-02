@@ -97,6 +97,29 @@ class VectorStoreInterface(ABC):
         """
         pass
 
+    def delete_by_metadata(self, metadata_filters: dict) -> int:
+        """Delete documents matching metadata filters.
+
+        Args:
+            metadata_filters: Metadata filters to match (e.g., {"document_id": "doc_123"})
+
+        Returns:
+            Number of documents deleted
+        """
+        # Default implementation: find matching docs and delete by ID
+        # Subclasses can override for more efficient implementation
+        all_metadata = self.list_metadata()
+        matching_ids: list[str] = []
+        for meta in all_metadata:
+            if all(meta.get(k) == v for k, v in metadata_filters.items()):
+                doc_id = meta.get("id") or meta.get("_id")
+                if doc_id is not None:
+                    matching_ids.append(str(doc_id))
+
+        if matching_ids:
+            self.delete_by_id(matching_ids)
+        return len(matching_ids)
+
     @abstractmethod
     def list_metadata(self) -> list[dict]:
         """List all metadata in the store.

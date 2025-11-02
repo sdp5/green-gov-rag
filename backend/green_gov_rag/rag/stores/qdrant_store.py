@@ -228,6 +228,47 @@ class QdrantVectorStore(VectorStoreInterface):
         )
         logger.info(f"Deleted {len(ids)} documents from Qdrant")
 
+    def delete_by_metadata(self, metadata_filters: dict) -> int:
+        """Delete documents matching metadata filters (optimized for Qdrant).
+
+        Args:
+            metadata_filters: Metadata filters (e.g., {"document_id": "doc_123"})
+
+        Returns:
+            Number of documents deleted
+        """
+        if not self.client:
+            raise ValueError("Qdrant client not initialized.")
+        if not hasattr(self, "QdrantClient") or self.QdrantClient is None:
+            raise ImportError("QdrantClient not available")
+
+        # Use Qdrant's native filtering for efficient deletion
+        from qdrant_client.models import FieldCondition, Filter, MatchValue
+
+        # Build filter conditions
+        conditions = [
+            FieldCondition(
+                key=f"metadata.{key}",
+                match=MatchValue(value=value),
+            )
+            for key, value in metadata_filters.items()
+        ]
+
+        # Type ignore for Qdrant's complex union type - runtime works correctly
+        filter_obj: Filter | None = Filter(must=conditions) if conditions else None  # type: ignore[arg-type]
+
+        # Delete using filter
+        result = self.client.delete(
+            collection_name=self.collection_name,
+            points_selector=filter_obj,
+        )
+
+        deleted_count = getattr(result, "deleted", 0) if result else 0
+        logger.info(
+            f"Deleted {deleted_count} documents from Qdrant matching filters: {metadata_filters}"
+        )
+        return deleted_count
+
     def list_metadata(self) -> list[dict]:
         """List all metadata in Qdrant collection."""
         if not self.client:

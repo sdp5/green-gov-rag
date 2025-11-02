@@ -17,6 +17,7 @@ jobs:
       changes_detected: ${{ steps.check-changes.outputs.has_changes }}
       total_discovered: ${{ steps.check-changes.outputs.discovered }}
       total_updated: ${{ steps.check-changes.outputs.updated }}
+      changed_doc_ids: ${{ steps.check-changes.outputs.changed_doc_ids }}
 
     steps:
       - name: Checkout code
@@ -110,6 +111,7 @@ jobs:
             echo "has_changes=false" >> $GITHUB_OUTPUT
             echo "discovered=0" >> $GITHUB_OUTPUT
             echo "updated=0" >> $GITHUB_OUTPUT
+            echo "changed_doc_ids=[]" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -117,8 +119,17 @@ jobs:
           UPDATED=$(echo "$RESULTS" | jq -r '.total_updated // 0')
           TOTAL=$((DISCOVERED + UPDATED))
 
+          # Extract changed document IDs for delta indexing
+          CHANGED_IDS=$(echo "$RESULTS" | jq -c '.changed_document_ids // []')
+
+          echo "Documents discovered: $DISCOVERED"
+          echo "Documents updated: $UPDATED"
+          echo "Total changes: $TOTAL"
+          echo "Changed document IDs: $CHANGED_IDS"
+
           echo "discovered=$DISCOVERED" >> $GITHUB_OUTPUT
           echo "updated=$UPDATED" >> $GITHUB_OUTPUT
+          echo "changed_doc_ids=$CHANGED_IDS" >> $GITHUB_OUTPUT
 
           if [ "$TOTAL" -gt 0 ]; then
             echo "has_changes=true" >> $GITHUB_OUTPUT
@@ -152,6 +163,30 @@ jobs:
             --container-name configs \
             --name documents_config.yml \
             --file configs/documents_config.yml \
+            --overwrite
+
+      - name: Create changed files JSON for delta indexing
+        run: |
+          CHANGED_IDS='${{ needs.monitor-sources-azure.outputs.changed_doc_ids }}'
+          TOTAL_CHANGED=${{ needs.monitor-sources-azure.outputs.total_discovered }} + ${{ needs.monitor-sources-azure.outputs.total_updated }}
+
+          echo "Creating changed_files.json with ${TOTAL_CHANGED} documents"
+
+          cat > changed_files.json <<EOF
+          {
+            "changed_document_ids": ${CHANGED_IDS},
+            "total_changed": ${TOTAL_CHANGED}
+          }
+          EOF
+
+          cat changed_files.json
+
+          # Upload to Azure Blob Storage
+          az storage blob upload \
+            --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
+            --container-name configs \
+            --name changed_files.json \
+            --file changed_files.json \
             --overwrite
 
       - name: Run ETL via Azure Container App Job

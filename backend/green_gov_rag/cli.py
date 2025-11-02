@@ -152,7 +152,7 @@ def etl_chunk(
     ),
     chunk_overlap: int = typer.Option(
         100,
-        "--overlap",
+        "--chunk-overlap",
         help="Overlap between chunks in characters",
     ),
 ) -> None:
@@ -163,7 +163,7 @@ def etl_chunk(
 
     Example:
     -------
-        green-gov-rag-cli etl chunk --chunk-size 1000 --overlap 100
+        green-gov-rag-cli etl chunk --chunk-size 1000 --chunk-overlap 100
 
     """
     from green_gov_rag.etl.chunker import TextChunker

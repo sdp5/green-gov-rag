@@ -32,6 +32,20 @@ class PDFParser:
         return [cleaned] if cleaned else []
 
 
+def parse_pdf(file_path: str | Path) -> str:
+    """Parse a PDF file and return cleaned text.
+
+    Args:
+        file_path: Path to the PDF file
+
+    Returns:
+        Cleaned text content from the PDF
+    """
+    parser = PDFParser(file_path)
+    chunks = parser.parse()
+    return "\n".join(chunks) if chunks else ""
+
+
 # Example usage:
 # from etl.parsers.pdf_parser import PDFParser
 #

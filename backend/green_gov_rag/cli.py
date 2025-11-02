@@ -106,7 +106,7 @@ def etl_parse(
         green-gov-rag-cli etl parse --input data/raw --output data/processed
 
     """
-    from green_gov_rag.etl.parsers import get_parser
+    from green_gov_rag.etl.parsers import parse_file
 
     console.print(f"[bold blue]Parsing documents from {input_dir}...[/bold blue]")
 
@@ -114,8 +114,7 @@ def etl_parse(
     for doc_file in Path(input_dir).rglob("*"):
         if doc_file.is_file() and doc_file.suffix in [".pdf", ".html", ".htm"]:
             try:
-                parser = get_parser(str(doc_file))
-                text = parser(str(doc_file))
+                text = parse_file(str(doc_file))
 
                 out_file = Path(output_dir) / (doc_file.stem + ".txt")
                 out_file.parent.mkdir(parents=True, exist_ok=True)

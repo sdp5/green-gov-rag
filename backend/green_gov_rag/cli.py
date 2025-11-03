@@ -169,31 +169,100 @@ def etl_chunk(
         "--chunk-overlap",
         help="Overlap between chunks in characters",
     ),
+    raw_dir: str = typer.Option(
+        "data/raw",
+        "--raw-dir",
+        help="Directory containing original PDF files for citation extraction",
+    ),
+    mode: str = typer.Option(
+        "auto",
+        "--mode",
+        "-m",
+        help="Chunking mode: 'full' (process all), 'delta' (skip existing), 'auto' (use delta if output exists)",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Force re-chunking even if output exists (overrides delta mode)",
+    ),
+    use_fast_strategy: bool = typer.Option(
+        True,
+        "--fast/--accurate",
+        help="Use fast parsing strategy (10x faster, slightly lower accuracy) vs accurate (slower, higher accuracy)",
+    ),
 ) -> None:
     """Chunk parsed documents into smaller text segments.
 
     Splits documents into manageable chunks for embedding and retrieval,
-    preserving context through overlapping windows.
+    preserving context through overlapping windows. For PDFs, extracts
+    citation metadata (page numbers, section hierarchy, clause references).
+
+    Modes:
+    - full: Process all files (ignores existing chunks)
+    - delta: Skip files with existing chunk output
+    - auto: Use delta mode by default (recommended)
 
     Example:
     -------
-        green-gov-rag-cli etl chunk --chunk-size 1000 --chunk-overlap 100
+        # Fast delta processing (default, recommended)
+        green-gov-rag-cli etl chunk
+
+        # Full re-processing with accurate mode
+        green-gov-rag-cli etl chunk --mode full --accurate
+
+        # Force re-chunk specific files
+        green-gov-rag-cli etl chunk --force
 
     """
     from green_gov_rag.etl.chunker import TextChunker
+    from green_gov_rag.etl.parsers.layout_parser import HierarchicalPDFParser
+    from green_gov_rag.etl.parsers.unstructured_parser import UnstructuredPDFParser
+    from green_gov_rag.types import PDFParserStrategy
+
+    # Validate mode
+    if mode not in ["full", "delta", "auto"]:
+        console.print(f"[red]Error: Invalid mode '{mode}'[/red]")
+        console.print("Valid modes: full, delta, auto")
+        raise typer.Exit(1)
+
+    # Determine effective mode
+    effective_mode = mode
+    if mode == "auto":
+        effective_mode = "delta"  # Default to delta for auto mode
+
+    if force:
+        effective_mode = "full"  # Force overrides mode
 
     console.print(f"[bold blue]Chunking documents from {input_dir}...[/bold blue]")
     console.print(f"Chunk size: {chunk_size}, Overlap: {chunk_overlap}")
+    console.print(
+        f"Mode: {effective_mode}, Strategy: {'fast' if use_fast_strategy else 'accurate'}"
+    )
 
     chunker = TextChunker(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+
+    # Initialize parser with strategy
+    hierarchical_parser = HierarchicalPDFParser()
+    if use_fast_strategy:
+        # Pre-initialize with fast strategy
+        fast_parser: UnstructuredPDFParser = UnstructuredPDFParser(
+            strategy=PDFParserStrategy.FAST.value
+        )
+        hierarchical_parser._unstructured_parser = fast_parser
+
     chunked_count = 0
+    skipped_count = 0
 
     for txt_file in Path(input_dir).rglob("*.txt"):
         try:
-            text = txt_file.read_text(encoding="utf-8")
+            # Check if output already exists (delta mode)
+            out_file = Path(output_dir) / (txt_file.stem + "_chunks.json")
 
-            # Get raw text chunks
-            text_chunks = chunker.chunk_text(text)
+            if effective_mode == "delta" and out_file.exists():
+                skipped_count += 1
+                console.print(f"  ⊘ Skipped: {txt_file.name} (already chunked)")
+                continue
 
             # Look for corresponding metadata file from ingestion
             metadata_file = txt_file.parent / (txt_file.stem + ".metadata.json")
@@ -202,20 +271,48 @@ def etl_chunk(
                 with open(metadata_file) as f:
                     base_metadata = json.load(f)
 
-            # Create properly structured chunk objects with metadata
-            chunks = []
-            for i, chunk_text in enumerate(text_chunks):
-                chunk_obj = {
-                    "content": chunk_text,
-                    "metadata": {
-                        **base_metadata,  # Include document-level metadata
-                        "chunk_index": i,  # Sequential index within document
-                        "source_file": txt_file.stem,
-                    },
-                }
-                chunks.append(chunk_obj)
+            # Try to find original PDF in raw directory for citation extraction
+            pdf_file = None
+            for pdf_path in Path(raw_dir).rglob(f"{txt_file.stem}.pdf"):
+                pdf_file = pdf_path
+                break
 
-            out_file = Path(output_dir) / (txt_file.stem + "_chunks.json")
+            chunks = []
+
+            if pdf_file and pdf_file.exists() and hierarchical_parser:
+                # Use hierarchical parser for PDFs to extract citation metadata
+                try:
+                    hierarchical_chunks = hierarchical_parser.parse_with_structure(
+                        pdf_file, base_metadata=base_metadata
+                    )
+                    # Further chunk if needed (preserving citation metadata)
+                    chunks = chunker.chunk_with_hierarchy(hierarchical_chunks)
+                    console.print(
+                        f"  → Extracted citation metadata from PDF: {pdf_file.name}"
+                    )
+                except Exception as e:
+                    console.print(
+                        f"  [yellow]Warning: Failed to extract citations from PDF, "
+                        f"falling back to text chunking: {e}[/yellow]"
+                    )
+                    pdf_file = None  # Fall back to text chunking
+
+            # Fallback: simple text chunking without citation metadata
+            if not pdf_file or not chunks:
+                text = txt_file.read_text(encoding="utf-8")
+                text_chunks = chunker.chunk_text(text)
+
+                for i, chunk_text in enumerate(text_chunks):
+                    chunk_obj = {
+                        "content": chunk_text,
+                        "metadata": {
+                            **base_metadata,  # Include document-level metadata
+                            "chunk_index": i,  # Sequential index within document
+                            "source_file": txt_file.stem,
+                        },
+                    }
+                    chunks.append(chunk_obj)
+
             out_file.parent.mkdir(parents=True, exist_ok=True)
 
             with open(out_file, "w", encoding="utf-8") as f:
@@ -226,9 +323,14 @@ def etl_chunk(
         except Exception as e:
             console.print(f"  ✗ Failed to chunk {txt_file.name}: {e}", style="red")
 
+    # Summary
     console.print(
         f"[bold green]✓ Chunked {chunked_count} documents to {output_dir}[/bold green]",
     )
+    if skipped_count > 0:
+        console.print(
+            f"[dim]Delta mode: Skipped {skipped_count} already-chunked files[/dim]"
+        )
 
 
 @etl_app.command("tag-metadata")
@@ -934,6 +1036,45 @@ def rag_list_locations() -> None:
 # ============================================================================
 
 
+def _build_citation(title: str, metadata: dict) -> str:
+    """Build formatted citation string from chunk metadata.
+
+    Format: "{Title} {clause_ref}, pp.{page_range}"
+    Example: "NGER Act 2007 (Cth) s.10.2, pp.42-45"
+
+    Args:
+    ----
+        title: Document title
+        metadata: Chunk metadata dict
+
+    Returns:
+    -------
+        Formatted citation string
+
+    """
+    parts = [title]
+
+    # Add clause reference if available (e.g., "s.3.2.1")
+    clause_ref = metadata.get("clause_reference")
+    if clause_ref:
+        parts.append(clause_ref)
+
+    # Add page information
+    page_range = metadata.get("page_range")
+    page_number = metadata.get("page_number")
+
+    if page_range and len(page_range) == 2:
+        start, end = page_range
+        if start == end:
+            parts.append(f"p.{start}")
+        else:
+            parts.append(f"pp.{start}-{end}")
+    elif page_number:
+        parts.append(f"p.{page_number}")
+
+    return " ".join(parts)
+
+
 @db_app.command("load-chunks")
 def load_chunks(
     chunks_dir: Path = typer.Option(
@@ -1028,6 +1169,11 @@ def load_chunks(
                     # Use chunk_index from metadata (set during chunking)
                     chunk_idx = chunk_metadata.get("chunk_index", 0)
 
+                    # Build citation string if not already present
+                    citation = chunk_metadata.get("citation")
+                    if not citation:
+                        citation = _build_citation(title, chunk_metadata)
+
                     save_chunk(
                         document_id=doc.id,
                         chunk_index=chunk_idx,
@@ -1038,7 +1184,7 @@ def load_chunks(
                         section_hierarchy=chunk_metadata.get("section_hierarchy"),
                         clause_reference=chunk_metadata.get("clause_reference"),
                         deep_link=chunk_metadata.get("deep_link"),
-                        citation=chunk_metadata.get("citation"),
+                        citation=citation,
                         metadata=chunk_metadata,
                     )
 

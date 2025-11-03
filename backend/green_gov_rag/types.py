@@ -545,3 +545,63 @@ class LLMProvider(str, Enum):
     AZURE = "azure"
     BEDROCK = "bedrock"
     ANTHROPIC = "anthropic"
+
+
+# ============================================================================
+# PDF Parsing Types
+# ============================================================================
+
+
+class PDFParserStrategy(str, Enum):
+    """Unstructured.io PDF parsing strategies."""
+
+    HI_RES = "hi_res"  # High resolution (slower, more accurate)
+    FAST = "fast"  # Fast processing (lower accuracy)
+    AUTO = "auto"  # Automatic selection
+
+
+class ChunkType(str, Enum):
+    """Standardized chunk types for document elements."""
+
+    HEADER = "header"  # Section heading/title
+    PARAGRAPH = "paragraph"  # Regular text paragraph
+    TABLE = "table"  # Table content
+    LIST = "list"  # List items
+    FOOTER = "footer"  # Footer content
+
+
+class ClausePrefix(str, Enum):
+    """Prefixes for legal clause references."""
+
+    SECTION = "s"  # Section (e.g., s.3.2.1)
+    CLAUSE = "cl"  # Clause (e.g., cl.42)
+    REGULATION = "reg"  # Regulation (e.g., reg.12)
+    SCHEDULE = "sch"  # Schedule (e.g., sch.A)
+    ANNEX = "ann"  # Annex (e.g., ann.B)
+    PART = "part"  # Part (e.g., part.3)
+
+
+# ============================================================================
+# PDF Parsing Constants
+# ============================================================================
+
+# Heading detection thresholds
+PDF_HEADING_FONT_SIZE_THRESHOLD = 12  # Points - headings typically larger
+PDF_HEADING_MAX_LENGTH = 100  # Characters - headings are usually short
+PDF_HEADING_TITLE_CASE_MAX_LENGTH = 80  # Max length for title case headings
+
+# Section numbering patterns (for heading level detection)
+PDF_CHAPTER_KEYWORDS = ["Chapter", "Part"]  # Level 1 headings
+PDF_SECTION_KEYWORDS = ["Section"]  # Level 2 headings
+
+# Element type mapping (Unstructured.io to standardized)
+UNSTRUCTURED_ELEMENT_TYPE_MAP = {
+    "Title": ChunkType.HEADER.value,
+    "NarrativeText": ChunkType.PARAGRAPH.value,
+    "Text": ChunkType.PARAGRAPH.value,
+    "Table": ChunkType.TABLE.value,
+    "ListItem": ChunkType.LIST.value,
+    "List": ChunkType.LIST.value,
+    "Header": ChunkType.HEADER.value,
+    "Footer": ChunkType.FOOTER.value,
+}

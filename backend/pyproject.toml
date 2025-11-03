@@ -62,7 +62,7 @@ dependencies = [
     "langchain-huggingface ~= 0.1.2",
     "pydantic ~= 2.0",
     "pydantic-settings ~= 2.0",
-    "llmsherpa ~= 0.1.4",
+    "unstructured[pdf] ~= 0.16.0",
     "redis ~= 5.0.0",
     "slowapi ~= 0.1.9",
 ]

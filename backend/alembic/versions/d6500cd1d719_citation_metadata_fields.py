@@ -40,11 +40,29 @@ def upgrade() -> None:
         unique=False
     )
 
+    # Add session_id to query_history table for user-specific query tracking
+    op.add_column('query_history', sa.Column('session_id', sa.String(), nullable=True))
+    op.create_index('ix_query_history_session_id', 'query_history', ['session_id'], unique=False)
+
+    # Add traffic analytics fields to query_history
+    op.add_column('query_history', sa.Column('ip_address', sa.String(), nullable=True))
+    op.add_column('query_history', sa.Column('user_agent', sa.String(), nullable=True))
+    op.add_column('query_history', sa.Column('referer', sa.String(), nullable=True))
+
 
 def downgrade() -> None:
     """Remove citation and metadata fields from documents and chunks tables."""
 
-    # Remove index
+    # Remove query_history traffic analytics fields
+    op.drop_column('query_history', 'referer')
+    op.drop_column('query_history', 'user_agent')
+    op.drop_column('query_history', 'ip_address')
+
+    # Remove query_history session tracking
+    op.drop_index('ix_query_history_session_id', table_name='query_history')
+    op.drop_column('query_history', 'session_id')
+
+    # Remove chunks index
     op.drop_index('ix_chunks_document_id_chunk_index', table_name='chunks')
 
     # Remove fields from chunks table

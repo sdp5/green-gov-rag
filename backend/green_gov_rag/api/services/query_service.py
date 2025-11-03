@@ -70,6 +70,10 @@ class QueryService:
         jurisdiction: Optional[str] = None,
         topics: Optional[list[str]] = None,
         max_sources: int = 5,
+        session_id: Optional[str] = None,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        referer: Optional[str] = None,
     ) -> QueryResponse:
         """Execute RAG query with caching.
 
@@ -79,6 +83,7 @@ class QueryService:
             jurisdiction: Jurisdiction filter
             topics: Topic filters
             max_sources: Maximum source documents
+            session_id: Browser session ID for user-specific query history
 
         Returns:
             QueryResponse: Query response with answer and sources
@@ -318,6 +323,10 @@ class QueryService:
             metadata_filters=metadata_filters,
             sources=sources[:max_sources],
             response_time_ms=response_time,
+            session_id=session_id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            referer=referer,
         )
 
         # Calculate coverage info if region filter is provided
@@ -400,8 +409,18 @@ class QueryService:
         metadata_filters: dict,
         sources: list,
         response_time_ms: float,
+        session_id: Optional[str] = None,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        referer: Optional[str] = None,
     ) -> Optional[int]:
         """Save query to history.
+
+        Args:
+            session_id: Browser session ID for user-specific query history
+            ip_address: Client IP address (anonymized)
+            user_agent: Client user agent string
+            referer: HTTP referer header
 
         Returns:
             Query ID if successful, None otherwise
@@ -430,6 +449,10 @@ class QueryService:
 
             with Session(engine) as session:
                 history = QueryHistory(
+                    session_id=session_id,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    referer=referer,
                     query_text=query,
                     answer=answer,
                     region_filter=region_filter,

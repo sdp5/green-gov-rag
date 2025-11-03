@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 from fastapi import APIRouter
 from sqlmodel import Session, func, select
 
@@ -219,35 +221,44 @@ async def delete_document(document_id: str) -> AdminActionResponse:
 
 
 @router.get("/analytics/queries", response_model=QueryAnalyticsResponse)
-async def get_query_analytics(days: int = 7) -> QueryAnalyticsResponse:
+async def get_query_analytics(
+    days: int = 7,
+    session_id: Optional[str] = None,
+) -> QueryAnalyticsResponse:
     """Get query analytics for last N days.
 
     Args:
         days: Number of days to analyze (default: 7)
+        session_id: Optional session ID to filter by user (for user-specific analytics)
     """
     from datetime import datetime, timedelta
 
     with Session(engine) as session:
         cutoff_date = datetime.now() - timedelta(days=days)
 
+        # Build base query filter
+        base_filter = QueryHistory.created_at >= cutoff_date
+        if session_id:
+            base_filter = (QueryHistory.created_at >= cutoff_date) & (
+                QueryHistory.session_id == session_id
+            )
+
         # Total queries in period
         total = session.exec(
-            select(func.count())
-            .select_from(QueryHistory)
-            .where(QueryHistory.created_at >= cutoff_date)
+            select(func.count()).select_from(QueryHistory).where(base_filter)
         ).one()
 
         # Average response time
         avg_response = session.exec(
             select(func.avg(QueryHistory.response_time_ms))
             .select_from(QueryHistory)
-            .where(QueryHistory.created_at >= cutoff_date)
+            .where(base_filter)
         ).one()
 
         # Top topics
         top_topics = session.exec(
             select(QueryHistory.topic_filter, func.count())
-            .where(QueryHistory.created_at >= cutoff_date)
+            .where(base_filter)
             .where(QueryHistory.topic_filter.is_not(None))  # type: ignore[union-attr]
             .group_by(QueryHistory.topic_filter)
             .order_by(func.count().desc())

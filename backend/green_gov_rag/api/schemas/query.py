@@ -121,6 +121,9 @@ class QueryRequest(BaseModel):
     jurisdiction: Optional[str] = Field(None, description="Jurisdiction filter")
     topics: Optional[list[str]] = Field(None, description="Topic filters")
     max_sources: int = Field(5, ge=1, le=20, description="Max source documents")
+    session_id: Optional[str] = Field(
+        None, description="Browser session ID for user-specific query history"
+    )
 
     class Config:
         """Schema config."""

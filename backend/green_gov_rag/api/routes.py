@@ -115,12 +115,21 @@ async def query_rag(request: Request, query_request: QueryRequest) -> QueryRespo
         QueryResponse: Answer with source documents
     """
     try:
+        # Extract traffic analytics from request headers
+        ip_address = request.client.host if request.client else None
+        user_agent = request.headers.get("user-agent")
+        referer = request.headers.get("referer")
+
         return await query_service.execute_query(
             query=query_request.query,
             region=query_request.region,
             jurisdiction=query_request.jurisdiction,
             topics=query_request.topics,
             max_sources=query_request.max_sources,
+            session_id=query_request.session_id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            referer=referer,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

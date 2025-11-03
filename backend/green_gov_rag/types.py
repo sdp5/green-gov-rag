@@ -548,6 +548,31 @@ class LLMProvider(str, Enum):
 
 
 # ============================================================================
+# Vector Store Types
+# ============================================================================
+
+
+class VectorStoreType(str, Enum):
+    """Supported vector store backends."""
+
+    FAISS = "faiss"  # Local FAISS index (development)
+    QDRANT = "qdrant"  # Qdrant vector database (production)
+
+
+# ============================================================================
+# Cloud Provider Types
+# ============================================================================
+
+
+class CloudProvider(str, Enum):
+    """Supported cloud storage providers."""
+
+    LOCAL = "local"  # Local filesystem
+    AWS = "aws"  # Amazon Web Services (S3)
+    AZURE = "azure"  # Microsoft Azure (Blob Storage)
+
+
+# ============================================================================
 # PDF Parsing Types
 # ============================================================================
 

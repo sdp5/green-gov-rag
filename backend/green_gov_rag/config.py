@@ -11,6 +11,8 @@ from typing import Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from green_gov_rag.types import CloudProvider, LLMProvider, VectorStoreType
+
 # Determine the .env file path (look in backend/ directory)
 ENV_FILE = Path(__file__).parent.parent / ".env"
 
@@ -34,8 +36,8 @@ class Settings(BaseSettings):
     # =========================================================================
     # Cloud Storage Settings
     # =========================================================================
-    cloud_provider: Literal["local", "aws", "azure"] = Field(
-        default="local",
+    cloud_provider: CloudProvider = Field(
+        default=CloudProvider.LOCAL,
         description="Cloud storage provider (local, aws, azure)",
     )
     cloud_region: str | None = Field(
@@ -49,6 +51,10 @@ class Settings(BaseSettings):
     local_storage_path: str = Field(
         default="./data/storage",
         description="Local storage path when using local provider",
+    )
+    raw_data_dir: str = Field(
+        default="./data/raw",
+        description="Directory for raw downloaded documents (local development only)",
     )
 
     # AWS Settings
@@ -74,8 +80,8 @@ class Settings(BaseSettings):
     # =========================================================================
     # LLM & Embedding Settings
     # =========================================================================
-    llm_provider: Literal["openai", "azure", "bedrock", "anthropic"] = Field(
-        default="openai",
+    llm_provider: LLMProvider = Field(
+        default=LLMProvider.OPENAI,
         description="LLM provider (openai, azure, bedrock, anthropic)",
     )
 
@@ -152,9 +158,9 @@ class Settings(BaseSettings):
     # =========================================================================
     # Vector Store Settings
     # =========================================================================
-    vector_store_type: Literal["faiss", "qdrant", "chromadb"] = Field(
-        default="qdrant",
-        description="Vector store type",
+    vector_store_type: VectorStoreType = Field(
+        default=VectorStoreType.QDRANT,
+        description="Vector store type (faiss for local dev, qdrant for production)",
     )
     vector_store_path: str = Field(
         default="./data/vector_store",

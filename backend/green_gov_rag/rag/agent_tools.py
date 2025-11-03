@@ -119,30 +119,40 @@ class RAGAgent:
     def _validate_vector_store(self) -> None:
         """Validate that vector store exists and has documents.
 
-        Raises:
-            RuntimeError: If vector store is empty or invalid
+        Note:
+            Empty vector store is logged as warning, not error.
+            Allows API to start before ETL pipeline runs.
+            Queries will fail with helpful error until documents indexed.
         """
+        import logging
+
+        logger = logging.getLogger(__name__)
+
         try:
             # Try to get vector store count
             doc_count = self._get_vector_store_count()
 
             if doc_count == 0:
-                raise RuntimeError(
-                    "Vector store is empty. No documents found.\n\n"
+                # Log warning but don't block API startup
+                logger.warning(
+                    "Vector store is empty. No documents found. "
+                    "RAG queries will fail until documents are indexed.\n\n"
                     "To fix this, run the document ingestion pipeline:\n"
-                    "  python -m green_gov_rag.etl.ingest_documents\n\n"
+                    "  greengovrag-cli etl ingest --config configs/documents_config.yml\n"
+                    "  greengovrag-cli etl parse --input data/raw --output data/processed\n"
+                    "  greengovrag-cli etl chunk --input data/processed --output data/chunks\n"
+                    "  greengovrag-cli rag index --chunks data/chunks\n\n"
                     "Or if using Docker:\n"
-                    "  docker-compose run --rm backend python -m green_gov_rag.etl.ingest_documents"
+                    "  docker-compose run --rm backend greengovrag-cli etl ingest\n"
+                    "  docker-compose run --rm backend greengovrag-cli rag index"
                 )
+            else:
+                logger.info(f"Vector store validated: {doc_count} documents indexed")
 
         except Exception as e:
-            if "Vector store is empty" in str(e):
-                raise
             # If we can't validate, log warning but don't fail
             # (allows for non-standard vector store implementations)
-            import logging
-
-            logging.warning(f"Could not validate vector store: {e}")
+            logger.warning(f"Could not validate vector store: {e}")
 
     def _get_vector_store_count(self) -> int:
         """Get count of documents in vector store.

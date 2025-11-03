@@ -182,7 +182,29 @@ def etl_chunk(
     for txt_file in Path(input_dir).rglob("*.txt"):
         try:
             text = txt_file.read_text(encoding="utf-8")
-            chunks = chunker.chunk_text(text)
+
+            # Get raw text chunks
+            text_chunks = chunker.chunk_text(text)
+
+            # Look for corresponding metadata file from ingestion
+            metadata_file = txt_file.parent / (txt_file.stem + ".metadata.json")
+            base_metadata = {}
+            if metadata_file.exists():
+                with open(metadata_file) as f:
+                    base_metadata = json.load(f)
+
+            # Create properly structured chunk objects with metadata
+            chunks = []
+            for i, chunk_text in enumerate(text_chunks):
+                chunk_obj = {
+                    "content": chunk_text,
+                    "metadata": {
+                        **base_metadata,  # Include document-level metadata
+                        "chunk_index": i,  # Sequential index within document
+                        "source_file": txt_file.stem,
+                    },
+                }
+                chunks.append(chunk_obj)
 
             out_file = Path(output_dir) / (txt_file.stem + "_chunks.json")
             out_file.parent.mkdir(parents=True, exist_ok=True)
@@ -959,17 +981,29 @@ def load_chunks(
                 )
                 continue
 
+            # Validate chunk format
             first_chunk = data[0]
+            if isinstance(first_chunk, str):
+                console.print(
+                    f"[yellow]Warning: {chunk_file.name} contains legacy string format. "
+                    f"Please re-run chunking to generate proper metadata.[/yellow]"
+                )
+                continue
+
+            # Extract document-level metadata from first chunk
             metadata = first_chunk.get("metadata", {})
+            title = metadata.get("title", chunk_file.stem.replace("_chunks", ""))
 
             # Save document record
             doc = save_document(
-                title=metadata.get("title", chunk_file.stem.replace("_chunks", "")),
+                title=title,
                 source_url=metadata.get("source_url", ""),
                 jurisdiction=metadata.get("jurisdiction", "unknown"),
                 topic=metadata.get("topic", "general"),
                 region=metadata.get("region"),
                 category=metadata.get("category"),
+                esg_metadata=metadata.get("esg_metadata"),
+                spatial_metadata=metadata.get("spatial_metadata"),
                 metadata=metadata,
                 status="completed",
             )
@@ -980,13 +1014,23 @@ def load_chunks(
                 batch = data[i : i + batch_size]
 
                 for chunk in batch:
+                    chunk_metadata = chunk.get("metadata", {})
+
+                    # Use chunk_index from metadata (set during chunking)
+                    chunk_idx = chunk_metadata.get("chunk_index", 0)
+
                     save_chunk(
                         document_id=doc.id,
-                        chunk_index=chunk.get("chunk_index", 0),
+                        chunk_index=chunk_idx,
                         text=chunk.get("content", ""),
-                        page_number=chunk.get("metadata", {}).get("page_number"),
-                        section_title=chunk.get("metadata", {}).get("section_title"),
-                        metadata=chunk.get("metadata", {}),
+                        page_number=chunk_metadata.get("page_number"),
+                        page_range=chunk_metadata.get("page_range"),
+                        section_title=chunk_metadata.get("section_title"),
+                        section_hierarchy=chunk_metadata.get("section_hierarchy"),
+                        clause_reference=chunk_metadata.get("clause_reference"),
+                        deep_link=chunk_metadata.get("deep_link"),
+                        citation=chunk_metadata.get("citation"),
+                        metadata=chunk_metadata,
                     )
 
                 total_chunks += len(batch)

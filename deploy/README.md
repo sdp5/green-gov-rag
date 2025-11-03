@@ -162,7 +162,7 @@ Actions → ETL Pipeline - Scheduled → Run workflow
 ### Via CLI (local/dev)
 ```bash
 docker-compose exec backend \
-  python -m green_gov_rag.cli etl run-pipeline
+  greengovrag-cli etl run-pipeline
 ```
 
 ---

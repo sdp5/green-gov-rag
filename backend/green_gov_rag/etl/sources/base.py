@@ -90,8 +90,27 @@ class DocumentSource(ABC):
 
         Returns:
             Dictionary containing document metadata (title, jurisdiction, etc.)
+            Should include esg_metadata and spatial_metadata if present in config.
         """
         pass
+
+    def _extract_structured_metadata(self) -> dict[str, Any]:
+        """Extract esg_metadata and spatial_metadata from config.
+
+        Returns:
+            Dictionary with esg_metadata and spatial_metadata keys
+        """
+        metadata = {}
+
+        # Extract ESG metadata if present
+        if "esg_metadata" in self.config:
+            metadata["esg_metadata"] = self.config["esg_metadata"]
+
+        # Extract spatial metadata if present
+        if "spatial_metadata" in self.config:
+            metadata["spatial_metadata"] = self.config["spatial_metadata"]
+
+        return metadata
 
     @abstractmethod
     def get_document_id(self, url: str) -> str:

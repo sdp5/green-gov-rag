@@ -28,9 +28,14 @@ rag_app = typer.Typer(
     help="RAG Operations: Query, search, and retrieval",
     no_args_is_help=True,
 )
+db_app = typer.Typer(
+    help="Database Operations: Load and manage documents and chunks",
+    no_args_is_help=True,
+)
 
 app.add_typer(etl_app, name="etl")
 app.add_typer(rag_app, name="rag")
+app.add_typer(db_app, name="db")
 
 console = Console()
 
@@ -893,6 +898,118 @@ def rag_list_locations() -> None:
 # ============================================================================
 
 
+# ============================================================================
+# Database Commands
+# ============================================================================
+
+
+@db_app.command("load-chunks")
+def load_chunks(
+    chunks_dir: Path = typer.Option(
+        Path("data/chunks"),
+        "--chunks-dir",
+        "-c",
+        help="Directory containing chunk JSON files",
+    ),
+    batch_size: int = typer.Option(
+        100,
+        "--batch-size",
+        "-b",
+        help="Number of chunks to insert per batch",
+    ),
+) -> None:
+    """Load chunk files into PostgreSQL database with metadata.
+
+    This command loads processed chunks from JSON files into the database,
+    populating the documents and chunks tables with all metadata including
+    jurisdiction, category, topic, region, etc.
+
+    Example:
+        greengovrag-cli db load-chunks --chunks-dir data/chunks
+    """
+    from green_gov_rag.etl.db_writer import save_chunk, save_document
+
+    console.print(f"[bold]Loading chunks from {chunks_dir}...[/bold]")
+
+    if not chunks_dir.exists():
+        console.print(f"[red]Error: Chunks directory not found: {chunks_dir}[/red]")
+        raise typer.Exit(1)
+
+    # Get all chunk JSON files
+    chunk_files = list(chunks_dir.glob("*_chunks.json"))
+
+    if not chunk_files:
+        console.print(f"[red]No chunk files found in {chunks_dir}[/red]")
+        raise typer.Exit(1)
+
+    console.print(f"[dim]Found {len(chunk_files)} chunk files[/dim]")
+
+    total_documents = 0
+    total_chunks = 0
+
+    for chunk_file in chunk_files:
+        try:
+            with open(chunk_file) as f:
+                data = json.load(f)
+
+            # Extract document metadata from first chunk
+            if not data:
+                console.print(
+                    f"[yellow]Skipping empty file: {chunk_file.name}[/yellow]"
+                )
+                continue
+
+            first_chunk = data[0]
+            metadata = first_chunk.get("metadata", {})
+
+            # Save document record
+            doc = save_document(
+                title=metadata.get("title", chunk_file.stem.replace("_chunks", "")),
+                source_url=metadata.get("source_url", ""),
+                jurisdiction=metadata.get("jurisdiction", "unknown"),
+                topic=metadata.get("topic", "general"),
+                region=metadata.get("region"),
+                category=metadata.get("category"),
+                metadata=metadata,
+                status="completed",
+            )
+            total_documents += 1
+
+            # Save chunks in batches
+            for i in range(0, len(data), batch_size):
+                batch = data[i : i + batch_size]
+
+                for chunk in batch:
+                    save_chunk(
+                        document_id=doc.id,
+                        chunk_index=chunk.get("chunk_index", 0),
+                        text=chunk.get("content", ""),
+                        page_number=chunk.get("metadata", {}).get("page_number"),
+                        section_title=chunk.get("metadata", {}).get("section_title"),
+                        metadata=chunk.get("metadata", {}),
+                    )
+
+                total_chunks += len(batch)
+                console.print(
+                    f"[dim]  Loaded batch {i//batch_size + 1}: "
+                    f"{len(batch)} chunks from {chunk_file.name}[/dim]"
+                )
+
+        except Exception as e:
+            console.print(f"[red]Error loading {chunk_file.name}: {e}[/red]")
+            continue
+
+    console.print(
+        f"\n[bold green]✓ Loaded {total_chunks} chunks from "
+        f"{total_documents} documents[/bold green]"
+    )
+
+
+# ============================================================================
+# General Commands
+# ============================================================================
+
+
 @app.command("version")
 def show_version() -> None:
     """Display GreenGovRAG version information."""
@@ -914,13 +1031,16 @@ def show_info() -> None:
 
     console.print("[bold]Available command groups:[/bold]")
     console.print("  • [cyan]etl[/cyan]  - ETL Pipeline operations")
-    console.print("  • [cyan]rag[/cyan]  - RAG query and search operations\n")
+    console.print("  • [cyan]rag[/cyan]  - RAG query and search operations")
+    console.print("  • [cyan]db[/cyan]   - Database load and management\n")
 
     console.print("[bold]Quick start:[/bold]")
-    console.print("  1. green-gov-rag-cli etl ingest")
-    console.print("  2. green-gov-rag-cli etl parse")
-    console.print("  3. green-gov-rag-cli rag index")
-    console.print("  4. green-gov-rag-cli rag query 'your question here'\n")
+    console.print("  1. greengovrag-cli etl ingest")
+    console.print("  2. greengovrag-cli etl parse")
+    console.print("  3. greengovrag-cli etl chunk")
+    console.print("  4. greengovrag-cli db load-chunks")
+    console.print("  5. greengovrag-cli rag index")
+    console.print("  6. greengovrag-cli rag query 'your question here'\n")
 
     console.print("Use --help with any command for more details")
 

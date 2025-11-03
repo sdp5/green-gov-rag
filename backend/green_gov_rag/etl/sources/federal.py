@@ -100,9 +100,8 @@ class FederalLegislationSource(DocumentSource):
             "source_url": self.config.get("source_url"),
         }
 
-        # Include spatial metadata if present
-        if "spatial_metadata" in self.config:
-            metadata["spatial_metadata"] = self.config["spatial_metadata"]
+        # Include structured metadata (esg_metadata, spatial_metadata)
+        metadata.update(self._extract_structured_metadata())
 
         return metadata
 

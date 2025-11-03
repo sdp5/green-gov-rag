@@ -57,7 +57,7 @@ def review_failed_downloads() -> None:
     print("2. Complete any CAPTCHA challenges")
     print(f"3. Save the downloaded file to: {backend_dir / 'data' / 'raw'}")
     print("4. Re-run the ingestion command:")
-    print("   python -m green_gov_rag.cli etl ingest")
+    print("   greengovrag-cli etl ingest")
     print()
     print("Alternative: Use cloudscraper or Playwright for automated downloads")
     print("  pip install cloudscraper")

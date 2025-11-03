@@ -41,6 +41,20 @@ class Document(SQLModel, table=True):
         description="Additional metadata as JSON",
     )
 
+    # ESG-specific metadata
+    esg_metadata: Optional[dict] = Field(
+        default=None,
+        sa_column=Column(JSON),
+        description="ESG/emissions metadata (frameworks, scopes, gases, etc.)",
+    )
+
+    # Spatial/geographic metadata
+    spatial_metadata: Optional[dict] = Field(
+        default=None,
+        sa_column=Column(JSON),
+        description="Spatial metadata (LGA codes, state, spatial scope, etc.)",
+    )
+
     # Processing status
     status: str = Field(
         default="pending",

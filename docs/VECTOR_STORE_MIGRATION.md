@@ -90,7 +90,7 @@ QDRANT_URL=http://localhost:6333
 
 ```bash
 # Your app now uses Qdrant!
-python -m green_gov_rag.cli rag query "What are emissions limits in NSW?"
+greengovrag-cli rag query "What are emissions limits in NSW?"
 ```
 
 ## Comparison: FAISS vs Qdrant

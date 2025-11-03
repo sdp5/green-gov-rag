@@ -29,7 +29,31 @@ class Chunk(SQLModel, table=True):
 
     # Page/section info
     page_number: Optional[int] = Field(default=None, description="Page number if PDF")
+    page_range: Optional[list[int]] = Field(
+        default=None,
+        sa_column=Column(JSON),
+        description="Page range if chunk spans multiple pages [start, end]",
+    )
     section_title: Optional[str] = Field(default=None, description="Section title")
+    section_hierarchy: Optional[list[str]] = Field(
+        default=None,
+        sa_column=Column(JSON),
+        description="Full section hierarchy from document root to current section",
+    )
+    clause_reference: Optional[str] = Field(
+        default=None,
+        description="Legal clause/section reference (e.g., 's.3.2.1', 'cl.42')",
+    )
+
+    # Deep linking and citation
+    deep_link: Optional[str] = Field(
+        default=None,
+        description="Deep link to specific section/page in source document",
+    )
+    citation: Optional[str] = Field(
+        default=None,
+        description="Formatted citation string for display",
+    )
 
     # Embedding info
     embedding_index: Optional[int] = Field(

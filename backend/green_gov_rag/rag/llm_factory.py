@@ -100,7 +100,7 @@ class LLMFactory:
             azure_deployment=deployment_name,
             model=model,
             temperature=temperature,
-            max_completion_tokens=max_tokens,
+            # max_tokens parameter removed - causes empty responses with some models
             azure_endpoint=settings.azure_openai_endpoint,
             api_key=SecretStr(settings.azure_openai_api_key),
             api_version=settings.azure_openai_api_version,

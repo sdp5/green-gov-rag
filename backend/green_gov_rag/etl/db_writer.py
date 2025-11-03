@@ -35,6 +35,8 @@ def save_document(
     category: Optional[str] = None,
     content: Optional[str] = None,
     metadata: Optional[dict] = None,
+    esg_metadata: Optional[dict] = None,
+    spatial_metadata: Optional[dict] = None,
     status: str = "pending",
     storage_path: Optional[str] = None,
     storage_provider: Optional[str] = None,
@@ -50,6 +52,8 @@ def save_document(
         category: Document category
         content: Full text content
         metadata: Additional metadata (will be enriched with storage info)
+        esg_metadata: ESG/emissions metadata (frameworks, scopes, gases, etc.)
+        spatial_metadata: Spatial metadata (LGA codes, state, spatial scope, etc.)
         status: Processing status
         storage_path: Cloud storage path (if using cloud storage)
         storage_provider: Storage provider (local/aws/azure)
@@ -90,6 +94,8 @@ def save_document(
             existing_doc.category = category
             existing_doc.content = content
             existing_doc.metadata_ = enriched_metadata
+            existing_doc.esg_metadata = esg_metadata
+            existing_doc.spatial_metadata = spatial_metadata
             existing_doc.status = status
             existing_doc.updated_at = datetime.utcnow()
 
@@ -114,6 +120,8 @@ def save_document(
                 category=category,
                 content=content,
                 metadata_=enriched_metadata,
+                esg_metadata=esg_metadata,
+                spatial_metadata=spatial_metadata,
                 status=status,
             )
 
@@ -173,7 +181,12 @@ def save_chunk(
     chunk_index: int,
     text: str,
     page_number: Optional[int] = None,
+    page_range: Optional[list[int]] = None,
     section_title: Optional[str] = None,
+    section_hierarchy: Optional[list[str]] = None,
+    clause_reference: Optional[str] = None,
+    deep_link: Optional[str] = None,
+    citation: Optional[str] = None,
     embedding_index: Optional[int] = None,
     embedding_model: Optional[str] = None,
     metadata: Optional[dict] = None,
@@ -186,7 +199,12 @@ def save_chunk(
         chunk_index: Chunk position in document
         text: Chunk text
         page_number: Page number if PDF
+        page_range: Page range if chunk spans multiple pages [start, end]
         section_title: Section title
+        section_hierarchy: Full section hierarchy from document root
+        clause_reference: Legal clause/section reference (e.g., 's.3.2.1')
+        deep_link: Deep link to specific section/page in source document
+        citation: Formatted citation string for display
         embedding_index: Index in FAISS vector store
         embedding_model: Embedding model used
         metadata: Additional metadata (will be enriched with storage info)
@@ -203,22 +221,64 @@ def save_chunk(
         enriched_metadata["storage_provider"] = settings.cloud_provider
 
     with Session(engine) as session:
-        chunk = Chunk(
-            document_id=document_id,
-            chunk_index=chunk_index,
-            text=text,
-            char_count=len(text),
-            page_number=page_number,
-            section_title=section_title,
-            embedding_index=embedding_index,
-            embedding_model=embedding_model,
-            metadata_=enriched_metadata,
+        # Check if chunk already exists (by document_id + chunk_index)
+        statement = select(Chunk).where(
+            Chunk.document_id == document_id, Chunk.chunk_index == chunk_index
         )
+        existing_chunk = session.exec(statement).first()
 
-        session.add(chunk)
-        session.commit()
-        session.refresh(chunk)
-        return chunk
+        if existing_chunk:
+            # Update existing chunk
+            existing_chunk.text = text
+            existing_chunk.char_count = len(text)
+            existing_chunk.page_number = page_number
+            existing_chunk.page_range = page_range
+            existing_chunk.section_title = section_title
+            existing_chunk.section_hierarchy = section_hierarchy
+            existing_chunk.clause_reference = clause_reference
+            existing_chunk.deep_link = deep_link
+            existing_chunk.citation = citation
+            existing_chunk.embedding_index = embedding_index
+            existing_chunk.embedding_model = embedding_model
+            existing_chunk.metadata_ = enriched_metadata
+
+            session.add(existing_chunk)
+            session.commit()
+            session.refresh(existing_chunk)
+
+            logger.debug(
+                f"Updated chunk {document_id}[{chunk_index}] "
+                f"(page: {page_number}, section: {section_title})"
+            )
+            return existing_chunk
+        else:
+            # Create new chunk
+            chunk = Chunk(
+                document_id=document_id,
+                chunk_index=chunk_index,
+                text=text,
+                char_count=len(text),
+                page_number=page_number,
+                page_range=page_range,
+                section_title=section_title,
+                section_hierarchy=section_hierarchy,
+                clause_reference=clause_reference,
+                deep_link=deep_link,
+                citation=citation,
+                embedding_index=embedding_index,
+                embedding_model=embedding_model,
+                metadata_=enriched_metadata,
+            )
+
+            session.add(chunk)
+            session.commit()
+            session.refresh(chunk)
+
+            logger.debug(
+                f"Created chunk {document_id}[{chunk_index}] "
+                f"(page: {page_number}, section: {section_title})"
+            )
+            return chunk
 
 
 def get_document_by_id(document_id: str) -> Optional[Document]:
@@ -261,6 +321,8 @@ def save_document_from_storage_metadata(storage_metadata: dict[str, Any]) -> Doc
         region=storage_metadata.get("region"),
         category=storage_metadata.get("category"),
         metadata=storage_metadata,
+        esg_metadata=storage_metadata.get("esg_metadata"),
+        spatial_metadata=storage_metadata.get("spatial_metadata"),
         storage_path=storage_metadata.get("storage_path"),
         storage_provider=storage_metadata.get("storage_provider"),
         status="pending",
@@ -297,7 +359,12 @@ def save_chunks_from_storage(
             chunk_index=metadata.get("chunk_id", i),
             text=chunk_data.get("content", ""),
             page_number=metadata.get("page_number"),
+            page_range=metadata.get("page_range"),
             section_title=metadata.get("section_title"),
+            section_hierarchy=metadata.get("section_hierarchy"),
+            clause_reference=metadata.get("clause_reference"),
+            deep_link=metadata.get("deep_link"),
+            citation=metadata.get("citation"),
             embedding_model=embedding_model,
             metadata=metadata,
             storage_path=f"chunks/{document_id}/{i:06d}.json",

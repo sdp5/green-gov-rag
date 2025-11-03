@@ -197,6 +197,16 @@ jobs:
           JOB_NAME="greengovrag-etl-job"
 
           echo "Starting Azure Container App Job: $JOB_NAME"
+          echo ""
+          echo "Note: The Container App Job must be configured with the following command:"
+          echo "  greengovrag-cli etl ingest --config /app/configs/documents_config.yml && \"
+          echo "  greengovrag-cli etl parse --input data/raw --output data/processed && \"
+          echo "  greengovrag-cli etl chunk --input data/processed --output data/chunks --chunk-size 500 --chunk-overlap 100 --mode delta --fast --raw-dir data/raw && \"
+          echo "  greengovrag-cli rag index --chunks data/chunks --vector-store qdrant --collection greengovrag --model \$EMBEDDING_MODEL --changed-files /tmp/changed_files.json --mode delta"
+          echo ""
+          echo "This ensures the full ETL pipeline: ingest → parse → chunk → index"
+          echo "Delta mode uses changed_files.json uploaded to /tmp/changed_files.json by previous step"
+          echo ""
 
           # Start the ETL job execution
           JOB_EXECUTION=$(az containerapp job start \

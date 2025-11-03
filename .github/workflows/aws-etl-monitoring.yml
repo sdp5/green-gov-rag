@@ -281,7 +281,7 @@ jobs:
                 ],
                 \"command\": [
                   \"sh\", \"-c\",
-                  \"aws s3 cp s3://$BUCKET/configs/changed_files.json /tmp/changed_files.json && greengovrag-cli etl ingest --config /app/data/configs/documents_config.yml && greengovrag-cli etl parse --input data/raw --output data/processed && greengovrag-cli etl chunk --input data/processed --output data/chunks --chunk-size 500 --chunk-overlap 100 --mode delta --fast && greengovrag-cli rag index --chunks data/chunks --vector-store qdrant --collection greengovrag --model \\$EMBEDDING_MODEL --changed-files /tmp/changed_files.json --mode delta\"
+                  \"aws s3 cp s3://$BUCKET/configs/changed_files.json /tmp/changed_files.json && greengovrag-cli etl ingest --config /app/data/configs/documents_config.yml && greengovrag-cli etl parse --input data/raw --output data/processed && greengovrag-cli etl chunk --input data/processed --output data/chunks --chunk-size 500 --chunk-overlap 100 --mode delta --fast --raw-dir data/raw && greengovrag-cli rag index --chunks data/chunks --vector-store qdrant --collection greengovrag --model \\$EMBEDDING_MODEL --changed-files /tmp/changed_files.json --mode delta\"
                 ]
               }]
             }" \

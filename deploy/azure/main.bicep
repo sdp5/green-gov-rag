@@ -554,6 +554,172 @@ resource staticWebAppConfig 'Microsoft.Web/staticSites/config@2023-01-01' = {
 }
 
 // =====================================================================
+// Container App Jobs - ETL Pipeline
+// =====================================================================
+
+// ETL Job - Full pipeline (ingest → parse → chunk → index)
+resource etlJob 'Microsoft.App/jobs@2023-05-01' = {
+  name: '${resourcePrefix}-etl-job'
+  location: location
+  properties: {
+    environmentId: containerAppEnv.id
+    configuration: {
+      triggerType: 'Manual'
+      replicaTimeout: 7200  // 2 hours for full ETL
+      replicaRetryLimit: 1
+      secrets: [
+        {
+          name: 'azure-openai-api-key'
+          value: azureOpenaiApiKey
+        }
+        {
+          name: 'postgres-password'
+          value: postgresPassword
+        }
+        {
+          name: 'storage-connection-string'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value};EndpointSuffix=core.windows.net'
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'backend'
+          image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'  // Placeholder - updated via GitHub Actions
+          resources: {
+            cpu: json('2.0')  // 2 vCPU for faster ETL processing
+            memory: '4Gi'     // 4GB for large document processing
+          }
+          command: [
+            '/bin/sh'
+            '-c'
+            'greengovrag-cli etl ingest --config /app/configs/documents_config.yml && greengovrag-cli etl parse --input data/raw --output data/processed && greengovrag-cli etl chunk --input data/processed --output data/chunks --chunk-size 500 --chunk-overlap 100 --mode delta --fast --raw-dir data/raw && greengovrag-cli rag index --chunks data/chunks --vector-store qdrant --collection greengovrag --model $EMBEDDING_MODEL'
+          ]
+          env: [
+            {
+              name: 'DATABASE_URL'
+              value: 'postgresql://dbadmin:${postgresPassword}@${postgresServer.properties.fullyQualifiedDomainName}:5432/greengovrag'
+            }
+            {
+              name: 'QDRANT_URL'
+              value: 'http://${qdrantNIC.properties.ipConfigurations[0].properties.privateIPAddress}:6333'
+            }
+            {
+              name: 'VECTOR_STORE_TYPE'
+              value: 'qdrant'
+            }
+            {
+              name: 'EMBEDDING_MODEL'
+              value: 'BAAI/bge-large-en-v1.5'
+            }
+            {
+              name: 'CLOUD_PROVIDER'
+              value: 'azure'
+            }
+            {
+              name: 'STORAGE_CONTAINER'
+              value: storageAccount.name
+            }
+            {
+              name: 'AZURE_STORAGE_ACCOUNT'
+              value: storageAccount.name
+            }
+            {
+              name: 'AZURE_STORAGE_CONNECTION_STRING'
+              secretRef: 'storage-connection-string'
+            }
+            {
+              name: 'LLM_PROVIDER'
+              value: 'azure'
+            }
+            {
+              name: 'LLM_MODEL'
+              value: 'gpt-5-mini'
+            }
+            {
+              name: 'AZURE_OPENAI_API_KEY'
+              secretRef: 'azure-openai-api-key'
+            }
+            {
+              name: 'AZURE_OPENAI_ENDPOINT'
+              value: azureOpenaiEndpoint
+            }
+            {
+              name: 'AZURE_OPENAI_DEPLOYMENT'
+              value: azureOpenaiDeployment
+            }
+            {
+              name: 'AZURE_OPENAI_API_VERSION'
+              value: '2024-12-01-preview'
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+
+// Monitoring Job - Check for document changes
+resource monitoringJob 'Microsoft.App/jobs@2023-05-01' = {
+  name: '${resourcePrefix}-monitoring-job'
+  location: location
+  properties: {
+    environmentId: containerAppEnv.id
+    configuration: {
+      triggerType: 'Manual'
+      replicaTimeout: 1800  // 30 minutes for monitoring
+      replicaRetryLimit: 1
+      secrets: [
+        {
+          name: 'storage-connection-string'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value};EndpointSuffix=core.windows.net'
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'backend'
+          image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'  // Placeholder - updated via GitHub Actions
+          resources: {
+            cpu: json('0.5')  // 0.5 vCPU for lightweight monitoring
+            memory: '1Gi'
+          }
+          command: [
+            'python'
+            '-m'
+            'green_gov_rag.cli'
+            'etl'
+            'monitor'
+            '--format'
+            'json'
+          ]
+          env: [
+            {
+              name: 'CLOUD_PROVIDER'
+              value: 'azure'
+            }
+            {
+              name: 'STORAGE_CONTAINER'
+              value: storageAccount.name
+            }
+            {
+              name: 'AZURE_STORAGE_ACCOUNT'
+              value: storageAccount.name
+            }
+            {
+              name: 'AZURE_STORAGE_CONNECTION_STRING'
+              secretRef: 'storage-connection-string'
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+
+// =====================================================================
 // Outputs
 // =====================================================================
 output storageAccountName string = storageAccount.name
@@ -568,3 +734,5 @@ output qdrantPublicIP string = qdrantPublicIP.properties.ipAddress
 output qdrantVMName string = qdrantVM.name
 output logAnalyticsWorkspaceId string = logAnalytics.id
 output containerAppEnvironmentId string = containerAppEnv.id
+output etlJobName string = etlJob.name
+output monitoringJobName string = monitoringJob.name

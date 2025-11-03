@@ -111,6 +111,8 @@ def etl_parse(
         green-gov-rag-cli etl parse --input data/raw --output data/processed
 
     """
+    import shutil
+
     from green_gov_rag.etl.parsers import parse_file
 
     console.print(f"[bold blue]Parsing documents from {input_dir}...[/bold blue]")
@@ -124,6 +126,13 @@ def etl_parse(
                 out_file = Path(output_dir) / (doc_file.stem + ".txt")
                 out_file.parent.mkdir(parents=True, exist_ok=True)
                 out_file.write_text(text, encoding="utf-8")
+
+                # Copy metadata file if it exists
+                metadata_file = doc_file.with_suffix(doc_file.suffix + ".metadata.json")
+                if metadata_file.exists():
+                    out_metadata = out_file.with_suffix(".metadata.json")
+                    shutil.copy2(metadata_file, out_metadata)
+                    console.print(f"    → Copied metadata: {metadata_file.name}")
 
                 parsed_count += 1
                 console.print(f"  ✓ Parsed: {doc_file.name}")

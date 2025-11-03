@@ -43,8 +43,8 @@ from green_gov_rag.config import settings
 from green_gov_rag.etl import ingest
 from green_gov_rag.etl.db_writer import (
     save_chunks_from_storage,
-    save_document_from_storage_metadata,
-    update_document_status,
+    save_document_source_from_storage_metadata,
+    update_document_source_status,
 )
 from green_gov_rag.etl.loader import get_document_chunks_from_storage
 from green_gov_rag.etl.pipeline import EnhancedETLPipeline
@@ -149,7 +149,7 @@ def task_sync_metadata_to_db(**context: Any) -> None:
             metadata = storage_adapter.load_metadata(doc_id)
 
             # Save to database
-            save_document_from_storage_metadata(metadata)
+            save_document_source_from_storage_metadata(metadata)
             synced_count += 1
 
             logger.info(f"Synced metadata for document {doc_id}")
@@ -218,21 +218,24 @@ def task_sync_chunks_to_db(**context: Any) -> None:
     for doc_id in document_ids:
         try:
             # Update document status to processing
-            update_document_status(doc_id, "processing")
+            update_document_source_status(doc_id, "processing")
 
             # Load chunks from cloud storage
             chunks = get_document_chunks_from_storage(doc_id)
 
             if chunks:
                 # Save chunks to database
+                # Note: save_chunks_from_storage requires source_id and file_id
+                # For now, use doc_id for both (will need proper file tracking)
                 save_chunks_from_storage(
-                    document_id=doc_id,
+                    source_id=doc_id,
+                    file_id=doc_id,
                     chunks=chunks,
                     embedding_model=config["embedding_model"],
                 )
 
                 # Update document status
-                update_document_status(
+                update_document_source_status(
                     doc_id,
                     "completed",
                     chunk_count=len(chunks),
@@ -243,7 +246,7 @@ def task_sync_chunks_to_db(**context: Any) -> None:
                 logger.info(f"Synced {len(chunks)} chunks for document {doc_id}")
         except Exception as e:
             logger.error(f"Failed to sync chunks for {doc_id}: {e}", exc_info=True)
-            update_document_status(doc_id, "failed", error_message=str(e))
+            update_document_source_status(doc_id, "failed", error_message=str(e))
 
     logger.info(f"Synced {total_chunks} total chunks to database")
 

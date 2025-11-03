@@ -15,7 +15,7 @@ from green_gov_rag.api.schemas import (
     QueryAnalyticsResponse,
     SystemHealthResponse,
 )
-from green_gov_rag.models import Document, QueryHistory
+from green_gov_rag.models import DocumentSource, QueryHistory
 from green_gov_rag.models.base import engine
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -29,21 +29,23 @@ async def get_dashboard_stats() -> DashboardStats:
     """
     with Session(engine) as session:
         # Document stats
-        total_docs = session.exec(select(func.count()).select_from(Document)).one()
+        total_docs = session.exec(
+            select(func.count()).select_from(DocumentSource)
+        ).one()
         processing = session.exec(
             select(func.count())
-            .select_from(Document)
-            .where(Document.status == "processing")
+            .select_from(DocumentSource)
+            .where(DocumentSource.status == "processing")
         ).one()
         failed = session.exec(
             select(func.count())
-            .select_from(Document)
-            .where(Document.status == "failed")
+            .select_from(DocumentSource)
+            .where(DocumentSource.status == "failed")
         ).one()
         completed = session.exec(
             select(func.count())
-            .select_from(Document)
-            .where(Document.status == "completed")
+            .select_from(DocumentSource)
+            .where(DocumentSource.status == "completed")
         ).one()
 
         # Query stats
@@ -98,12 +100,12 @@ async def list_documents(
         jurisdiction: Filter by jurisdiction
     """
     with Session(engine) as session:
-        query = select(Document)
+        query = select(DocumentSource)
 
         if status:
-            query = query.where(Document.status == status)
+            query = query.where(DocumentSource.status == status)
         if jurisdiction:
-            query = query.where(Document.jurisdiction == jurisdiction)
+            query = query.where(DocumentSource.jurisdiction == jurisdiction)
 
         query = query.offset(skip).limit(limit)
         documents = session.exec(query).all()
@@ -131,7 +133,7 @@ async def get_document(document_id: str) -> AdminDocumentDetailResponse:
     from fastapi import HTTPException
 
     with Session(engine) as session:
-        doc = session.get(Document, document_id)
+        doc = session.get(DocumentSource, document_id)
         if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
 
@@ -161,7 +163,7 @@ async def reprocess_document(document_id: str) -> AdminActionResponse:
     from green_gov_rag.api.routes import query_service
 
     with Session(engine) as session:
-        doc = session.get(Document, document_id)
+        doc = session.get(DocumentSource, document_id)
         if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
 
@@ -197,7 +199,7 @@ async def delete_document(document_id: str) -> AdminActionResponse:
     from green_gov_rag.api.routes import query_service
 
     with Session(engine) as session:
-        doc = session.get(Document, document_id)
+        doc = session.get(DocumentSource, document_id)
         if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
 
@@ -288,7 +290,7 @@ async def get_system_health() -> SystemHealthResponse:
     # Check database
     try:
         with Session(engine) as session:
-            session.exec(select(func.count()).select_from(Document)).one()
+            session.exec(select(func.count()).select_from(DocumentSource)).one()
             database_status = "connected"
     except Exception as e:
         database_status = f"error: {str(e)}"

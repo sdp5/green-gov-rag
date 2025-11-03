@@ -9,7 +9,7 @@ from green_gov_rag.api.schemas.analytics import (
     AnalyticsStats,
     DistributionData,
 )
-from green_gov_rag.models import Document, QueryHistory
+from green_gov_rag.models import DocumentSource, QueryHistory
 from green_gov_rag.models.base import engine
 
 
@@ -24,7 +24,9 @@ class AnalyticsService:
         """
         with Session(engine) as session:
             # Total documents
-            total_docs = session.exec(select(func.count()).select_from(Document)).one()
+            total_docs = session.exec(
+                select(func.count()).select_from(DocumentSource)
+            ).one()
 
             # Total queries
             total_queries = session.exec(
@@ -33,9 +35,9 @@ class AnalyticsService:
 
             # Documents by jurisdiction
             jurisdiction_results = session.exec(
-                select(Document.jurisdiction, func.count(Document.id))  # type: ignore[arg-type]
-                .group_by(Document.jurisdiction)
-                .order_by(func.count(Document.id).desc())  # type: ignore[arg-type]
+                select(DocumentSource.jurisdiction, func.count(DocumentSource.id))  # type: ignore[arg-type]
+                .group_by(DocumentSource.jurisdiction)
+                .order_by(func.count(DocumentSource.id).desc())  # type: ignore[arg-type]
             ).all()
             by_jurisdiction = [
                 DistributionData(name=name, count=count)
@@ -44,9 +46,9 @@ class AnalyticsService:
 
             # Documents by topic
             topic_results = session.exec(
-                select(Document.topic, func.count(Document.id))  # type: ignore[arg-type]
-                .group_by(Document.topic)
-                .order_by(func.count(Document.id).desc())  # type: ignore[arg-type]
+                select(DocumentSource.topic, func.count(DocumentSource.id))  # type: ignore[arg-type]
+                .group_by(DocumentSource.topic)
+                .order_by(func.count(DocumentSource.id).desc())  # type: ignore[arg-type]
             ).all()
             by_topic = [
                 DistributionData(name=name, count=count)
@@ -55,10 +57,10 @@ class AnalyticsService:
 
             # Documents by region (excluding None)
             region_results = session.exec(
-                select(Document.region, func.count(Document.id))  # type: ignore[arg-type]
-                .where(Document.region.is_not(None))  # type: ignore[union-attr]
-                .group_by(Document.region)
-                .order_by(func.count(Document.id).desc())  # type: ignore[arg-type]
+                select(DocumentSource.region, func.count(DocumentSource.id))  # type: ignore[arg-type]
+                .where(DocumentSource.region.is_not(None))  # type: ignore[union-attr]
+                .group_by(DocumentSource.region)
+                .order_by(func.count(DocumentSource.id).desc())  # type: ignore[arg-type]
             ).all()
             by_region = [
                 DistributionData(name=name or "Unknown", count=count)

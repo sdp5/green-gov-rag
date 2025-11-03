@@ -1093,13 +1093,18 @@ def load_chunks(
     """Load chunk files into PostgreSQL database with metadata.
 
     This command loads processed chunks from JSON files into the database,
-    populating the documents and chunks tables with all metadata including
-    jurisdiction, category, topic, region, etc.
+    populating the document_sources, document_files, and document_chunks tables
+    with all metadata including jurisdiction, category, topic, region, etc.
 
     Example:
         greengovrag-cli db load-chunks --chunks-dir data/chunks
     """
-    from green_gov_rag.etl.db_writer import save_chunk, save_document
+    from green_gov_rag.etl.db_writer import (
+        save_chunk,
+        save_document_file,
+        save_document_source,
+        update_document_source_status,
+    )
 
     console.print(f"[bold]Loading chunks from {chunks_dir}...[/bold]")
 
@@ -1144,8 +1149,8 @@ def load_chunks(
             metadata = first_chunk.get("metadata", {})
             title = metadata.get("title", chunk_file.stem.replace("_chunks", ""))
 
-            # Save document record
-            doc = save_document(
+            # Save document source record
+            source = save_document_source(
                 title=title,
                 source_url=metadata.get("source_url", ""),
                 jurisdiction=metadata.get("jurisdiction", "unknown"),
@@ -1155,9 +1160,28 @@ def load_chunks(
                 esg_metadata=metadata.get("esg_metadata"),
                 spatial_metadata=metadata.get("spatial_metadata"),
                 metadata=metadata,
-                source_pdf_url=metadata.get("source_pdf_url"),
                 status="completed",
             )
+
+            # Create a document file entry
+            # Note: chunk metadata may contain filename if available
+            filename = metadata.get("filename", f"{chunk_file.stem}.pdf")
+            source_pdf_url = metadata.get("source_pdf_url", "")
+
+            # Calculate content hash from chunk data (simplified approach)
+            import hashlib
+
+            content_for_hash = "".join([c.get("content", "") for c in data])
+            content_hash = hashlib.sha256(content_for_hash.encode()).hexdigest()
+
+            doc_file = save_document_file(
+                source_id=source.id,
+                filename=filename,
+                file_url=source_pdf_url,
+                content_hash=content_hash,
+                status="completed",
+            )
+
             total_documents += 1
 
             # Save chunks in batches
@@ -1200,7 +1224,8 @@ def load_chunks(
                             )
 
                     save_chunk(
-                        document_id=doc.id,
+                        source_id=source.id,
+                        file_id=doc_file.id,
                         chunk_index=chunk_idx,
                         text=chunk.get("content", ""),
                         page_number=chunk_metadata.get("page_number"),
@@ -1208,6 +1233,7 @@ def load_chunks(
                         section_title=chunk_metadata.get("section_title"),
                         section_hierarchy=chunk_metadata.get("section_hierarchy"),
                         clause_reference=chunk_metadata.get("clause_reference"),
+                        source_pdf_url=source_pdf_url,
                         deep_link=deep_link,
                         citation=citation,
                         metadata=chunk_metadata,
@@ -1220,11 +1246,17 @@ def load_chunks(
                     f"{len(batch)} chunks from {chunk_file.name}[/dim]"
                 )
 
-            # Update document with chunk count
-            from green_gov_rag.etl.db_writer import update_document_status
+            # Update document source and file with chunk count
+            update_document_source_status(
+                source_id=source.id,
+                status="completed",
+                chunk_count=chunk_count_for_doc,
+            )
 
-            update_document_status(
-                document_id=doc.id,
+            from green_gov_rag.etl.db_writer import update_document_file_status
+
+            update_document_file_status(
+                file_id=doc_file.id,
                 status="completed",
                 chunk_count=chunk_count_for_doc,
             )

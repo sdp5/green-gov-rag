@@ -247,7 +247,7 @@ class MonitoringService:
 
             statement = (
                 select(DocumentVersion)
-                .where(DocumentVersion.document_id == doc_id)
+                .where(DocumentVersion.source_id == doc_id)
                 .order_by(desc(col(DocumentVersion.version_number)))
             )
             latest_version = session.exec(statement).first()
@@ -442,7 +442,7 @@ class MonitoringService:
         with Session(engine) as session:
             statement = (
                 select(DocumentVersion)
-                .where(DocumentVersion.document_id == document_id)
+                .where(DocumentVersion.source_id == document_id)
                 .order_by(desc(col(DocumentVersion.version_number)))
             )
 

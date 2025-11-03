@@ -120,7 +120,7 @@ class CitationVerificationService:
             # Get all versions of this document
             statement = (
                 select(DocumentVersion)
-                .where(DocumentVersion.document_id == document_id)
+                .where(DocumentVersion.source_id == document_id)
                 .order_by(desc(col(DocumentVersion.version_number)))
             )
             versions = session.exec(statement).all()
@@ -222,7 +222,7 @@ class CitationVerificationService:
             # Get current version
             statement = (
                 select(DocumentVersion)
-                .where(DocumentVersion.document_id == document_id)
+                .where(DocumentVersion.source_id == document_id)
                 .where(DocumentVersion.is_current == True)  # noqa: E712
             )
             current_version = session.exec(statement).first()
@@ -308,7 +308,7 @@ class CitationVerificationService:
         with Session(engine) as session:
             statement = (
                 select(DocumentVersion)
-                .where(DocumentVersion.document_id == document_id)
+                .where(DocumentVersion.source_id == document_id)
                 .order_by(desc(col(DocumentVersion.version_number)))
             )
             versions = session.exec(statement).all()

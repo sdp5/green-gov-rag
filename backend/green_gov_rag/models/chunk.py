@@ -2,22 +2,39 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlmodel import JSON, Column, Field, SQLModel
 
 
 class Chunk(SQLModel, table=True):
-    """Text chunk metadata (embeddings stored in FAISS)."""
+    """Text chunk metadata (embeddings stored in FAISS/Qdrant).
 
-    __tablename__ = "chunks"
+    Each chunk references both:
+    - source_id: The logical document source (config entry)
+    - file_id: The specific file this chunk came from
+
+    This allows tracking which PDF a chunk originated from while maintaining
+    source-level context.
+    """
+
+    __tablename__ = "document_chunks"
 
     # Primary key
     id: Optional[int] = Field(default=None, primary_key=True)
 
-    # Foreign key to document
-    document_id: str = Field(foreign_key="documents.id", index=True)
+    # Foreign keys
+    source_id: str = Field(
+        foreign_key="document_sources.id",
+        index=True,
+        description="Parent document source (config entry)",
+    )
+    file_id: str = Field(
+        foreign_key="document_files.id",
+        index=True,
+        description="Specific file this chunk came from",
+    )
 
     # Chunk details
     chunk_index: int = Field(description="Chunk position in document")
@@ -78,7 +95,7 @@ class Chunk(SQLModel, table=True):
 
     # Timestamp
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Creation timestamp",
     )
 
@@ -87,7 +104,8 @@ class Chunk(SQLModel, table=True):
 
         json_schema_extra = {
             "example": {
-                "document_id": "doc_001",
+                "source_id": "ncc_2022",
+                "file_id": "ncc_2022_vol1",
                 "chunk_index": 0,
                 "text": "This is the first chunk...",
                 "char_count": 512,

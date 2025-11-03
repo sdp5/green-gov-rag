@@ -19,6 +19,10 @@ class Document(SQLModel, table=True):
     # Basic metadata
     title: str = Field(index=True, description="Document title")
     source_url: str = Field(description="Original source URL")
+    source_pdf_url: Optional[str] = Field(
+        default=None,
+        description="Direct PDF URL (from download_urls) for deep linking",
+    )
 
     # Classification fields
     jurisdiction: str = Field(index=True, description="Federal/State/Local")

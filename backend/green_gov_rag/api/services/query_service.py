@@ -147,12 +147,14 @@ class QueryService:
                 page_content = src.page_content
                 title = metadata.get("title", "Unknown")
                 source_url = metadata.get("source_url", "")
+                source_pdf_url = metadata.get("source_pdf_url")
                 excerpt = page_content[:500] if page_content else None
             else:
                 # Dict format (legacy)
                 metadata = src.get("metadata", {})
                 title = src.get("title", metadata.get("title", "Unknown"))
                 source_url = src.get("source_url", metadata.get("source_url", ""))
+                source_pdf_url = metadata.get("source_pdf_url")
                 excerpt = src.get("excerpt", src.get("content", ""))
 
             # Extract metadata
@@ -175,12 +177,13 @@ class QueryService:
                 regulator=regulator,
             )
 
-            # Build deep link
+            # Build deep link using source_pdf_url (actual PDF) if available, fallback to source_url
             section_id = CitationFormatter.extract_section_id(
                 section_hierarchy, clause_reference
             )
             deep_link = CitationFormatter.build_deep_link(
-                source_url=source_url,
+                source_url=source_pdf_url
+                or source_url,  # Prefer source_pdf_url for direct PDF links
                 page_number=page_number,
                 section_id=section_id,
             )

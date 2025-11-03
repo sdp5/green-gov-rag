@@ -1155,6 +1155,7 @@ def load_chunks(
                 esg_metadata=metadata.get("esg_metadata"),
                 spatial_metadata=metadata.get("spatial_metadata"),
                 metadata=metadata,
+                source_pdf_url=metadata.get("source_pdf_url"),
                 status="completed",
             )
             total_documents += 1

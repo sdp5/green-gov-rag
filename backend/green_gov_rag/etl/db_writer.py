@@ -16,6 +16,7 @@ from sqlmodel import Session, select
 from green_gov_rag.config import settings
 from green_gov_rag.models import Chunk, Document
 from green_gov_rag.models.base import engine
+from green_gov_rag.models.document_version import DocumentVersion
 
 logger = logging.getLogger(__name__)
 
@@ -40,12 +41,13 @@ def save_document(
     status: str = "pending",
     storage_path: Optional[str] = None,
     storage_provider: Optional[str] = None,
+    source_pdf_url: Optional[str] = None,
 ) -> Document:
     """Save document to database with cloud storage tracking.
 
     Args:
         title: Document title
-        source_url: Source URL
+        source_url: Source URL (generic portal/landing page)
         jurisdiction: Federal/State/Local
         topic: Document topic
         region: Geographic region
@@ -57,6 +59,7 @@ def save_document(
         status: Processing status
         storage_path: Cloud storage path (if using cloud storage)
         storage_provider: Storage provider (local/aws/azure)
+        source_pdf_url: Direct PDF URL for deep linking (from download_urls)
 
     Returns:
         Document: Saved document
@@ -88,6 +91,7 @@ def save_document(
             # Update existing document
             existing_doc.title = title
             existing_doc.source_url = source_url
+            existing_doc.source_pdf_url = source_pdf_url
             existing_doc.jurisdiction = jurisdiction
             existing_doc.topic = topic
             existing_doc.region = region
@@ -114,6 +118,7 @@ def save_document(
                 id=doc_id,
                 title=title,
                 source_url=source_url,
+                source_pdf_url=source_pdf_url,
                 jurisdiction=jurisdiction,
                 topic=topic,
                 region=region,
@@ -325,6 +330,7 @@ def save_document_from_storage_metadata(storage_metadata: dict[str, Any]) -> Doc
         spatial_metadata=storage_metadata.get("spatial_metadata"),
         storage_path=storage_metadata.get("storage_path"),
         storage_provider=storage_metadata.get("storage_provider"),
+        source_pdf_url=storage_metadata.get("source_pdf_url"),
         status="pending",
     )
 
@@ -373,3 +379,73 @@ def save_chunks_from_storage(
 
     logger.info(f"Saved {len(saved_chunks)} chunks for document {document_id}")
     return saved_chunks
+
+
+def save_document_version(
+    document_id: str,
+    content_hash: str,
+    source_url: str,
+    file_size_bytes: Optional[int] = None,
+    change_type: str = "new",
+    remote_last_modified: Optional[datetime] = None,
+    remote_etag: Optional[str] = None,
+    metadata: Optional[dict] = None,
+) -> DocumentVersion:
+    """Create a new document version record.
+
+    Args:
+        document_id: Parent document ID
+        content_hash: SHA256 hash of document content
+        source_url: URL where document was retrieved
+        file_size_bytes: File size in bytes
+        change_type: Type of change ('new', 'updated', 'unchanged')
+        remote_last_modified: Last-Modified header from server
+        remote_etag: ETag header from server
+        metadata: Additional version metadata
+
+    Returns:
+        DocumentVersion: Created version record
+    """
+    with Session(engine) as session:
+        # Get current version number for this document
+        statement = (
+            select(DocumentVersion)
+            .where(DocumentVersion.document_id == document_id)
+            .order_by(DocumentVersion.version_number.desc())  # type: ignore[attr-defined]
+        )
+        latest_version = session.exec(statement).first()
+
+        version_number = (latest_version.version_number + 1) if latest_version else 1
+
+        # Mark previous version as superseded if this is an update
+        if latest_version and latest_version.is_current:
+            latest_version.is_current = False
+            latest_version.superseded_at = datetime.utcnow()
+            session.add(latest_version)
+
+        # Create new version
+        version = DocumentVersion(
+            document_id=document_id,
+            version_number=version_number,
+            content_hash=content_hash,
+            source_url=source_url,
+            file_size_bytes=file_size_bytes,
+            change_type=change_type,
+            remote_last_modified=remote_last_modified,
+            remote_etag=remote_etag,
+            metadata_=metadata,
+            downloaded_at=datetime.utcnow(),
+            status="completed",
+            is_current=True,
+        )
+
+        session.add(version)
+        session.commit()
+        session.refresh(version)
+
+        logger.info(
+            f"Created version {version_number} for document {document_id} "
+            f"(type: {change_type})"
+        )
+
+        return version

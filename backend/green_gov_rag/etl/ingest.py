@@ -177,7 +177,8 @@ def process_document(
             "jurisdiction": jurisdiction,
             "category": category,
             "topic": topic,
-            "source_url": url,
+            "source_url": doc.get("source_url", url),  # Generic source (portal)
+            "source_pdf_url": url,  # Actual PDF URL for deep linking
         }
 
         # Add ESG metadata if present

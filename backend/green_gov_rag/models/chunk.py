@@ -46,6 +46,10 @@ class Chunk(SQLModel, table=True):
     )
 
     # Deep linking and citation
+    source_pdf_url: Optional[str] = Field(
+        default=None,
+        description="Direct PDF URL (from download_urls) for deep linking",
+    )
     deep_link: Optional[str] = Field(
         default=None,
         description="Deep link to specific section/page in source document",

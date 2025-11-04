@@ -1112,7 +1112,7 @@ export default function PlaygroundPage() {
                           </div>
                           <div className="text-center p-4 bg-white/60 rounded-lg border-2 border-orange-100">
                             <p className="text-xs font-semibold text-orange-600 uppercase mb-1">Conflicts</p>
-                            <p className="text-2xl font-bold text-orange-900">{(results.trust_breakdown.conflict_score * 100).toFixed(0)}%</p>
+                            <p className="text-2xl font-bold text-orange-900">{(100 - results.trust_breakdown.conflict_score * 100).toFixed(0)}%</p>
                           </div>
                           <div className="text-center p-4 bg-white/60 rounded-lg border-2 border-green-100">
                             <p className="text-xs font-semibold text-green-600 uppercase mb-1">Accuracy</p>

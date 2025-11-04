@@ -8,10 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { EmptyState } from '@/components/EmptyState';
 import {
   MapPin, ChevronLeft, ChevronRight, BarChart3, FileText, ChevronUp, ChevronDown,
   Shield, AlertTriangle, Scale, Building2, ExternalLink, BookOpen, Info, CheckCircle2,
-  XCircle, AlertCircle, Sparkles, Clock, TrendingUp, Eye, EyeOff, Maximize2, Minimize2, Star
+  XCircle, AlertCircle, Sparkles, Clock, TrendingUp, Eye, EyeOff, Maximize2, Minimize2, Star,
+  Search
 } from 'lucide-react';
 import { REGIONS, JURISDICTIONS, TOPICS } from '@/commons/constants';
 import Map, { Source, Layer, NavigationControl, type MapMouseEvent, type ViewStateChangeEvent } from 'react-map-gl/mapbox';
@@ -970,9 +972,34 @@ export default function PlaygroundPage() {
             </Card>
           )}
 
+          {/* Empty State - No Results */}
+          {!isLoading && !results && !queryError && (
+            <EmptyState
+              icon={Search}
+              title="Ready to explore regulations"
+              description="Enter your question above to get started. Search through hundreds of Australian environmental and planning documents with AI-powered insights."
+              className="py-20"
+            >
+              <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto text-left">
+                <div className="bg-gradient-to-br from-emerald-50 to-green-50 p-4 rounded-lg border-2 border-emerald-200">
+                  <h4 className="font-bold text-sm text-emerald-900 mb-1">Federal Level</h4>
+                  <p className="text-xs text-emerald-700">EPBC Act, NGER, emissions reporting</p>
+                </div>
+                <div className="bg-gradient-to-br from-blue-50 to-sky-50 p-4 rounded-lg border-2 border-blue-200">
+                  <h4 className="font-bold text-sm text-blue-900 mb-1">State Level</h4>
+                  <p className="text-xs text-blue-700">EPA guidelines, planning schemes</p>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-4 rounded-lg border-2 border-purple-200">
+                  <h4 className="font-bold text-sm text-purple-900 mb-1">Local Level</h4>
+                  <p className="text-xs text-purple-700">Council regulations, zoning laws</p>
+                </div>
+              </div>
+            </EmptyState>
+          )}
+
           {/* Results Section */}
           {!isLoading && results && (
-            <div className="space-y-5">
+            <div className="space-y-5 fade-in">
               {/* 1. Answer - Most Important */}
               <Card className="border-2 border-sky-200 bg-gradient-to-br from-sky-50 via-blue-50 to-white shadow-xl">
                 <CardHeader className="pb-4 bg-gradient-to-r from-sky-50/50 to-transparent border-b-2">

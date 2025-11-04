@@ -19,6 +19,10 @@ class SourceDocument(BaseModel):
     source_url: str = Field(..., description="Document source URL")
     excerpt: Optional[str] = Field(None, description="Relevant excerpt from document")
     relevance_score: Optional[float] = Field(None, description="Similarity score (0-1)")
+    file_id: Optional[str] = Field(
+        None,
+        description="Unique file identifier for citation verification and version tracking",
+    )
 
     # Citation metadata (from hierarchical PDF parsing)
     page_number: Optional[int] = Field(

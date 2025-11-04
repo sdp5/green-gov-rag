@@ -232,6 +232,7 @@ class QueryService:
                 title = metadata.get("title", "Unknown")
                 source_url = metadata.get("source_url", "")
                 source_pdf_url = metadata.get("source_pdf_url")
+                file_id = metadata.get("file_id")
                 excerpt = page_content[:500] if page_content else None
             else:
                 # Dict format (legacy)
@@ -239,6 +240,7 @@ class QueryService:
                 title = src.get("title", metadata.get("title", "Unknown"))
                 source_url = src.get("source_url", metadata.get("source_url", ""))
                 source_pdf_url = metadata.get("source_pdf_url")
+                file_id = metadata.get("file_id")
                 excerpt = src.get("excerpt", src.get("content", ""))
 
             # Extract metadata
@@ -285,6 +287,7 @@ class QueryService:
                 source_url=source_url,
                 excerpt=excerpt,
                 relevance_score=metadata.get("score"),
+                file_id=file_id,
                 # Citation metadata
                 page_number=page_number,
                 page_range=page_range,

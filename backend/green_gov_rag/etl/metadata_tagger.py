@@ -10,8 +10,8 @@ from typing import Any
 
 from langchain.chains import create_tagging_chain_pydantic
 from langchain.docstore.document import Document
-from langchain_community.document_transformers import OpenAIMetadataTagger
 from langchain.prompts import ChatPromptTemplate
+from langchain_community.document_transformers import OpenAIMetadataTagger
 from pydantic import BaseModel, Field
 
 

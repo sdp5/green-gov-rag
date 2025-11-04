@@ -19,9 +19,13 @@ from __future__ import annotations
 def filter_by_metadata(documents: list[dict], filters: dict) -> list[dict]:
     """Filters a list of document chunks based on metadata criteria.
 
+    Performs case-insensitive string matching for all filter values.
+    Special handling for LGA filtering via spatial_metadata.lga_names array.
+
     :param documents: List of document chunks, each chunk is a dict with 'metadata' key
     :param filters: Dictionary with metadata keys and expected values
                     Example: {"jurisdiction": "state", "region": "South Australia"}
+                    Special key "lga_names" filters by spatial_metadata.lga_names array
     :return: Filtered list of document chunks
     """
     filtered_docs = []
@@ -30,14 +34,66 @@ def filter_by_metadata(documents: list[dict], filters: dict) -> list[dict]:
         metadata = doc.get("metadata", {})
         match = True
         for key, value in filters.items():
-            # Support list of values for a key
-            if isinstance(value, list):
-                if metadata.get(key) not in value:
-                    match = False
-                    break
-            elif metadata.get(key) != value:
-                match = False
-                break
+            # Special handling for LGA names (nested in spatial_metadata)
+            if key == "lga_names":
+                spatial_metadata = metadata.get("spatial_metadata", {})
+                lga_names = spatial_metadata.get("lga_names", [])
+                # Check if any of the requested LGAs match any in the document
+                if isinstance(value, list):
+                    # Normalize for comparison
+                    normalized_filters = [
+                        v.lower() if isinstance(v, str) else v for v in value
+                    ]
+                    normalized_lgas = [
+                        lga.lower() if isinstance(lga, str) else lga
+                        for lga in lga_names
+                    ]
+                    # Check if any filter LGA matches any document LGA
+                    if not any(lga in normalized_lgas for lga in normalized_filters):
+                        match = False
+                        break
+                else:
+                    # Single LGA
+                    normalized_value = (
+                        value.lower() if isinstance(value, str) else value
+                    )
+                    normalized_lgas = [
+                        lga.lower() if isinstance(lga, str) else lga
+                        for lga in lga_names
+                    ]
+                    if normalized_value not in normalized_lgas:
+                        match = False
+                        break
+            # Skip region_specified (used only for filters_applied transparency)
+            elif key == "region_specified":
+                continue
+            else:
+                # Standard metadata filtering
+                metadata_value = metadata.get(key)
+
+                # Support list of values for a key (OR condition)
+                if isinstance(value, list):
+                    # Normalize both filter values and metadata value for comparison
+                    normalized_filters = [
+                        v.lower() if isinstance(v, str) else v for v in value
+                    ]
+                    normalized_meta = (
+                        metadata_value.lower()
+                        if isinstance(metadata_value, str)
+                        else metadata_value
+                    )
+                    if normalized_meta not in normalized_filters:
+                        match = False
+                        break
+                else:
+                    # Single value - case-insensitive comparison for strings
+                    if isinstance(value, str) and isinstance(metadata_value, str):
+                        if value.lower() != metadata_value.lower():
+                            match = False
+                            break
+                    elif metadata_value != value:
+                        match = False
+                        break
         if match:
             filtered_docs.append(doc)
 

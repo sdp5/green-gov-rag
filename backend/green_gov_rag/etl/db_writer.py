@@ -292,6 +292,13 @@ def save_chunk(
         Chunk: Saved chunk
     """
     with Session(engine) as session:
+        # Ensure file_id is in metadata for citation verification
+        if metadata is None:
+            metadata = {}
+        metadata = metadata.copy()  # Don't modify caller's dict
+        metadata["file_id"] = file_id
+        metadata["source_id"] = source_id
+
         # Check if chunk already exists (by file_id + chunk_index)
         statement = select(Chunk).where(
             Chunk.file_id == file_id, Chunk.chunk_index == chunk_index
@@ -453,6 +460,7 @@ def save_chunks_from_storage(
 
 
 def save_document_version(
+    file_id: str,
     source_id: str,
     content_hash: str,
     source_url: str,
@@ -465,6 +473,7 @@ def save_document_version(
     """Create a new document version record.
 
     Args:
+        file_id: Specific document file ID
         source_id: Parent document source ID
         content_hash: SHA256 hash of document content
         source_url: URL where document was retrieved
@@ -478,10 +487,10 @@ def save_document_version(
         DocumentVersion: Created version record
     """
     with Session(engine) as session:
-        # Get current version number for this source
+        # Get current version number for this file
         statement = (
             select(DocumentVersion)
-            .where(DocumentVersion.source_id == source_id)
+            .where(DocumentVersion.file_id == file_id)
             .order_by(DocumentVersion.version_number.desc())  # type: ignore[attr-defined]
         )
         latest_version = session.exec(statement).first()
@@ -496,6 +505,7 @@ def save_document_version(
 
         # Create new version
         version = DocumentVersion(
+            file_id=file_id,
             source_id=source_id,
             version_number=version_number,
             content_hash=content_hash,
@@ -515,8 +525,8 @@ def save_document_version(
         session.refresh(version)
 
         logger.info(
-            f"Created version {version_number} for source {source_id} "
-            f"(type: {change_type})"
+            f"Created version {version_number} for file {file_id} "
+            f"(source: {source_id}, type: {change_type})"
         )
 
         return version

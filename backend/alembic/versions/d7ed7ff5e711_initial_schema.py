@@ -115,6 +115,7 @@ def upgrade() -> None:
     op.create_index(op.f('ix_document_files_status'), 'document_files', ['status'], unique=False)
     op.create_table('document_versions',
     sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('file_id', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('source_id', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('version_number', sa.Integer(), nullable=False),
     sa.Column('content_hash', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
@@ -133,11 +134,13 @@ def upgrade() -> None:
     sa.Column('error_message', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('is_current', sa.Boolean(), nullable=False),
     sa.Column('superseded_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['file_id'], ['document_files.id'], ),
     sa.ForeignKeyConstraint(['source_id'], ['document_sources.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_document_versions_change_type'), 'document_versions', ['change_type'], unique=False)
     op.create_index(op.f('ix_document_versions_content_hash'), 'document_versions', ['content_hash'], unique=False)
+    op.create_index(op.f('ix_document_versions_file_id'), 'document_versions', ['file_id'], unique=False)
     op.create_index(op.f('ix_document_versions_is_current'), 'document_versions', ['is_current'], unique=False)
     op.create_index(op.f('ix_document_versions_source_id'), 'document_versions', ['source_id'], unique=False)
     op.create_index(op.f('ix_document_versions_status'), 'document_versions', ['status'], unique=False)
@@ -180,6 +183,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_document_versions_status'), table_name='document_versions')
     op.drop_index(op.f('ix_document_versions_source_id'), table_name='document_versions')
     op.drop_index(op.f('ix_document_versions_is_current'), table_name='document_versions')
+    op.drop_index(op.f('ix_document_versions_file_id'), table_name='document_versions')
     op.drop_index(op.f('ix_document_versions_content_hash'), table_name='document_versions')
     op.drop_index(op.f('ix_document_versions_change_type'), table_name='document_versions')
     op.drop_table('document_versions')

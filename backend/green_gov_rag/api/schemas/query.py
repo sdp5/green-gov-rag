@@ -117,7 +117,14 @@ class QueryRequest(BaseModel):
     """Query request schema."""
 
     query: str = Field(..., min_length=1, description="User query")
-    region: Optional[str] = Field(None, description="Region filter")
+    region: Optional[str] = Field(
+        None,
+        description="Region filter (state/territory name or abbreviation)",
+    )
+    lgas: Optional[list[str]] = Field(
+        None,
+        description="Local Government Area names (takes priority over region)",
+    )
     jurisdiction: Optional[str] = Field(None, description="Jurisdiction filter")
     topics: Optional[list[str]] = Field(None, description="Topic filters")
     max_sources: int = Field(5, ge=1, le=20, description="Max source documents")

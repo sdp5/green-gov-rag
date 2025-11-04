@@ -23,7 +23,12 @@ class DocumentVersion(SQLModel, table=True):
     # Primary key
     id: int = Field(default=None, primary_key=True)
 
-    # Foreign key to document_sources table
+    # Foreign keys
+    file_id: str = Field(
+        index=True,
+        foreign_key="document_files.id",
+        description="Reference to specific document file",
+    )
     source_id: str = Field(
         index=True,
         foreign_key="document_sources.id",

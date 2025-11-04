@@ -363,6 +363,15 @@ class DocumentTopic(str, Enum):
     DEVELOPMENT_ASSESSMENT = "development_assessment"
     HERITAGE_PROTECTION = "heritage_protection"
     WASTE_MANAGEMENT = "waste_management"
+    ENVIRONMENT_PROTECTION = "environment_protection"
+    ENVIRONMENTAL_IMPACT = "environmental_impact"
+    ENVIRONMENTAL_ASSESSMENT = "environmental_assessment"
+    PLANNING = "planning"
+    DEVELOPMENT_PLAN = "development_plan"
+    ZONING = "zoning"
+    STANDARDS = "standards"
+    AIRPORT_DEVELOPMENT = "airport_development"
+    SUSTAINABLE_DEVELOPMENT = "sustainable_development"
 
 
 # ============================================================================
@@ -498,6 +507,44 @@ VALID_ESG_FRAMEWORKS = [fw.value for fw in ESGFramework] + [
 
 # State code to full name mapping (derived from AustralianState enum)
 STATE_CODE_TO_NAME = {state.value: state.full_name for state in AustralianState}
+
+# Topic mapping: User-friendly names -> internal topic codes
+# Used for normalizing user input in API queries
+TOPIC_MAPPING: dict[str, list[str]] = {
+    "climate": [
+        DocumentTopic.EMISSIONS_REPORTING.value,
+        DocumentTopic.CLIMATE_CHANGE.value,
+        DocumentTopic.ENVIRONMENT_PROTECTION.value,
+    ],
+    "emissions": [
+        DocumentTopic.EMISSIONS_REPORTING.value,
+    ],
+    "biodiversity": [
+        DocumentTopic.BIODIVERSITY.value,
+    ],
+    "planning": [
+        DocumentTopic.PLANNING.value,
+        DocumentTopic.DEVELOPMENT_PLAN.value,
+        DocumentTopic.ZONING.value,
+    ],
+    "environmental impact": [
+        DocumentTopic.ENVIRONMENTAL_IMPACT.value,
+        DocumentTopic.ENVIRONMENTAL_ASSESSMENT.value,
+    ],
+    "environment": [
+        DocumentTopic.ENVIRONMENT_PROTECTION.value,
+        DocumentTopic.ENVIRONMENTAL_IMPACT.value,
+        DocumentTopic.ENVIRONMENTAL_ASSESSMENT.value,
+    ],
+    "vegetation": [
+        DocumentTopic.VEGETATION_MANAGEMENT.value,
+        DocumentTopic.TREE_MANAGEMENT.value,
+    ],
+    "development": [
+        DocumentTopic.DEVELOPMENT_PLAN.value,
+        DocumentTopic.DEVELOPMENT_ASSESSMENT.value,
+    ],
+}
 
 # ============================================================================
 # Constants

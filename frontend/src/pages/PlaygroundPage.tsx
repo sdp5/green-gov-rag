@@ -173,6 +173,15 @@ export default function PlaygroundPage() {
     try {
       const result = await queryAPI.execute(query, filters);
       setResults(result);
+
+      // Refresh analytics stats after query completes
+      try {
+        const updatedStats = await analyticsAPI.getStats();
+        setStats(updatedStats);
+      } catch (err) {
+        console.error('Failed to refresh analytics:', err);
+        // Don't fail the query if analytics refresh fails
+      }
     } catch (err) {
       setQueryError(err instanceof Error ? err.message : 'Failed to execute query');
       setLoading(false);

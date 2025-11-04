@@ -382,6 +382,9 @@ def ingest_documents(
                             metadata_with_file[
                                 "document_id"
                             ] = doc_id  # NEW: for delta indexing
+                            metadata_with_file[
+                                "source_pdf_url"
+                            ] = url  # Add PDF URL for deep linking
 
                             metadata_path = (
                                 dest_path_obj.parent

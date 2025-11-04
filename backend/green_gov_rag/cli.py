@@ -7,12 +7,21 @@ RAG operations, and metadata tagging for Australian ESG/NGER documents.
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import Optional
 
 import typer
 from rich.console import Console
 from rich.table import Table
+from sqlmodel import Session, select
+
+# Import all required modules at the top
+from green_gov_rag.etl import ingest
+from green_gov_rag.etl.chunker import TextChunker
+from green_gov_rag.etl.metadata_tagger import MetadataTagger
+from green_gov_rag.models import DocumentFile
+from green_gov_rag.models.base import engine
 
 app = typer.Typer(
     help="GreenGovRAG CLI: AI Assistant for Australian Environmental & Planning Regulations",
@@ -67,8 +76,6 @@ def etl_ingest(
         green-gov-rag-cli etl ingest --config configs/my_docs.yml
 
     """
-    from green_gov_rag.etl import ingest
-
     console.print(f"[bold blue]Loading config from {config_path}...[/bold blue]")
 
     # Use ingest_documents() which creates hierarchical structure
@@ -111,8 +118,6 @@ def etl_parse(
         green-gov-rag-cli etl parse --input data/raw --output data/processed
 
     """
-    import shutil
-
     from green_gov_rag.etl.parsers import parse_file
 
     console.print(f"[bold blue]Parsing documents from {input_dir}...[/bold blue]")
@@ -215,7 +220,6 @@ def etl_chunk(
         green-gov-rag-cli etl chunk --force
 
     """
-    from green_gov_rag.etl.chunker import TextChunker
     from green_gov_rag.etl.parsers.layout_parser import HierarchicalPDFParser
     from green_gov_rag.etl.parsers.unstructured_parser import UnstructuredPDFParser
     from green_gov_rag.types import PDFParserStrategy
@@ -364,8 +368,6 @@ def etl_tag_metadata(
         green-gov-rag-cli etl tag-metadata --model gpt-4
 
     """
-    from green_gov_rag.etl.metadata_tagger import MetadataTagger
-
     console.print(f"[bold blue]Auto-tagging documents from {input_dir}...[/bold blue]")
     console.print(f"Using model: {model}")
 
@@ -695,6 +697,34 @@ def rag_index(
     console.print(f"Indexing mode: {indexing_mode}")
     console.print(f"Batch size: {batch_size}")
 
+    # Build lookup map: document_id -> (file_id, source_id, source_pdf_url) from database
+    #
+    # OPTIMIZATION: Query DocumentFile table directly instead of fetching ALL chunks.
+    # Chunks in JSON files should have document_id that matches DocumentFile.id
+    file_id_lookup: dict[str, tuple[str | None, str | None, str | None]] = {}
+    try:
+        with Session(engine) as session:
+            # Query DocumentFile table for efficient lookup
+            # Assumption: document_id in chunk JSON corresponds to DocumentFile.id
+            doc_files = session.exec(select(DocumentFile)).all()
+            for doc_file in doc_files:
+                # Use file.id as the document_id (this is the key in chunk JSON files)
+                file_id_lookup[doc_file.id] = (
+                    doc_file.id,
+                    doc_file.source_id,
+                    doc_file.file_url,  # Use file_url as source_pdf_url
+                )
+        console.print(
+            f"[dim]Loaded file_id mapping for {len(file_id_lookup)} documents from database[/dim]"
+        )
+    except Exception as e:
+        console.print(
+            f"[yellow]⚠ Could not load file_id mapping from database: {e}[/yellow]"
+        )
+        console.print(
+            "[dim]Continuing without file_id/source_id/source_pdf_url in metadata...[/dim]"
+        )
+
     # Load chunks
     all_chunks = []
     skipped_files = 0
@@ -711,6 +741,11 @@ def rag_index(
                 skipped_files += 1
                 continue
 
+        # Look up file_id, source_id, and source_pdf_url for this document from database
+        file_id, source_id, source_pdf_url = file_id_lookup.get(
+            doc_id, (None, None, None)
+        )
+
         with open(chunk_file, encoding="utf-8") as f:
             chunks = json.load(f)
 
@@ -720,21 +755,39 @@ def rag_index(
             for i, chunk in enumerate(chunks):
                 if isinstance(chunk, str):
                     # Convert string chunks to dict format
+                    chunk_metadata = {
+                        "source": str(chunk_file.stem),
+                        "chunk_index": i,
+                        "document_id": doc_id,
+                    }
+                    # Add file_id, source_id, and source_pdf_url from database lookup
+                    if file_id:
+                        chunk_metadata["file_id"] = file_id
+                    if source_id:
+                        chunk_metadata["source_id"] = source_id
+                    if source_pdf_url:
+                        chunk_metadata["source_pdf_url"] = source_pdf_url
+
                     normalized_chunks.append(
                         {
                             "content": chunk,
-                            "metadata": {
-                                "source": str(chunk_file.stem),
-                                "chunk_index": i,
-                                "document_id": doc_id,
-                            },
+                            "metadata": chunk_metadata,
                         }
                     )
                 elif isinstance(chunk, dict):
-                    # Already in dict format - ensure document_id is set
+                    # Already in dict format - ensure document_id, file_id, source_id, source_pdf_url are set
                     if "metadata" not in chunk:
                         chunk["metadata"] = {}
                     chunk["metadata"]["document_id"] = doc_id
+
+                    # Add file_id, source_id, and source_pdf_url from database lookup if not already present
+                    if "file_id" not in chunk["metadata"] and file_id:
+                        chunk["metadata"]["file_id"] = file_id
+                    if "source_id" not in chunk["metadata"] and source_id:
+                        chunk["metadata"]["source_id"] = source_id
+                    if "source_pdf_url" not in chunk["metadata"] and source_pdf_url:
+                        chunk["metadata"]["source_pdf_url"] = source_pdf_url
+
                     normalized_chunks.append(chunk)
                 else:
                     console.print(

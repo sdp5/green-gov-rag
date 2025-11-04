@@ -209,23 +209,43 @@ class QdrantVectorStore(VectorStoreInterface):
     def _build_qdrant_filter(self, metadata_filters: dict) -> Any:
         """Build Qdrant filter from metadata dictionary.
 
-        Qdrant uses a specific filter format:
+        Qdrant uses a specific filter format with nested metadata:
         {
             "must": [
-                {"key": "region", "match": {"value": "NSW"}},
-                {"key": "topic", "match": {"value": "emissions"}}
+                {"key": "metadata.region", "match": {"value": "NSW"}},
+                {"key": "metadata.topic", "match": {"value": "emissions"}}
             ]
         }
+
+        Note: LangChain's QdrantVectorStore stores metadata in a nested structure
+        under the 'metadata' key, so filters must use 'metadata.' prefix.
+
+        IMPORTANT: Qdrant performs exact string matching (case-sensitive).
+        Values are passed as-is from the query service, which should handle
+        normalization (e.g., "SA" -> "South Australia", "State" -> "state").
+
+        Special handling for LGA filtering:
+        - lga_names: Filters by metadata.spatial_metadata.lga_names array
         """
         must_conditions = []
 
         for key, value in metadata_filters.items():
+            # Special handling for LGA names (nested in spatial_metadata)
+            if key == "lga_names":
+                filter_key = "metadata.spatial_metadata.lga_names"
+            # Skip region_specified (used only for filters_applied transparency)
+            elif key == "region_specified":
+                continue
+            else:
+                # Add 'metadata.' prefix for nested structure
+                filter_key = f"metadata.{key}"
+
             if isinstance(value, list):
                 # OR condition for lists
-                must_conditions.append({"key": key, "match": {"any": value}})
+                must_conditions.append({"key": filter_key, "match": {"any": value}})
             else:
                 # Exact match
-                must_conditions.append({"key": key, "match": {"value": value}})
+                must_conditions.append({"key": filter_key, "match": {"value": value}})
 
         return {"must": must_conditions} if must_conditions else None
 

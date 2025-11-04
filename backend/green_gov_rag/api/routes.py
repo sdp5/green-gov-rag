@@ -124,6 +124,7 @@ async def query_rag(request: Request, query_request: QueryRequest) -> QueryRespo
         return await query_service.execute_query(
             query=query_request.query,
             region=query_request.region,
+            lgas=query_request.lgas,
             jurisdiction=query_request.jurisdiction,
             topics=query_request.topics,
             max_sources=query_request.max_sources,

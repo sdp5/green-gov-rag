@@ -19,6 +19,7 @@ from green_gov_rag.config import settings
 from green_gov_rag.models import QueryHistory
 from green_gov_rag.models.base import engine
 from green_gov_rag.rag.agent_tools import RAGAgent
+from green_gov_rag.types import TOPIC_MAPPING, AustralianState
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,7 @@ class QueryService:
         self,
         query: str,
         region: Optional[str] = None,
+        lgas: Optional[list[str]] = None,
         jurisdiction: Optional[str] = None,
         topics: Optional[list[str]] = None,
         max_sources: int = 5,
@@ -79,7 +81,8 @@ class QueryService:
 
         Args:
             query: User query
-            region: Region filter
+            region: Region filter (state/territory or LGA name)
+            lgas: LGA names list (takes priority over region)
             jurisdiction: Jurisdiction filter
             topics: Topic filters
             max_sources: Maximum source documents
@@ -90,14 +93,80 @@ class QueryService:
         """
         start_time = time.time()
 
+        # Normalize region abbreviation to full name using AustralianState enum
+        normalized_region = None
+        if region:
+            try:
+                # Try to parse as state abbreviation (e.g., 'SA' -> 'South Australia')
+                state = AustralianState.from_name(region)
+                normalized_region = state.full_name
+            except ValueError:
+                # If not a valid state, use the region as-is (could be LGA name)
+                normalized_region = region
+
+        # Normalize jurisdiction to lowercase (data stores: federal, state, local)
+        normalized_jurisdiction = None
+        if jurisdiction:
+            normalized_jurisdiction = jurisdiction.lower()
+
+        # Normalize topics - map user-friendly names to internal topic codes
+        normalized_topics = None
+        if topics:
+            # Collect all mapped topics
+            mapped_topics = []
+            for user_topic in topics:
+                topic_key = user_topic.lower()
+                if topic_key in TOPIC_MAPPING:
+                    # Use the mapping
+                    mapped_topics.extend(TOPIC_MAPPING[topic_key])
+                else:
+                    # If no mapping, use as-is with underscores (might be exact match)
+                    mapped_topics.append(topic_key.replace(" ", "_"))
+            # Remove duplicates
+            normalized_topics = list(set(mapped_topics)) if mapped_topics else None
+
+        # Normalize LGAs - handle conflicts with region filter (Option B: Use LGAs, log warning)
+        normalized_lgas = None
+        if lgas:
+            # Normalize LGA names (strip "City of" prefix if present)
+            normalized_lgas = []
+            for lga in lgas:
+                lga_clean = lga.strip()
+                # Remove common prefixes for matching
+                for prefix in ["City of ", "Shire of ", "Town of ", "District of "]:
+                    if lga_clean.startswith(prefix):
+                        lga_clean = lga_clean[len(prefix) :]
+                        break
+                normalized_lgas.append(lga_clean)
+
+            # Check for conflict between region and lgas
+            if normalized_region:
+                # Log warning if user specified both region and LGAs
+                logger.warning(
+                    f"Both region='{normalized_region}' and lgas={lgas} specified. "
+                    f"Using LGA filter (takes priority). Both will be returned in filters_applied."
+                )
+
         # Build metadata filters
         metadata_filters: dict[str, str | list[str]] = {}
-        if region:
-            metadata_filters["region"] = region
-        if jurisdiction:
-            metadata_filters["jurisdiction"] = jurisdiction
-        if topics:
-            metadata_filters["topic"] = topics[0] if len(topics) == 1 else topics
+        # LGAs take priority over region for filtering
+        if normalized_lgas:
+            metadata_filters["lga_names"] = normalized_lgas
+            # Also include region in filters_applied for transparency
+            if normalized_region:
+                metadata_filters["region_specified"] = normalized_region
+        elif normalized_region:
+            # No LGAs specified, use region filter
+            metadata_filters["region"] = normalized_region
+
+        if normalized_jurisdiction:
+            metadata_filters["jurisdiction"] = normalized_jurisdiction
+        if normalized_topics:
+            metadata_filters["topic"] = (
+                normalized_topics[0]
+                if len(normalized_topics) == 1
+                else normalized_topics
+            )
 
         # Phase 1: Retrieve documents (always happens)
         context, sources = self.rag_agent.retrieve(
@@ -379,7 +448,9 @@ class QueryService:
                 lga_codes = doc.spatial_metadata.get("lga_codes", [])
                 lga_names = doc.spatial_metadata.get("lga_names", [])
                 if lga_codes and lga_names:
-                    return lga_codes[0], lga_names[0]
+                    # Ensure lga_code is string (might be int in data)
+                    lga_code = str(lga_codes[0]) if lga_codes[0] is not None else None
+                    return lga_code, lga_names[0]
 
         # Fallback: use region as LGA name
         return None, region

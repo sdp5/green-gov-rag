@@ -171,7 +171,12 @@ export default function PlaygroundPage() {
     setFeedbackRating(0);
     setFeedbackSubmitted(false);
     try {
-      const result = await queryAPI.execute(query, filters);
+      // Merge filters with selected LGAs from map
+      const queryFilters = {
+        ...filters,
+        ...(selectedLGAs.length > 0 && { lgas: selectedLGAs }),
+      };
+      const result = await queryAPI.execute(query, queryFilters);
       setResults(result);
 
       // Refresh analytics stats after query completes
@@ -217,94 +222,152 @@ export default function PlaygroundPage() {
     // Otherwise, load demo data
     setQuery('What are my Scope 2 emissions reporting obligations for electricity consumption, and are there any conflicts between federal and state requirements?');
     setResults({
-      answer: 'Under the National Greenhouse and Energy Reporting (NGER) Act, Scope 2 emissions relate to indirect emissions from the consumption of purchased electricity, steam, heat or cooling. Facilities must report Scope 2 emissions if they meet the threshold of 50 kilotonnes CO2-e per year or more.\n\nKey requirements include:\n• Accurate measurement and reporting of all purchased electricity\n• Use of approved emission factors from the National Greenhouse Accounts\n• Quarterly data collection and annual reporting by 31 October\n• Independent audit requirements for facilities over 125 kt CO2-e\n\nRegarding jurisdictional conflicts: The NGER Act (Federal) provides the primary framework. However, Victorian facilities must also comply with the Climate Change Act 2017 (Vic), which may impose additional requirements. Where both apply, the more stringent requirement takes precedence.',
+      answer: 'Under the NSW EPA Climate Change Emissions Reporting Guidelines, Scope 2 emissions relate to indirect emissions from purchased electricity consumption. NSW Government entities must report Scope 2 emissions using location-based emissions factors published in the National Greenhouse Accounts.\n\nKey requirements include:\n• Use of recent NSW Scope 2 emissions factors (0.68 kgCO2-e/kWh for 2022-23 and 2023-24)\n• Reporting against emission reduction targets under the Climate Change (Net Zero Future) Act\n• Monitoring and review of emissions intensity changes\n\nRegarding jurisdictional alignment: The NSW EPA guidelines complement federal NGER requirements, with both using National Greenhouse Accounts emissions factors. For NSW entities, state-specific targets and reporting obligations apply alongside federal frameworks where applicable.',
       query: 'What are my Scope 2 emissions reporting obligations for electricity consumption, and are there any conflicts between federal and state requirements?',
       query_id: 999,  // Demo query ID for feedback
       sources: [
         {
-          title: 'National Greenhouse and Energy Reporting Act 2007',
-          source_url: 'https://www.legislation.gov.au/Details/C2023C00145',
-          deep_link: 'https://www.legislation.gov.au/Details/C2023C00145#section-10',
-          excerpt: 'A person has operational control over a facility if the person has the authority to introduce and implement operating, health and safety or environmental policies for the facility.',
+          title: 'NSW EPA Climate Change Emissions Reporting Guidelines',
+          source_url: 'https://www.epa.nsw.gov.au/your-environment/climate-change',
+          deep_link: 'https://www.epa.nsw.gov.au/your-environment/climate-change',
+          excerpt: 'towards emission reduction targets for NSW Government operations.',
           relevance_score: 0.94,
-          jurisdiction: 'Federal',
-          topic: 'Climate Change',
-          region: 'National',
-          page_number: 15,
-          page_range: [15, 17],
-          section_title: 'Scope 2 Emissions',
-          section_hierarchy: ['Part 2', 'Division 2', 'Section 10', 'Subsection 10.2'],
-          clause_reference: 's.10.2',
-          citation: 'National Greenhouse and Energy Reporting Act 2007 (Cth) s.10.2, pp.15-17',
+          jurisdiction: 'state',
+          category: 'guidelines',
+          topic: 'emissions_reporting',
+          region: 'New South Wales',
+          page_number: 6,
+          page_range: [6, 6],
+          section_title: 'towards emission reduction targets for NSW Government operations.',
+          section_hierarchy: [
+            '1 About this Guide',
+            'The Greenhouse gas emissions accounting and reporting guidelines',
+            'towards emission reduction targets for NSW Government operations.'
+          ],
+          clause_reference: undefined,
+          citation: 'NSW EPA (2025), NSW EPA Climate Change Emissions Reporting Guidelines, Page 6',
           esg_metadata: {
-            frameworks: ['NGER', 'GHG Protocol'],
-            emission_scopes: ['Scope 2'],
+            frameworks: ['NSW_EPA', 'NGER'],
+            emission_scopes: ['scope_1', 'scope_2'],
+            greenhouse_gases: ['CO2', 'CH4', 'N2O', 'SF6', 'HFCs', 'PFCs'],
+            consolidation_method: 'operational_control',
+            methodology_type: 'calculation',
+            reportable_under_nger: true,
+            scope_3_reportable: false,
+            regulator: 'NSW EPA',
+            regulation_type: 'guideline',
+            activity_types: ['all'],
+            facility_types: ['epl_holders']
+          },
+          spatial_metadata: {
+            spatial_scope: 'state',
+            state: 'NSW',
+            lga_codes: [],
+            lga_names: [],
+            applies_to_all_lgas: true,
+            applies_to_point: false
+          }
+        },
+        {
+          title: 'NSW EPA Climate Change Emissions Reporting Guidelines',
+          source_url: 'https://www.epa.nsw.gov.au/your-environment/climate-change',
+          deep_link: 'https://www.epa.nsw.gov.au/your-environment/climate-change#section-ef2',
+          excerpt: 'NSW - Scope 2 emissions factor: 0.68 kgCO2-e/kWh (or 0.68 tCO2-e per MWh). This represents the National Greenhouse Accounts emissions factor for NSW for the 2022-23 and 2023-24 financial years.',
+          relevance_score: 0.92,
+          jurisdiction: 'state',
+          category: 'guidelines',
+          topic: 'emissions_reporting',
+          region: 'New South Wales',
+          page_number: 38,
+          page_range: [38, 38],
+          section_title: 'NSW - Scope 2 emissions factor',
+          section_hierarchy: [
+            'Section EF2',
+            'NSW - Scope 2 emissions factor'
+          ],
+          clause_reference: 'EF2',
+          citation: 'NSW EPA (2025), NSW EPA Climate Change Emissions Reporting Guidelines, Page 38, Section EF2',
+          esg_metadata: {
+            frameworks: ['NSW_EPA', 'NGER'],
+            emission_scopes: ['scope_2'],
             greenhouse_gases: ['CO2', 'CH4', 'N2O'],
-            regulator: 'Clean Energy Regulator',
-            reportable_under_nger: true
+            consolidation_method: 'operational_control',
+            methodology_type: 'calculation',
+            reportable_under_nger: true,
+            regulator: 'NSW EPA',
+            regulation_type: 'guideline'
+          },
+          spatial_metadata: {
+            spatial_scope: 'state',
+            state: 'NSW',
+            lga_codes: [],
+            lga_names: [],
+            applies_to_all_lgas: true,
+            applies_to_point: false
           }
         },
         {
-          title: 'National Greenhouse and Energy Reporting Regulations 2008',
-          source_url: 'https://www.legislation.gov.au/Details/F2023C00456',
-          excerpt: 'For the purposes of calculating Scope 2 emissions, the entity must use the emission factors published in the National Greenhouse Accounts (NGA) Factors.',
+          title: 'NSW EPA Climate Change Emissions Reporting Guidelines',
+          source_url: 'https://www.epa.nsw.gov.au/your-environment/climate-change',
+          deep_link: 'https://www.epa.nsw.gov.au/your-environment/climate-change#section-3.6',
+          excerpt: 'to NSW Government net zero emissions targets under the Climate Change (Net Zero Future) Act. Step 6 – Monitor and review: Track emissions intensity changes due to factors such as decarbonisation of the electricity grid.',
           relevance_score: 0.89,
-          jurisdiction: 'Federal',
-          topic: 'Climate Change',
-          page_number: 42,
-          page_range: [42, 42],
-          section_title: 'Emission Factors',
-          section_hierarchy: ['Part 3', 'Regulation 15'],
-          clause_reference: 'reg.15',
-          citation: 'National Greenhouse and Energy Reporting Regulations 2008 (Cth) reg.15, p.42',
+          jurisdiction: 'state',
+          category: 'guidelines',
+          topic: 'emissions_reporting',
+          region: 'New South Wales',
+          page_number: 43,
+          page_range: [43, 43],
+          section_title: '3.6 Step 6 – Monitor and review',
+          section_hierarchy: [
+            'Section 3: Reporting Framework',
+            '3.6 Step 6 – Monitor and review'
+          ],
+          clause_reference: 's.3.6',
+          citation: 'NSW EPA (2025), NSW EPA Climate Change Emissions Reporting Guidelines, Page 43, Section 3.6',
           esg_metadata: {
-            frameworks: ['NGER'],
-            emission_scopes: ['Scope 2'],
-            regulator: 'Clean Energy Regulator'
-          }
-        },
-        {
-          title: 'NGER Measurement Determination 2008',
-          source_url: 'https://www.legislation.gov.au/Details/F2023C00789',
-          excerpt: 'Electricity consumption must be measured at the point of delivery to the facility using appropriate metering equipment that complies with National Measurement Institute standards.',
-          relevance_score: 0.87,
-          jurisdiction: 'Federal',
-          topic: 'Climate Change',
-          page_number: 28,
-          section_hierarchy: ['Part 2', 'Section 2.3'],
-          clause_reference: 's.2.3',
-          esg_metadata: {
-            frameworks: ['NGER'],
-            emission_scopes: ['Scope 2']
+            frameworks: ['NSW_EPA', 'NGER'],
+            emission_scopes: ['scope_1', 'scope_2'],
+            greenhouse_gases: ['CO2', 'CH4', 'N2O', 'SF6', 'HFCs', 'PFCs'],
+            consolidation_method: 'operational_control',
+            methodology_type: 'calculation',
+            reportable_under_nger: true,
+            regulator: 'NSW EPA',
+            regulation_type: 'guideline'
+          },
+          spatial_metadata: {
+            spatial_scope: 'state',
+            state: 'NSW',
+            lga_codes: [],
+            lga_names: [],
+            applies_to_all_lgas: true,
+            applies_to_point: false
           }
         }
       ],
-      filters_applied: { jurisdiction: 'Federal', topics: ['Climate Change'] },
-      response_time_ms: 1847,
-      trust_score: 0.87,
-      trust_confidence: 'high',
+      filters_applied: {
+        region: 'New South Wales',
+        jurisdiction: 'state',
+        topic: ['emissions_reporting', 'climate_change']
+      },
+      response_time_ms: 1650,
+      trust_score: 0.75,
+      trust_confidence: 'medium',
       trust_breakdown: {
-        citation_score: 0.92,
-        authority_score: 0.95,
-        conflict_score: 0.88,
-        accuracy_score: 0.85,
+        citation_score: 0.7,
+        authority_score: 0.85,
+        conflict_score: 1.0,
+        accuracy_score: 0.7,
         warnings: [
-          'Some emission factor values may be updated annually',
-          'State-based schemes may have additional requirements'
+          'Citations based on current NSW EPA guidelines (2025)',
+          'Always verify with the latest version of state and federal requirements'
         ]
       },
-      conflicts_detected: [
-        {
-          type: 'Jurisdictional Overlap',
-          severity: 'warning',
-          details: 'Victorian Climate Change Act 2017 may impose additional reporting requirements beyond NGER for facilities in Victoria.',
-          resolution: 'Facilities in Victoria must comply with both NGER (Federal) and Victorian Climate Change Act requirements. The more stringent requirement applies.'
-        }
-      ],
-      hierarchy_explanation: 'Federal legislation (NGER Act) takes precedence as the primary framework, with State/Territory laws providing complementary requirements. Where conflicts exist, the more stringent obligation typically applies.',
+      conflicts_detected: undefined,
+      hierarchy_explanation: 'NSW state guidelines complement federal NGER requirements. Where both apply, entities must meet both state reporting obligations (Climate Change Act) and federal NGER thresholds. State guidelines provide NSW-specific emissions factors aligned with National Greenhouse Accounts.',
       citation_warnings: [
-        'Page ranges are approximate based on document structure',
-        'Always verify with the latest consolidated version of legislation'
+        'Emissions factors are updated annually - verify current values',
+        'Page numbers are approximate based on document structure'
       ]
     });
     setLoading(false);
@@ -445,8 +508,8 @@ export default function PlaygroundPage() {
                   {stats.avg_response_time_ms !== undefined && stats.avg_response_time_ms !== null && (
                     <div className="flex items-center gap-2 text-sm sm:text-base">
                       <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-amber-600" />
-                      <span className="font-bold text-slate-900">{stats.avg_response_time_ms.toFixed(0)}</span>
-                      <span className="text-xs text-slate-500">ms</span>
+                      <span className="font-bold text-slate-900">{(stats.avg_response_time_ms / 1000).toFixed(1)}</span>
+                      <span className="text-xs text-slate-500">sec</span>
                     </div>
                   )}
                 </>
@@ -493,7 +556,7 @@ export default function PlaygroundPage() {
                         <p className="text-xs font-bold uppercase mb-1 text-amber-700">Avg Response</p>
                         <p className="text-3xl font-extrabold text-amber-900">
                           {stats.avg_response_time_ms !== undefined && stats.avg_response_time_ms !== null
-                            ? `${stats.avg_response_time_ms.toFixed(0)}ms`
+                            ? `${(stats.avg_response_time_ms / 1000).toFixed(1)}s`
                             : 'N/A'}
                         </p>
                       </div>
@@ -923,7 +986,7 @@ export default function PlaygroundPage() {
                     {results.response_time_ms && (
                       <Badge variant="outline" className="flex items-center gap-1 font-mono">
                         <Clock className="h-3 w-3" />
-                        {results.response_time_ms.toFixed(0)}ms
+                        {(results.response_time_ms / 1000).toFixed(1)}s
                       </Badge>
                     )}
                   </div>

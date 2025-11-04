@@ -33,6 +33,11 @@ class AnalyticsService:
                 select(func.count()).select_from(QueryHistory)
             ).one()
 
+            # Average response time (ms)
+            avg_response = session.exec(
+                select(func.avg(QueryHistory.response_time_ms))
+            ).one()
+
             # Documents by jurisdiction
             jurisdiction_results = session.exec(
                 select(DocumentSource.jurisdiction, func.count(DocumentSource.id))  # type: ignore[arg-type]
@@ -70,6 +75,7 @@ class AnalyticsService:
             return AnalyticsStats(
                 total_documents=total_docs,
                 total_queries=total_queries,
+                avg_response_time_ms=avg_response,
                 documents_by_jurisdiction=by_jurisdiction,
                 documents_by_topic=by_topic,
                 documents_by_region=by_region,

@@ -128,16 +128,31 @@ class QueryService:
         # Normalize LGAs - handle conflicts with region filter (Option B: Use LGAs, log warning)
         normalized_lgas = None
         if lgas:
-            # Normalize LGA names (strip "City of" prefix if present)
+            # Normalize LGA names - try both with and without common prefixes
+            # Data in Qdrant may have "City of Adelaide" while user selects "Adelaide"
             normalized_lgas = []
             for lga in lgas:
                 lga_clean = lga.strip()
-                # Remove common prefixes for matching
-                for prefix in ["City of ", "Shire of ", "Town of ", "District of "]:
-                    if lga_clean.startswith(prefix):
-                        lga_clean = lga_clean[len(prefix) :]
-                        break
-                normalized_lgas.append(lga_clean)
+                # Add both the original name and variants with common prefixes
+                variants = [lga_clean]
+
+                # If the name doesn't have a prefix, add variants with prefixes
+                has_prefix = any(
+                    lga_clean.startswith(p)
+                    for p in ["City of ", "Shire of ", "Town of ", "District of "]
+                )
+                if not has_prefix:
+                    variants.extend(
+                        [
+                            f"City of {lga_clean}",
+                            f"Shire of {lga_clean}",
+                            f"Town of {lga_clean}",
+                            f"District of {lga_clean}",
+                        ]
+                    )
+
+                # Add all variants for OR matching
+                normalized_lgas.extend(variants)
 
             # Check for conflict between region and lgas
             if normalized_region:

@@ -56,14 +56,36 @@ jobs:
 
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      - name: Update SSM parameters with secrets
+      - name: Update ECS task definition with secrets
         run: |
-          # Store OpenAI API key in SSM Parameter Store
-          aws ssm put-parameter \
-            --name "/greengovrag/prod/openai-api-key" \
-            --value "${{ secrets.OPENAI_API_KEY }}" \
-            --type "SecureString" \
-            --overwrite \
+          # Get current task definition
+          TASK_DEF_ARN=$(aws ecs describe-services \
+            --cluster GreenGovRAG-Cluster \
+            --services GreenGovRAG-BackendService \
+            --region ${{ env.AWS_REGION }} \
+            --query 'services[0].taskDefinition' \
+            --output text)
+
+          TASK_DEF=$(aws ecs describe-task-definition \
+            --task-definition $TASK_DEF_ARN \
+            --region ${{ env.AWS_REGION }})
+
+          # Update environment variables with secrets
+          NEW_TASK_DEF=$(echo $TASK_DEF | jq --arg api_key "${{ secrets.API_ACCESS_KEY }}" \
+            --arg azure_key "${{ secrets.AZURE_OPENAI_API_KEY }}" \
+            --arg azure_endpoint "${{ secrets.AZURE_OPENAI_ENDPOINT }}" \
+            '.taskDefinition |
+            .containerDefinitions[0].environment |= map(
+              if .name == "API_ACCESS_KEY" then .value = $api_key
+              elif .name == "AZURE_OPENAI_API_KEY" then .value = $azure_key
+              elif .name == "AZURE_OPENAI_ENDPOINT" then .value = $azure_endpoint
+              else . end
+            ) |
+            del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+
+          # Register new task definition
+          aws ecs register-task-definition \
+            --cli-input-json "$NEW_TASK_DEF" \
             --region ${{ env.AWS_REGION }}
 
       - name: Force new ECS deployment

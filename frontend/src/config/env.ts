@@ -11,6 +11,7 @@ declare global {
   interface Window {
     __RUNTIME_CONFIG__?: {
       API_URL: string;
+      API_ACCESS_KEY: string;
       MAPBOX_TOKEN: string;
       GITHUB_REPO_URL: string;
     };
@@ -27,6 +28,7 @@ const getRuntimeConfig = () => {
   // Fallback to Vite environment variables (development)
   return {
     API_URL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+    API_ACCESS_KEY: import.meta.env.VITE_API_ACCESS_KEY || 'dev-insecure-key-change-in-prod',
     MAPBOX_TOKEN: import.meta.env.VITE_MAPBOX_TOKEN || '',
     GITHUB_REPO_URL: import.meta.env.VITE_GITHUB_REPO_URL || 'https://github.com/sdp5/green-gov-rag',
   };
@@ -42,5 +44,6 @@ export const isProduction = import.meta.env.PROD;
 
 // Export individual values for convenience
 export const API_URL = ENV.API_URL;
+export const API_ACCESS_KEY = ENV.API_ACCESS_KEY;
 export const MAPBOX_TOKEN = ENV.MAPBOX_TOKEN;
 export const GITHUB_REPO_URL = ENV.GITHUB_REPO_URL;

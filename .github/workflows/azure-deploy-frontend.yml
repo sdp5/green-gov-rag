@@ -36,6 +36,7 @@ jobs:
         env:
           # These will be replaced at runtime via config.js
           VITE_API_URL: PLACEHOLDER
+          VITE_API_ACCESS_KEY: PLACEHOLDER
           VITE_MAPBOX_TOKEN: PLACEHOLDER
 
       - name: Generate runtime config template
@@ -93,6 +94,7 @@ jobs:
           cat > dist/config.js << EOF
           window.__RUNTIME_CONFIG__ = {
             API_URL: '${{ steps.az-outputs.outputs.api_url }}/api',
+            API_ACCESS_KEY: '${{ secrets.API_ACCESS_KEY }}',
             MAPBOX_TOKEN: '${{ secrets.VITE_MAPBOX_TOKEN }}'
           };
           EOF

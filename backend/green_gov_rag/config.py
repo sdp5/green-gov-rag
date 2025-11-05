@@ -210,6 +210,10 @@ class Settings(BaseSettings):
         default="http://localhost:3000,http://localhost:5173",
         description="CORS allowed origins (comma-separated)",
     )
+    api_access_key: str = Field(
+        default="dev-insecure-key-change-in-prod",
+        description="API access key required for all API endpoints (set via environment variable in production)",
+    )
 
     # =========================================================================
     # Cache Settings

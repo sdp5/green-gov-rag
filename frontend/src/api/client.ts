@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_URL } from '../config/env';
+import { API_URL, API_ACCESS_KEY } from '../config/env';
 import type { FeedbackRequest, FeedbackResponse, CoverageInfo } from '../types/api';
 import { getOrCreateSessionId } from '../utils/session';
 
@@ -7,6 +7,7 @@ const apiClient = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
+    'X-API-Key': API_ACCESS_KEY,
   },
 });
 

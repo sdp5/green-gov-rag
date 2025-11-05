@@ -87,6 +87,8 @@ services:
       REDIS_PORT: 6379
       CACHE_TTL: ${CACHE_TTL:-3600}
       ENABLE_SEMANTIC_CACHE: ${ENABLE_SEMANTIC_CACHE:-true}
+      # API Security
+      API_ACCESS_KEY: ${API_ACCESS_KEY:-dev-insecure-key-change-in-prod}
       # Other Settings
       CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://localhost:8080
       CLOUD_PROVIDER: ${CLOUD_PROVIDER:-local}

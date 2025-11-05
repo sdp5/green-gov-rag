@@ -49,6 +49,10 @@ param azureOpenaiEndpoint string = 'REPLACE_VIA_GITHUB_SECRETS'
 @description('Azure OpenAI Deployment Name')
 param azureOpenaiDeployment string = 'gpt-5-mini'
 
+@description('API Access Key for authentication')
+@secure()
+param apiAccessKey string = 'REPLACE_VIA_GITHUB_SECRETS'
+
 @description('MapBox Access Token')
 @secure()
 param mapboxToken string = ''
@@ -399,6 +403,10 @@ resource apiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
       }
       secrets: [
         {
+          name: 'api-access-key'
+          value: apiAccessKey
+        }
+        {
           name: 'azure-openai-api-key'
           value: azureOpenaiApiKey
         }
@@ -482,6 +490,11 @@ resource apiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
             {
               name: 'AZURE_OPENAI_API_VERSION'
               value: '2024-12-01-preview'
+            }
+            // API Security
+            {
+              name: 'API_ACCESS_KEY'
+              secretRef: 'api-access-key'
             }
             // Embedding Model - BGE-large for 93% accuracy
             {

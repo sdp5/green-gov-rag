@@ -221,7 +221,11 @@ class RAGAgent:
             return 0
 
     def retrieve(
-        self, query: str, metadata_filters: dict | None = None, k: int = 5
+        self,
+        query: str,
+        metadata_filters: dict | None = None,
+        k: int = 5,
+        use_auto_location: bool = False,
     ) -> tuple[str, list]:
         """Retrieve relevant documents without LLM generation.
 
@@ -232,13 +236,17 @@ class RAGAgent:
             query: User query string
             metadata_filters: Optional metadata filters (region, jurisdiction, etc.)
             k: Number of documents to retrieve
+            use_auto_location: If True, automatically extract locations from query using NER
 
         Returns:
             Tuple of (context_string, source_documents)
         """
         # Retrieve documents from vector store
         documents = self.chain.retrieve_documents(
-            query=query, metadata_filters=metadata_filters, k=k
+            query=query,
+            metadata_filters=metadata_filters,
+            k=k,
+            use_auto_location=use_auto_location,
         )
 
         # Build formatted context for LLM

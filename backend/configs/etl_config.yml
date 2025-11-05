@@ -5,7 +5,7 @@ etl:
   # Auto-tagging settings
   auto_tagging:
     enabled: true  # Enable/disable automated metadata extraction
-    model: "gpt-3.5-turbo"  # Model to use for tagging (gpt-3.5-turbo or gpt-4)
+    model: "gpt-5-mini"  # Model to use for tagging (gpt-3.5-turbo or gpt-4)
     temperature: 0.0  # Temperature for deterministic tagging
 
     # What to tag

@@ -6,6 +6,9 @@ from pathlib import Path
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
+# Import centralized settings
+from green_gov_rag.config import settings
+
 # Import your project modules
 from green_gov_rag.etl import ingest, loader
 from green_gov_rag.etl.chunker import TextChunker
@@ -29,13 +32,13 @@ dag = DAG(
     catchup=False,
 )
 
-# --- Paths & Config ---
-RAW_DIR = Path("data/raw")
-PROCESSED_DIR = Path("data/processed")
-CHUNK_DIR = Path("data/chunks")
-VECTOR_STORE_DIR = Path("data/vector_store")
-CONFIG_PATH = "configs/documents_config.yml"
-MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+# --- Paths & Config (from centralized settings) ---
+RAW_DIR = Path(settings.raw_data_dir)
+PROCESSED_DIR = Path(settings.processed_data_dir)
+CHUNK_DIR = Path(settings.chunks_data_dir)
+VECTOR_STORE_DIR = Path(settings.vector_store_path)
+CONFIG_PATH = settings.documents_config_path
+MODEL_NAME = settings.embedding_model
 
 
 # --- Tasks ---
@@ -60,7 +63,9 @@ def task_parse_docs() -> None:
 def task_chunk_docs() -> None:
     """Chunk parsed text files."""
     CHUNK_DIR.mkdir(parents=True, exist_ok=True)
-    chunker = TextChunker(chunk_size=1000, chunk_overlap=100)
+    chunker = TextChunker(
+        chunk_size=settings.chunk_size, chunk_overlap=settings.chunk_overlap
+    )
 
     for txt_file in PROCESSED_DIR.rglob("*.txt"):
         text = txt_file.read_text(encoding="utf-8")

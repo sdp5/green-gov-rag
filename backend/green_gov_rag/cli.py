@@ -6,6 +6,8 @@ RAG operations, and metadata tagging for Australian ESG/NGER documents.
 
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import json
 import shutil
 from pathlib import Path
@@ -17,11 +19,29 @@ from rich.table import Table
 from sqlmodel import Session, select
 
 # Import all required modules at the top
+from green_gov_rag.api.services.monitoring_service import MonitoringService
 from green_gov_rag.etl import ingest
 from green_gov_rag.etl.chunker import TextChunker
+from green_gov_rag.etl.db_writer import (
+    save_chunk,
+    save_document_file,
+    save_document_source,
+    update_document_file_status,
+    update_document_source_status,
+)
 from green_gov_rag.etl.metadata_tagger import MetadataTagger
+from green_gov_rag.etl.parsers import parse_file
+from green_gov_rag.etl.parsers.layout_parser import HierarchicalPDFParser
+from green_gov_rag.etl.parsers.unstructured_parser import UnstructuredPDFParser
+from green_gov_rag.etl.pipeline import EnhancedETLPipeline
 from green_gov_rag.models import DocumentFile
 from green_gov_rag.models.base import engine
+from green_gov_rag.rag.embeddings import ChunkEmbedder
+from green_gov_rag.rag.hybrid_search import HybridGeospatialSearch, SpatialQuery
+from green_gov_rag.rag.location_ner import LocationNER
+from green_gov_rag.rag.vector_store import VectorStore
+from green_gov_rag.rag.vector_store_factory import create_vector_store
+from green_gov_rag.types import PDFParserStrategy, get_lga_mappings
 
 app = typer.Typer(
     help="GreenGovRAG CLI: AI Assistant for Australian Environmental & Planning Regulations",
@@ -118,8 +138,6 @@ def etl_parse(
         green-gov-rag-cli etl parse --input data/raw --output data/processed
 
     """
-    from green_gov_rag.etl.parsers import parse_file
-
     console.print(f"[bold blue]Parsing documents from {input_dir}...[/bold blue]")
 
     parsed_count = 0
@@ -220,10 +238,6 @@ def etl_chunk(
         green-gov-rag-cli etl chunk --force
 
     """
-    from green_gov_rag.etl.parsers.layout_parser import HierarchicalPDFParser
-    from green_gov_rag.etl.parsers.unstructured_parser import UnstructuredPDFParser
-    from green_gov_rag.types import PDFParserStrategy
-
     # Validate mode
     if mode not in ["full", "delta", "auto"]:
         console.print(f"[red]Error: Invalid mode '{mode}'[/red]")
@@ -352,7 +366,7 @@ def etl_tag_metadata(
         help="Output directory for tagged documents",
     ),
     model: str = typer.Option(
-        "gpt-4",
+        "gpt-5-mini",
         "--model",
         "-m",
         help="LLM model for metadata extraction",
@@ -365,7 +379,7 @@ def etl_tag_metadata(
 
     Example:
     -------
-        green-gov-rag-cli etl tag-metadata --model gpt-4
+        green-gov-rag-cli etl tag-metadata --model gpt-5-mini
 
     """
     console.print(f"[bold blue]Auto-tagging documents from {input_dir}...[/bold blue]")
@@ -430,10 +444,6 @@ def etl_monitor(
         greengovrag etl monitor --trigger-etl
 
     """
-    import asyncio
-
-    from green_gov_rag.api.services.monitoring_service import MonitoringService
-
     console.print("[bold blue]Monitoring document sources...[/bold blue]")
 
     # Run monitoring service
@@ -489,8 +499,6 @@ def etl_monitor(
 
         if trigger_etl:
             console.print("\n[bold blue]Triggering ETL pipeline...[/bold blue]")
-            # Import and run the pipeline command
-            from green_gov_rag.etl.pipeline import EnhancedETLPipeline
 
             pipeline = EnhancedETLPipeline(enable_auto_tagging=True)
             config_path = "configs/documents_config.yml"
@@ -540,8 +548,6 @@ def etl_pipeline(
         green-gov-rag-cli etl pipeline --config configs/etl_config.yml
 
     """
-    from green_gov_rag.etl.pipeline import EnhancedETLPipeline
-
     console.print("[bold blue]Starting ETL pipeline...[/bold blue]")
 
     pipeline = EnhancedETLPipeline(enable_auto_tagging=enable_tagging)
@@ -644,9 +650,6 @@ def rag_index(
         }
 
     """
-    from green_gov_rag.rag.embeddings import ChunkEmbedder
-    from green_gov_rag.rag.vector_store_factory import create_vector_store
-
     # Validate vector store type
     valid_stores = ["faiss", "qdrant"]
     available_stores = ["faiss", "qdrant", "chromadb (coming soon)"]
@@ -927,13 +930,7 @@ def rag_query(
         green-gov-rag-cli rag query "What are NGER reporting requirements?" --region SA
 
     """
-    from green_gov_rag.rag.hybrid_search import HybridGeospatialSearch
-    from green_gov_rag.rag.vector_store import VectorStore
-
     console.print(f"[bold blue]Searching for:[/bold blue] {query}")
-
-    # Initialize embeddings and load vector store
-    from green_gov_rag.rag.embeddings import ChunkEmbedder
 
     embedder = ChunkEmbedder(provider="huggingface")
     vector_store = VectorStore(embeddings=embedder.embedder, index_path=index_path)
@@ -992,10 +989,6 @@ def rag_geospatial_search(
         green-gov-rag-cli rag geospatial-search "tree preservation rules" --location Adelaide
 
     """
-    from green_gov_rag.rag.hybrid_search import HybridGeospatialSearch, SpatialQuery
-    from green_gov_rag.rag.location_ner import LocationNER
-    from green_gov_rag.rag.vector_store import VectorStore
-
     console.print(f"[bold blue]Geospatial search:[/bold blue] {query}")
     console.print(f"[bold blue]Location:[/bold blue] {location}")
 
@@ -1020,8 +1013,6 @@ def rag_geospatial_search(
         spatial_query = None
 
     # Load vector store and search
-    from green_gov_rag.rag.embeddings import ChunkEmbedder
-
     embedder = ChunkEmbedder(provider="huggingface")
     vector_store = VectorStore(embeddings=embedder.embedder, index_path=index_path)
 
@@ -1055,8 +1046,6 @@ def rag_list_locations() -> None:
         green-gov-rag-cli rag list-locations
 
     """
-    from green_gov_rag.types import get_lga_mappings
-
     lga_mappings = get_lga_mappings()
 
     console.print("[bold blue]Known LGA Locations:[/bold blue]\n")
@@ -1152,13 +1141,6 @@ def load_chunks(
     Example:
         greengovrag-cli db load-chunks --chunks-dir data/chunks
     """
-    from green_gov_rag.etl.db_writer import (
-        save_chunk,
-        save_document_file,
-        save_document_source,
-        update_document_source_status,
-    )
-
     console.print(f"[bold]Loading chunks from {chunks_dir}...[/bold]")
 
     if not chunks_dir.exists():
@@ -1222,8 +1204,6 @@ def load_chunks(
             source_pdf_url = metadata.get("source_pdf_url", "")
 
             # Calculate content hash from chunk data (simplified approach)
-            import hashlib
-
             content_for_hash = "".join([c.get("content", "") for c in data])
             content_hash = hashlib.sha256(content_for_hash.encode()).hexdigest()
 
@@ -1305,8 +1285,6 @@ def load_chunks(
                 status="completed",
                 chunk_count=chunk_count_for_doc,
             )
-
-            from green_gov_rag.etl.db_writer import update_document_file_status
 
             update_document_file_status(
                 file_id=doc_file.id,

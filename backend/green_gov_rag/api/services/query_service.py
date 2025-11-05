@@ -162,6 +162,18 @@ class QueryService:
                     f"Using LGA filter (takes priority). Both will be returned in filters_applied."
                 )
 
+        # Determine if we should use auto-location extraction
+        # DISABLED for now: auto-location can be too narrow and filter out results
+        # when document coverage is limited. Re-enable once we have better coverage.
+        # TODO: Make this configurable via settings.enable_auto_location
+        # Use auto-location when:
+        # 1. No explicit LGAs provided, AND
+        # 2. No explicit region provided, AND
+        # 3. Query might contain location information
+        use_auto_location = (
+            False  # Disabled: was: not normalized_lgas and not normalized_region
+        )
+
         # Build metadata filters
         metadata_filters: dict[str, str | list[str]] = {}
         # LGAs take priority over region for filtering
@@ -184,8 +196,12 @@ class QueryService:
             )
 
         # Phase 1: Retrieve documents (always happens)
+        # Use auto-location if no explicit location filters provided
         context, sources = self.rag_agent.retrieve(
-            query=query, metadata_filters=metadata_filters or None, k=max_sources
+            query=query,
+            metadata_filters=metadata_filters or None,
+            k=max_sources,
+            use_auto_location=use_auto_location,
         )
 
         # Phase 2: Check cache before expensive LLM generation

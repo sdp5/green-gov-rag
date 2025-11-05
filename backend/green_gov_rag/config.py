@@ -56,6 +56,18 @@ class Settings(BaseSettings):
         default="./data/raw",
         description="Directory for raw downloaded documents (local development only)",
     )
+    processed_data_dir: str = Field(
+        default="./data/processed",
+        description="Directory for processed/parsed documents",
+    )
+    chunks_data_dir: str = Field(
+        default="./data/chunks",
+        description="Directory for chunked documents",
+    )
+    documents_config_path: str = Field(
+        default="configs/documents_config.yml",
+        description="Path to documents configuration file",
+    )
 
     # AWS Settings
     aws_access_key_id: str | None = Field(

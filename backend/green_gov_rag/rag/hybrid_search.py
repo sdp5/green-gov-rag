@@ -14,12 +14,15 @@ Key Features:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from langchain.docstore.document import Document
 
 from green_gov_rag.rag.location_ner import LocationNER
-from green_gov_rag.rag.vector_store import VectorStore
+
+if TYPE_CHECKING:
+    from green_gov_rag.rag.vector_store import VectorStore
+    from green_gov_rag.rag.vector_store_interface import VectorStoreInterface
 
 
 @dataclass
@@ -36,7 +39,11 @@ class SpatialQuery:
 class HybridGeospatialSearch:
     """Combine lexical, spatial, and vector search for geospatial RAG."""
 
-    def __init__(self, vector_store: VectorStore, enable_ner: bool = True):
+    def __init__(
+        self,
+        vector_store: Union["VectorStore", "VectorStoreInterface"],
+        enable_ner: bool = True,
+    ):
         """Initialize hybrid search with vector store.
 
         Args:

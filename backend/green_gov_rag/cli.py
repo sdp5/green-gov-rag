@@ -93,7 +93,7 @@ def etl_ingest(
 
     Example:
     -------
-        green-gov-rag-cli etl ingest --config configs/my_docs.yml
+        greengovrag-cli etl ingest --config configs/my_docs.yml
 
     """
     console.print(f"[bold blue]Loading config from {config_path}...[/bold blue]")
@@ -135,7 +135,7 @@ def etl_parse(
 
     Example:
     -------
-        green-gov-rag-cli etl parse --input data/raw --output data/processed
+        greengovrag-cli etl parse --input data/raw --output data/processed
 
     """
     console.print(f"[bold blue]Parsing documents from {input_dir}...[/bold blue]")
@@ -229,13 +229,13 @@ def etl_chunk(
     Example:
     -------
         # Fast delta processing (default, recommended)
-        green-gov-rag-cli etl chunk
+        greengovrag-cli etl chunk
 
         # Full re-processing with accurate mode
-        green-gov-rag-cli etl chunk --mode full --accurate
+        greengovrag-cli etl chunk --mode full --accurate
 
         # Force re-chunk specific files
-        green-gov-rag-cli etl chunk --force
+        greengovrag-cli etl chunk --force
 
     """
     # Validate mode
@@ -379,7 +379,7 @@ def etl_tag_metadata(
 
     Example:
     -------
-        green-gov-rag-cli etl tag-metadata --model gpt-5-mini
+        greengovrag-cli etl tag-metadata --model gpt-5-mini
 
     """
     console.print(f"[bold blue]Auto-tagging documents from {input_dir}...[/bold blue]")
@@ -545,7 +545,7 @@ def etl_pipeline(
 
     Example:
     -------
-        green-gov-rag-cli etl pipeline --config configs/etl_config.yml
+        greengovrag-cli etl pipeline --config configs/etl_config.yml
 
     """
     console.print("[bold blue]Starting ETL pipeline...[/bold blue]")
@@ -633,13 +633,13 @@ def rag_index(
     Examples:
     --------
         # Full indexing - FAISS (local, file-based - recommended for development)
-        green-gov-rag-cli rag index --chunks data/chunks --vector-store faiss
+        greengovrag-cli rag index --chunks data/chunks --vector-store faiss
 
         # Full indexing - Qdrant (server-based - recommended for production)
-        green-gov-rag-cli rag index --chunks data/chunks --vector-store qdrant --collection greengovrag
+        greengovrag-cli rag index --chunks data/chunks --vector-store qdrant --collection greengovrag
 
         # Delta indexing - Only index changed documents (incremental update)
-        green-gov-rag-cli rag index --chunks data/chunks --vector-store qdrant \\
+        greengovrag-cli rag index --chunks data/chunks --vector-store qdrant \\
             --collection greengovrag --changed-files changed_docs.json --mode delta
 
     Changed files format (JSON):
@@ -927,7 +927,7 @@ def rag_query(
 
     Example:
     -------
-        green-gov-rag-cli rag query "What are NGER reporting requirements?" --region SA
+        greengovrag-cli rag query "What are NGER reporting requirements?" --region SA
 
     """
     console.print(f"[bold blue]Searching for:[/bold blue] {query}")
@@ -986,7 +986,7 @@ def rag_geospatial_search(
 
     Example:
     -------
-        green-gov-rag-cli rag geospatial-search "tree preservation rules" --location Adelaide
+        greengovrag-cli rag geospatial-search "tree preservation rules" --location Adelaide
 
     """
     console.print(f"[bold blue]Geospatial search:[/bold blue] {query}")
@@ -1043,7 +1043,7 @@ def rag_list_locations() -> None:
 
     Example:
     -------
-        green-gov-rag-cli rag list-locations
+        greengovrag-cli rag list-locations
 
     """
     lga_mappings = get_lga_mappings()

@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from langchain.docstore.document import Document
-from langchain.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader
 
 from green_gov_rag.config import settings
 from green_gov_rag.etl.chunker import TextChunker

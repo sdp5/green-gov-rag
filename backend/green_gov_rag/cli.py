@@ -35,8 +35,8 @@ from green_gov_rag.etl.parsers import parse_file
 from green_gov_rag.etl.parsers.layout_parser import HierarchicalPDFParser
 from green_gov_rag.etl.parsers.unstructured_parser import UnstructuredPDFParser
 from green_gov_rag.etl.pipeline import EnhancedETLPipeline
-from green_gov_rag.models import DocumentFile
 from green_gov_rag.models.base import engine
+from green_gov_rag.models.document_version import DocumentVersion
 from green_gov_rag.rag.embeddings import ChunkEmbedder
 from green_gov_rag.rag.hybrid_search import HybridGeospatialSearch, SpatialQuery
 from green_gov_rag.rag.location_ner import LocationNER
@@ -701,77 +701,39 @@ def rag_index(
     console.print(f"Indexing mode: {indexing_mode}")
     console.print(f"Batch size: {batch_size}")
 
-    # Build lookup map: document_id -> (file_id, source_id, source_pdf_url) from database
-    #
-    # OPTIMIZATION: Query DocumentFile table directly instead of fetching ALL chunks.
-    # Chunks in JSON files should have document_id that matches DocumentFile.id
-    file_id_lookup: dict[str, tuple[str | None, str | None, str | None]] = {}
-    try:
-        with Session(engine) as session:
-            # Query DocumentFile table for efficient lookup
-            # Assumption: document_id in chunk JSON corresponds to DocumentFile.id
-            doc_files = session.exec(select(DocumentFile)).all()
-            for doc_file in doc_files:
-                # Use file.id as the document_id (this is the key in chunk JSON files)
-                file_id_lookup[doc_file.id] = (
-                    doc_file.id,
-                    doc_file.source_id,
-                    doc_file.file_url,  # Use file_url as source_pdf_url
-                )
-        console.print(
-            f"[dim]Loaded file_id mapping for {len(file_id_lookup)} documents from database[/dim]"
-        )
-    except Exception as e:
-        console.print(
-            f"[yellow]⚠ Could not load file_id mapping from database: {e}[/yellow]"
-        )
-        console.print(
-            "[dim]Continuing without file_id/source_id/source_pdf_url in metadata...[/dim]"
-        )
-
     # Load chunks
     all_chunks = []
     skipped_files = 0
     processed_files = 0
 
     for chunk_file in Path(chunks_dir).rglob("*_chunks.json"):
-        # Extract document ID from chunk filename
-        # Format: <doc_id>_chunks.json or path/to/<doc_id>_chunks.json
-        doc_id = chunk_file.stem.replace("_chunks", "")
-
-        # In delta mode, skip chunks not in changed set
+        # In delta mode, check if we should skip this file
         if indexing_mode == "delta" and changed_doc_ids:
-            if doc_id not in changed_doc_ids:
-                skipped_files += 1
-                continue
-
-        # Look up file_id, source_id, and source_pdf_url for this document from database
-        file_id, source_id, source_pdf_url = file_id_lookup.get(
-            doc_id, (None, None, None)
-        )
+            # Try to get file_id from chunk metadata to check if it's in changed set
+            with open(chunk_file, encoding="utf-8") as f:
+                temp_chunks = json.load(f)
+                if temp_chunks and isinstance(temp_chunks[0], dict):
+                    file_id_in_chunks = (
+                        temp_chunks[0].get("metadata", {}).get("file_id")
+                    )
+                    if file_id_in_chunks and file_id_in_chunks not in changed_doc_ids:
+                        skipped_files += 1
+                        continue
 
         with open(chunk_file, encoding="utf-8") as f:
             chunks = json.load(f)
 
             # Normalize chunks to dict format
-            # Chunks can be either strings or dicts with 'content' and 'metadata'
+            # file_id, source_id, and source_pdf_url should already be in metadata
+            # from the load-chunks command
             normalized_chunks = []
             for i, chunk in enumerate(chunks):
                 if isinstance(chunk, str):
-                    # Convert string chunks to dict format
+                    # Legacy format - convert string chunks to dict format
                     chunk_metadata = {
                         "source": str(chunk_file.stem),
                         "chunk_index": i,
-                        "document_id": doc_id,
                     }
-                    # Add file_id, source_id, and source_pdf_url from database lookup
-                    if file_id:
-                        chunk_metadata["file_id"] = file_id
-                    if source_id:
-                        chunk_metadata["source_id"] = source_id
-                    if source_pdf_url:
-                        chunk_metadata["source_pdf_url"] = source_pdf_url
-
                     normalized_chunks.append(
                         {
                             "content": chunk,
@@ -779,19 +741,8 @@ def rag_index(
                         }
                     )
                 elif isinstance(chunk, dict):
-                    # Already in dict format - ensure document_id, file_id, source_id, source_pdf_url are set
-                    if "metadata" not in chunk:
-                        chunk["metadata"] = {}
-                    chunk["metadata"]["document_id"] = doc_id
-
-                    # Add file_id, source_id, and source_pdf_url from database lookup if not already present
-                    if "file_id" not in chunk["metadata"] and file_id:
-                        chunk["metadata"]["file_id"] = file_id
-                    if "source_id" not in chunk["metadata"] and source_id:
-                        chunk["metadata"]["source_id"] = source_id
-                    if "source_pdf_url" not in chunk["metadata"] and source_pdf_url:
-                        chunk["metadata"]["source_pdf_url"] = source_pdf_url
-
+                    # Modern format - metadata should already contain file_id, source_id, etc.
+                    # Just pass through as-is
                     normalized_chunks.append(chunk)
                 else:
                     console.print(
@@ -1217,26 +1168,78 @@ def load_chunks(
             )
 
             # Create document version record for citation verification
+            # Only create version if content has changed or no version exists
             try:
-                save_document_version(
-                    file_id=doc_file.id,
-                    source_id=source.id,
-                    content_hash=content_hash,
-                    source_url=source_pdf_url,
-                    file_size_bytes=None,  # Not available from chunk data
-                    change_type="new",
-                    metadata={
-                        "note": "Initial version from load-chunks command",
-                        "filename": filename,
-                    },
-                )
-                console.print(f"[dim]  Created document version for {filename}[/dim]")
+                with Session(engine) as session:
+                    # Check if a version with this content_hash already exists
+                    latest_version = session.exec(
+                        select(DocumentVersion)
+                        .where(DocumentVersion.file_id == doc_file.id)
+                        .order_by(DocumentVersion.version_number.desc())  # type: ignore[attr-defined]
+                    ).first()
+
+                    # Create version only if no existing version OR content has changed
+                    if (
+                        not latest_version
+                        or latest_version.content_hash != content_hash
+                    ):
+                        change_type = "new" if not latest_version else "updated"
+                        save_document_version(
+                            file_id=doc_file.id,
+                            source_id=source.id,
+                            content_hash=content_hash,
+                            source_url=source_pdf_url,
+                            file_size_bytes=None,  # Not available from chunk data
+                            change_type=change_type,
+                            metadata={
+                                "note": "Version from load-chunks command",
+                                "filename": filename,
+                            },
+                        )
+                        console.print(
+                            f"[dim]  Created document version ({change_type}) for {filename}[/dim]"
+                        )
+                    else:
+                        console.print(
+                            f"[dim]  Skipped version creation for {filename} (content unchanged)[/dim]"
+                        )
             except Exception as e:
                 console.print(
                     f"[yellow]Warning: Failed to create document version: {e}[/yellow]"
                 )
 
             total_documents += 1
+
+            # Update chunk JSON with file_id and source_id metadata
+            # This makes future indexing operations independent of database
+            chunks_updated = False
+            for chunk in data:
+                if isinstance(chunk, dict):
+                    if "metadata" not in chunk:
+                        chunk["metadata"] = {}
+                    # Add file_id and source_id if not already present
+                    if "file_id" not in chunk["metadata"]:
+                        chunk["metadata"]["file_id"] = doc_file.id
+                        chunks_updated = True
+                    if "source_id" not in chunk["metadata"]:
+                        chunk["metadata"]["source_id"] = source.id
+                        chunks_updated = True
+                    if "source_pdf_url" not in chunk["metadata"] and source_pdf_url:
+                        chunk["metadata"]["source_pdf_url"] = source_pdf_url
+                        chunks_updated = True
+
+            # Write back updated chunks to JSON file
+            if chunks_updated:
+                try:
+                    with open(chunk_file, "w") as f:
+                        json.dump(data, f, indent=2)
+                    console.print(
+                        f"[dim]  Updated {chunk_file.name} with file_id metadata[/dim]"
+                    )
+                except Exception as e:
+                    console.print(
+                        f"[yellow]Warning: Failed to update chunk file: {e}[/yellow]"
+                    )
 
             # Save chunks in batches
             chunk_count_for_doc = 0

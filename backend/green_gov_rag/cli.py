@@ -26,6 +26,7 @@ from green_gov_rag.etl.db_writer import (
     save_chunk,
     save_document_file,
     save_document_source,
+    save_document_version,
     update_document_file_status,
     update_document_source_status,
 )
@@ -1214,6 +1215,26 @@ def load_chunks(
                 content_hash=content_hash,
                 status="completed",
             )
+
+            # Create document version record for citation verification
+            try:
+                save_document_version(
+                    file_id=doc_file.id,
+                    source_id=source.id,
+                    content_hash=content_hash,
+                    source_url=source_pdf_url,
+                    file_size_bytes=None,  # Not available from chunk data
+                    change_type="new",
+                    metadata={
+                        "note": "Initial version from load-chunks command",
+                        "filename": filename,
+                    },
+                )
+                console.print(f"[dim]  Created document version for {filename}[/dim]")
+            except Exception as e:
+                console.print(
+                    f"[yellow]Warning: Failed to create document version: {e}[/yellow]"
+                )
 
             total_documents += 1
 

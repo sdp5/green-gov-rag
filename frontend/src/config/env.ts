@@ -11,7 +11,7 @@ declare global {
   interface Window {
     __RUNTIME_CONFIG__?: {
       API_URL: string;
-      API_ACCESS_KEY: string;
+      API_ACCESS_KEY?: string;  // Optional: only used in local dev, CloudFront injects in prod
       MAPBOX_TOKEN: string;
       GITHUB_REPO_URL: string;
     };
@@ -44,6 +44,7 @@ export const isProduction = import.meta.env.PROD;
 
 // Export individual values for convenience
 export const API_URL = ENV.API_URL;
+// API_ACCESS_KEY is only used in local dev (CloudFront/Front Door inject header in production)
 export const API_ACCESS_KEY = ENV.API_ACCESS_KEY;
 export const MAPBOX_TOKEN = ENV.MAPBOX_TOKEN;
 export const GITHUB_REPO_URL = ENV.GITHUB_REPO_URL;

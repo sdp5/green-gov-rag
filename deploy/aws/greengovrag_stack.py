@@ -68,6 +68,7 @@ class GreenGovRAGStack(Stack):
         # Get context values with defaults
         project_name = self.node.try_get_context("project_name") or "GreenGovRAG"
         environment = self.node.try_get_context("environment") or "prod"
+        api_access_key = self.node.try_get_context("api_access_key") or "REPLACE_ME"
 
         # =====================================================================
         # VPC - Public Subnets Only (No NAT Gateway)
@@ -558,6 +559,21 @@ class GreenGovRAGStack(Stack):
         )
         frontend_bucket.grant_read(oai)
 
+        # CloudFront Function to inject API access key for /api/* requests
+        api_auth_function = cloudfront.Function(
+            self,
+            f"{project_name}ApiAuthFunction",
+            comment="Inject X-API-Key header for backend authentication",
+            code=cloudfront.FunctionCode.from_inline(f"""
+function handler(event) {{
+    var request = event.request;
+    // Inject API key from CDK context (provided via GitHub Secrets)
+    request.headers['x-api-key'] = {{value: '{api_access_key}'}};
+    return request;
+}}
+            """.strip()),
+        )
+
         # CloudFront distribution
         distribution = cloudfront.Distribution(
             self,
@@ -577,6 +593,12 @@ class GreenGovRAGStack(Stack):
                     cache_policy=cloudfront.CachePolicy.CACHING_DISABLED,
                     origin_request_policy=cloudfront.OriginRequestPolicy.ALL_VIEWER,
                     viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+                    function_associations=[
+                        cloudfront.FunctionAssociation(
+                            function=api_auth_function,
+                            event_type=cloudfront.FunctionEventType.VIEWER_REQUEST,
+                        )
+                    ],
                 )
             },
             default_root_object="index.html",

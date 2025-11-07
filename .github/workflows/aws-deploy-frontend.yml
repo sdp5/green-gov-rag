@@ -39,8 +39,8 @@ jobs:
         env:
           # These will be replaced at runtime via config.js
           VITE_API_URL: PLACEHOLDER
-          VITE_API_ACCESS_KEY: PLACEHOLDER
           VITE_MAPBOX_TOKEN: PLACEHOLDER
+          # VITE_API_ACCESS_KEY removed - CloudFront Function injects X-API-Key header
 
       - name: Generate runtime config template
         working-directory: frontend
@@ -104,10 +104,11 @@ jobs:
         run: |
           cat > dist/config.js << EOF
           // Runtime configuration for GreenGovRAG frontend
+          // Note: API_ACCESS_KEY is NOT included - CloudFront Function injects X-API-Key header
           window.__RUNTIME_CONFIG__ = {
             API_URL: '${{ steps.cf-outputs.outputs.api_url }}/api',
-            API_ACCESS_KEY: '${{ secrets.API_ACCESS_KEY }}',
-            MAPBOX_TOKEN: '${{ secrets.VITE_MAPBOX_TOKEN }}'
+            MAPBOX_TOKEN: '${{ secrets.VITE_MAPBOX_TOKEN }}',
+            GITHUB_REPO_URL: 'https://github.com/sdp5/green-gov-rag'
           };
           EOF
 

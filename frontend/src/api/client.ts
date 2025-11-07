@@ -3,12 +3,20 @@ import { API_URL, API_ACCESS_KEY } from '../config/env';
 import type { FeedbackRequest, FeedbackResponse, CoverageInfo } from '../types/api';
 import { getOrCreateSessionId } from '../utils/session';
 
+// Create base headers
+const headers: Record<string, string> = {
+  'Content-Type': 'application/json',
+};
+
+// Only add X-API-Key header if API_ACCESS_KEY is present (local dev)
+// In production, CloudFront Function (AWS) or Front Door Rules (Azure) inject the header
+if (API_ACCESS_KEY) {
+  headers['X-API-Key'] = API_ACCESS_KEY;
+}
+
 const apiClient = axios.create({
   baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-    'X-API-Key': API_ACCESS_KEY,
-  },
+  headers,
 });
 
 export default apiClient;

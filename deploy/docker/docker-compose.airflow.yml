@@ -1,8 +1,7 @@
-version: '3'
-
 services:
-  postgres:
-    image: postgres:17.6
+  # PostgreSQL for Airflow metadata
+  postgres-airflow:
+    image: postgres:17
     container_name: postgres_airflow
     restart: always
     environment:
@@ -10,41 +9,154 @@ services:
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_airflow_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 5
 
-  airflow-webserver:
-    image: apache/airflow:2.9.1-python3.9
-    build:
-      context: .
-      dockerfile: airflow/Dockerfile
-    depends_on:
-      - postgres
+  # PostgreSQL for GreenGovRAG application data (with pgvector extension)
+  postgres-app:
+    image: pgvector/pgvector:pg17
+    container_name: postgres_greengovrag
+    restart: always
     environment:
+      POSTGRES_USER: greengovrag
+      POSTGRES_PASSWORD: greengovrag
+      POSTGRES_DB: greengovrag
+    volumes:
+      - postgres_app_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "greengovrag"]
+      interval: 5s
+      retries: 5
+
+  # Qdrant vector database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    restart: always
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Airflow webserver
+  airflow-webserver:
+    build:
+      context: ../../backend
+      dockerfile: ../deploy/docker/airflow/Dockerfile
+      args:
+        - SETUPTOOLS_SCM_PRETEND_VERSION=0.1.0
+    container_name: airflow_webserver
+    restart: always
+    depends_on:
+      postgres-airflow:
+        condition: service_healthy
+      postgres-app:
+        condition: service_healthy
+    environment:
+      # Airflow configuration
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres-airflow/airflow?connect_timeout=30
+      AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_ENABLED: 'False'
       AIRFLOW__CORE__FERNET_KEY: ''
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__WEBSERVER__WORKERS: 2
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
+
+      # GreenGovRAG database configuration
+      DATABASE_URL: postgresql://greengovrag:greengovrag@postgres-app:5432/greengovrag
+
+      # Vector store configuration
+      VECTOR_STORE_TYPE: qdrant
+      QDRANT_URL: http://qdrant:6333
+
+      # Optional: Add your API keys here or mount .env file
+      # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     volumes:
+      # Mount DAGs directory
       - ./airflow/dags:/opt/airflow/dags
-      - ../scripts:/opt/airflow/scripts
+      # Mount backend code for greengovrag-cli
+      - ../../backend/green_gov_rag:/app/green_gov_rag
+      - ../../backend/configs:/app/configs
+      # Mount data directories
+      - ../../backend/data:/app/data
+      # Optional: Mount .env file for API keys
+      # - ../../backend/.env:/app/.env
     ports:
       - "8080:8080"
     command: >
       bash -c "
         airflow db migrate &&
-        airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com &&
-        airflow scheduler & airflow webserver
+        airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com || true &&
+        airflow webserver
       "
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
+  # Airflow scheduler
   airflow-scheduler:
-    image: apache/airflow:2.9.1-python3.9
+    build:
+      context: ../../backend
+      dockerfile: ../deploy/docker/airflow/Dockerfile
+      args:
+        - SETUPTOOLS_SCM_PRETEND_VERSION=0.1.0
+    container_name: airflow_scheduler
+    restart: always
     depends_on:
-      - airflow-webserver
+      airflow-webserver:
+        condition: service_healthy
+    environment:
+      # Airflow configuration
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres-airflow/airflow?connect_timeout=30
+      AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_ENABLED: 'False'
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+
+      # GreenGovRAG database configuration
+      DATABASE_URL: postgresql://greengovrag:greengovrag@postgres-app:5432/greengovrag
+
+      # Vector store configuration
+      VECTOR_STORE_TYPE: qdrant
+      QDRANT_URL: http://qdrant:6333
+
+      # Optional: Add your API keys here or mount .env file
+      # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     volumes:
+      # Mount DAGs directory
       - ./airflow/dags:/opt/airflow/dags
+      # Mount backend code for greengovrag-cli
+      - ../../backend/green_gov_rag:/app/green_gov_rag
+      - ../../backend/configs:/app/configs
+      # Mount data directories
+      - ../../backend/data:/app/data
+      # Optional: Mount .env file for API keys
+      # - ../../backend/.env:/app/.env
     command: airflow scheduler
+    healthcheck:
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname $(hostname)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
 volumes:
-  postgres_data:
+  postgres_airflow_data:
+  postgres_app_data:
+  qdrant_data:

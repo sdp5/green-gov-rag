@@ -12,8 +12,8 @@ Cost-optimized deployment with:
 - S3 Gateway Endpoint (free)
 
 Architecture optimizations:
-- No NAT Gateway (saves $32-45/mo)
-- No VPC Link (saves $14-17/mo)
+- No NAT Gateway (saves $40-50/mo)
+- No VPC Link (saves $20/mo)
 - No SSM endpoint (saves $10/mo)
 - Spot instances for non-critical workloads (84% discount)
 - ARM64/Graviton processors (20% cost reduction)
@@ -68,7 +68,19 @@ class GreenGovRAGStack(Stack):
         # Get context values with defaults
         project_name = self.node.try_get_context("project_name") or "GreenGovRAG"
         environment = self.node.try_get_context("environment") or "prod"
-        api_access_key = self.node.try_get_context("api_access_key") or "REPLACE_ME"
+
+        # Secrets - Retrieved from context (passed via GitHub Actions or CLI)
+        api_access_key = self.node.try_get_context("api_access_key") or "REPLACE_VIA_GITHUB_SECRETS"
+        azure_openai_api_key = self.node.try_get_context("azure_openai_api_key") or "REPLACE_VIA_GITHUB_SECRETS"
+        azure_openai_endpoint = self.node.try_get_context("azure_openai_endpoint") or "REPLACE_VIA_GITHUB_SECRETS"
+
+        # Configurable settings - Retrieved from context with sensible defaults
+        llm_provider = self.node.try_get_context("llm_provider") or "azure"
+        llm_model = self.node.try_get_context("llm_model") or "gpt-5-mini"
+        azure_openai_deployment = self.node.try_get_context("azure_openai_deployment") or llm_model
+        azure_openai_api_version = self.node.try_get_context("azure_openai_api_version") or "2024-12-01-preview"
+        embedding_model = self.node.try_get_context("embedding_model") or "BAAI/bge-large-en-v1.5"
+        vector_store_type = self.node.try_get_context("vector_store_type") or "qdrant"
 
         # =====================================================================
         # VPC - Public Subnets Only (No NAT Gateway)
@@ -205,7 +217,7 @@ class GreenGovRAGStack(Stack):
             self,
             f"{project_name}PostgreSQL",
             engine=rds.DatabaseInstanceEngine.postgres(
-                version=rds.PostgresEngineVersion.VER_15
+                version=rds.PostgresEngineVersion.VER_17
             ),
             instance_type=ec2.InstanceType.of(
                 ec2.InstanceClass.T4G,  # ARM Graviton
@@ -324,33 +336,29 @@ class GreenGovRAGStack(Stack):
             environment={
                 "DATABASE_URL": f"postgresql://postgres:PASSWORD@{db_instance.db_instance_endpoint_address}:5432/greengovrag",
                 "QDRANT_URL": "http://qdrant.greengovrag.local:6333",
-                "VECTOR_STORE_TYPE": "qdrant",
-                "EMBEDDING_MODEL": "BAAI/bge-large-en-v1.5",  # Production model
+                "VECTOR_STORE_TYPE": vector_store_type,
+                "EMBEDDING_MODEL": embedding_model,
                 "S3_BUCKET": docs_bucket.bucket_name,
                 "DYNAMODB_CACHE_TABLE": cache_table.table_name,
                 "CLOUD_PROVIDER": "aws",
                 "STORAGE_CONTAINER": docs_bucket.bucket_name,
                 # LLM Configuration - Supports Azure OpenAI, AWS Bedrock, or OpenAI
-                # Set via GitHub Actions secrets: LLM_PROVIDER, LLM_MODEL, etc.
                 # Azure: AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT
-                # AWS Bedrock: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
+                # AWS Bedrock: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY (use IAM role instead)
                 # OpenAI: OPENAI_API_KEY
-                # TODO: Review for production - Use SSM Parameter Store for better secret management
-                "LLM_PROVIDER": "azure",  # or "bedrock" or "openai" - override via GitHub Secrets
-                "LLM_MODEL": "gpt-5-mini",  # gpt-5-mini (recommended), gpt-5, or gpt-4o
-                "AZURE_OPENAI_API_VERSION": "2024-12-01-preview",
-                "AZURE_OPENAI_API_KEY": "REPLACE_VIA_GITHUB_SECRETS",  # Injected from GitHub Actions
-                "AZURE_OPENAI_ENDPOINT": "REPLACE_VIA_GITHUB_SECRETS",  # Injected from GitHub Actions
-                "AZURE_OPENAI_DEPLOYMENT": "gpt-5-mini",  # Match LLM_MODEL
+                "LLM_PROVIDER": llm_provider,
+                "LLM_MODEL": llm_model,
+                "AZURE_OPENAI_API_VERSION": azure_openai_api_version,
+                "AZURE_OPENAI_API_KEY": azure_openai_api_key,
+                "AZURE_OPENAI_ENDPOINT": azure_openai_endpoint,
+                "AZURE_OPENAI_DEPLOYMENT": azure_openai_deployment,
                 # Cache Settings
                 "ENABLE_CACHE": "true",
                 "ENABLE_REDIS_CACHE": "false",  # Using DynamoDB instead
-                "REDIS_HOST": "localhost",
-                "REDIS_PORT": "6379",
                 "CACHE_TTL": "3600",
                 "ENABLE_SEMANTIC_CACHE": "true",
                 # API Security - Access key for all API endpoints
-                "API_ACCESS_KEY": "REPLACE_VIA_GITHUB_SECRETS",  # Required for all API access
+                "API_ACCESS_KEY": api_access_key,
             },
             secrets={
                 # Database password still uses Secrets Manager (auto-generated by RDS, no extra cost)

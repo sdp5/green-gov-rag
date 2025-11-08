@@ -49,6 +49,18 @@ param azureOpenaiEndpoint string = 'REPLACE_VIA_GITHUB_SECRETS'
 @description('Azure OpenAI Deployment Name')
 param azureOpenaiDeployment string = 'gpt-5-mini'
 
+@description('Azure OpenAI API Version')
+param azureOpenaiApiVersion string = '2024-12-01-preview'
+
+@description('LLM Provider (azure, bedrock, openai)')
+param llmProvider string = 'azure'
+
+@description('LLM Model name')
+param llmModel string = 'gpt-5-mini'
+
+@description('Embedding Model')
+param embeddingModel string = 'BAAI/bge-large-en-v1.5'
+
 @description('API Access Key for authentication')
 @secure()
 param apiAccessKey string = 'REPLACE_VIA_GITHUB_SECRETS'
@@ -466,14 +478,14 @@ resource apiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
               name: 'AZURE_STORAGE_CONNECTION_STRING'
               secretRef: 'storage-connection-string'
             }
-            // LLM Configuration - Azure OpenAI
+            // LLM Configuration
             {
               name: 'LLM_PROVIDER'
-              value: 'azure'
+              value: llmProvider
             }
             {
               name: 'LLM_MODEL'
-              value: 'gpt-5-mini'  // gpt-5-mini (recommended), gpt-5, or gpt-4o
+              value: llmModel
             }
             {
               name: 'AZURE_OPENAI_API_KEY'
@@ -489,19 +501,19 @@ resource apiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
             }
             {
               name: 'AZURE_OPENAI_API_VERSION'
-              value: '2024-12-01-preview'
+              value: azureOpenaiApiVersion
             }
             // API Security
             {
               name: 'API_ACCESS_KEY'
               secretRef: 'api-access-key'
             }
-            // Embedding Model - BGE-large for 93% accuracy
+            // Embedding Model
             {
               name: 'EMBEDDING_MODEL'
-              value: 'BAAI/bge-large-en-v1.5'
+              value: embeddingModel
             }
-            // Cache Settings
+            // Cache Settings (using Azure Table Storage, not Redis)
             {
               name: 'ENABLE_CACHE'
               value: 'true'
@@ -509,14 +521,6 @@ resource apiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
             {
               name: 'ENABLE_REDIS_CACHE'
               value: 'false'
-            }
-            {
-              name: 'REDIS_HOST'
-              value: 'localhost'
-            }
-            {
-              name: 'REDIS_PORT'
-              value: '6379'
             }
             {
               name: 'CACHE_TTL'
@@ -644,11 +648,11 @@ resource etlJob 'Microsoft.App/jobs@2023-05-01' = {
             }
             {
               name: 'LLM_PROVIDER'
-              value: 'azure'
+              value: llmProvider
             }
             {
               name: 'LLM_MODEL'
-              value: 'gpt-5-mini'
+              value: llmModel
             }
             {
               name: 'AZURE_OPENAI_API_KEY'
@@ -664,7 +668,11 @@ resource etlJob 'Microsoft.App/jobs@2023-05-01' = {
             }
             {
               name: 'AZURE_OPENAI_API_VERSION'
-              value: '2024-12-01-preview'
+              value: azureOpenaiApiVersion
+            }
+            {
+              name: 'EMBEDDING_MODEL'
+              value: embeddingModel
             }
           ]
         }

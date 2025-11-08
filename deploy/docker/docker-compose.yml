@@ -5,7 +5,6 @@
 
 services:
   postgres:
-#    image: postgres:17.6
     image: pgvector/pgvector:pg17
     container_name: greengovrag-postgres
     restart: unless-stopped

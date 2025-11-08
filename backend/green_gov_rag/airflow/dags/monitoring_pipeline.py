@@ -43,8 +43,10 @@ def check_for_changes(**context) -> str:
 
     # Check if output contains change indicators
     # The CLI command will output "Changes detected" if there are updates
-    if output and ("new documents" in output.lower() or "updated documents" in output.lower()):
-        print(f"Changes detected in monitoring output")
+    if output and (
+        "new documents" in output.lower() or "updated documents" in output.lower()
+    ):
+        print("Changes detected in monitoring output")
         return "trigger_etl_pipeline"
     else:
         print("No changes detected - skipping ETL")
@@ -61,7 +63,6 @@ with DAG(
     catchup=False,
     tags=["greengovrag", "monitoring", "etl"],
 ) as dag:
-
     # Task 1: Monitor all sources using CLI
     monitor_sources = BashOperator(
         task_id="monitor_sources",
@@ -105,7 +106,6 @@ with DAG(
     catchup=False,
     tags=["greengovrag", "monitoring", "high-priority"],
 ) as high_priority_dag:
-
     # Monitor high-priority sources
     # NOTE: You can add a --priority flag to the CLI command if needed
     monitor_high_priority = BashOperator(

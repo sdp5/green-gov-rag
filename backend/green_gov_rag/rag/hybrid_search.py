@@ -19,6 +19,10 @@ from typing import TYPE_CHECKING, Optional, Union
 from langchain.docstore.document import Document
 
 from green_gov_rag.rag.location_ner import LocationNER
+from green_gov_rag.rag.query_expansion import (
+    detect_jurisdiction_from_query,
+    expand_query,
+)
 
 if TYPE_CHECKING:
     from green_gov_rag.rag.vector_store import VectorStore
@@ -61,6 +65,7 @@ class HybridGeospatialSearch:
         spatial_query: Optional[SpatialQuery] = None,
         metadata_filters: Optional[dict] = None,
         k: int = 10,
+        enable_query_expansion: bool = True,
     ) -> list[Document]:
         """Hybrid search combining vector, spatial, and metadata filtering.
 
@@ -70,16 +75,29 @@ class HybridGeospatialSearch:
             spatial_query: Optional SpatialQuery for location-based filtering
             metadata_filters: Optional dict for metadata filtering
             k: Number of initial results to retrieve (before filtering)
+            enable_query_expansion: Whether to expand acronyms in query (default: True)
 
         Returns:
         -------
             List of Document objects ranked by relevance
 
         """
+        # Step 0: Query expansion and jurisdiction detection
+        expanded_query = expand_query(query) if enable_query_expansion else query
+
+        # Auto-detect jurisdiction if not provided
+        if metadata_filters is None:
+            metadata_filters = {}
+
+        if "jurisdiction" not in metadata_filters:
+            detected_jurisdiction = detect_jurisdiction_from_query(query)
+            if detected_jurisdiction:
+                metadata_filters["jurisdiction"] = detected_jurisdiction
+
         # Step 1: Vector similarity search
         # Retrieve more results initially to account for filtering
         initial_k = k * 3 if (spatial_query or metadata_filters) else k
-        results = self.vector_store.similarity_search(query, k=initial_k)
+        results = self.vector_store.similarity_search(expanded_query, k=initial_k)
 
         # Step 2: Apply spatial filters if provided
         if spatial_query:
@@ -89,7 +107,13 @@ class HybridGeospatialSearch:
         if metadata_filters:
             results = self._filter_by_metadata(results, metadata_filters)
 
-        # Step 4: Re-rank by relevance (already ordered by similarity)
+        # Step 4: Apply jurisdiction boosting if jurisdiction filter present
+        if metadata_filters and "jurisdiction" in metadata_filters:
+            results = self._boost_by_jurisdiction(
+                results, metadata_filters["jurisdiction"]
+            )
+
+        # Step 5: Re-rank by relevance (already ordered by similarity)
         # Keep top k results
         return results[:k]
 
@@ -221,6 +245,74 @@ class HybridGeospatialSearch:
                 filtered.append(doc)
 
         return filtered
+
+    def _boost_by_jurisdiction(
+        self,
+        results: list[Document],
+        target_jurisdiction: str,
+    ) -> list[Document]:
+        """Boost documents matching the target jurisdiction.
+
+        Documents matching the target jurisdiction get a 30% boost in ranking.
+        This helps prioritize correct jurisdiction sources while keeping
+        relevant cross-jurisdiction documents in results.
+
+        Args:
+        ----
+            results: List of Document objects
+            target_jurisdiction: Target jurisdiction ("federal", "state", "local")
+
+        Returns:
+        -------
+            Re-ranked list of Document objects with matching jurisdiction boosted
+
+        """
+        from green_gov_rag.types import JurisdictionLevel
+
+        # Validate jurisdiction
+        valid_jurisdictions = [j.value for j in JurisdictionLevel]
+        if target_jurisdiction not in valid_jurisdictions:
+            # Invalid jurisdiction, return as-is
+            return results
+
+        # Separate matching and non-matching documents
+        matching = []
+        non_matching = []
+
+        for doc in results:
+            doc_jurisdiction = doc.metadata.get("jurisdiction")
+            if doc_jurisdiction == target_jurisdiction:
+                matching.append(doc)
+            else:
+                non_matching.append(doc)
+
+        # Boost factor: 1.3 = 30% boost
+        # In practice, this means we interleave 1 non-matching for every ~3 matching
+        # to maintain diversity while prioritizing correct jurisdiction
+        boosted_results = []
+        match_idx = 0
+        non_match_idx = 0
+
+        # Interleave with 3:1 ratio (matching:non-matching)
+        while match_idx < len(matching) or non_match_idx < len(non_matching):
+            # Add 3 matching documents
+            for _ in range(3):
+                if match_idx < len(matching):
+                    boosted_results.append(matching[match_idx])
+                    match_idx += 1
+                elif non_match_idx < len(non_matching):
+                    # If no more matching, add non-matching
+                    boosted_results.append(non_matching[non_match_idx])
+                    non_match_idx += 1
+                else:
+                    break
+
+            # Add 1 non-matching document
+            if non_match_idx < len(non_matching):
+                boosted_results.append(non_matching[non_match_idx])
+                non_match_idx += 1
+
+        return boosted_results
 
     def search_with_lga(
         self,

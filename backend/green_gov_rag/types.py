@@ -108,31 +108,28 @@ class LGAInfo(NamedTuple):
 
 # Major LGAs (can be extended)
 class KnownLGA:
-    """Known Local Government Areas with codes."""
+    """Known Local Government Areas with documents.
 
-    # South Australia - Adelaide Metro
+    NOTE: Only LGAs with local documents should be listed here.
+    This ensures the UI properly filters and displays coverage information.
+    """
+
+    # South Australia - Adelaide Metro (LGAs with local documents)
     ADELAIDE = LGAInfo("City of Adelaide", "40070", AustralianState.SA)
-    PORT_ADELAIDE_ENFIELD = LGAInfo(
-        "Port Adelaide Enfield",
-        "40280",
-        AustralianState.SA,
-    )
     NORWOOD_PAYNEHAM_ST_PETERS = LGAInfo(
         "Norwood Payneham and St Peters",
         "40340",
         AustralianState.SA,
     )
     UNLEY = LGAInfo("Unley", "40370", AustralianState.SA)
-    BURNSIDE = LGAInfo("Burnside", "40070", AustralianState.SA)
+    BURNSIDE = LGAInfo("Burnside", "40080", AustralianState.SA)
     WEST_TORRENS = LGAInfo("West Torrens", "40430", AustralianState.SA)
-    PROSPECT = LGAInfo("Prospect", "40290", AustralianState.SA)
-
-    # New South Wales
-    SYDNEY = LGAInfo("City of Sydney", "10050", AustralianState.NSW)
-    PARRAMATTA = LGAInfo("Parramatta", "12260", AustralianState.NSW)
-
-    # Victoria
-    MELBOURNE = LGAInfo("Melbourne", "20260", AustralianState.VIC)
+    MARION = LGAInfo("Marion", "40210", AustralianState.SA)
+    ONKAPARINGA = LGAInfo("Onkaparinga", "40270", AustralianState.SA)
+    SALISBURY = LGAInfo("Salisbury", "40300", AustralianState.SA)
+    HOLDFAST_BAY = LGAInfo("Holdfast Bay", "40160", AustralianState.SA)
+    TEA_TREE_GULLY = LGAInfo("Tea Tree Gully", "40360", AustralianState.SA)
+    PLAYFORD = LGAInfo("Playford", "40260", AustralianState.SA)
 
     @classmethod
     def get_all(cls) -> dict[str, LGAInfo]:
@@ -149,14 +146,11 @@ class KnownLGA:
         lgas["adelaide"] = cls.ADELAIDE
         lgas["city of adelaide"] = cls.ADELAIDE
 
-        # Port Adelaide Enfield
-        lgas["port adelaide"] = cls.PORT_ADELAIDE_ENFIELD
-        lgas["port adelaide enfield"] = cls.PORT_ADELAIDE_ENFIELD
-
         # Norwood Payneham St Peters
         lgas["norwood"] = cls.NORWOOD_PAYNEHAM_ST_PETERS
         lgas["norwood payneham"] = cls.NORWOOD_PAYNEHAM_ST_PETERS
         lgas["norwood payneham st peters"] = cls.NORWOOD_PAYNEHAM_ST_PETERS
+        lgas["norwood payneham and st peters"] = cls.NORWOOD_PAYNEHAM_ST_PETERS
 
         # Unley
         lgas["unley"] = cls.UNLEY
@@ -170,20 +164,30 @@ class KnownLGA:
         lgas["west torrens"] = cls.WEST_TORRENS
         lgas["city of west torrens"] = cls.WEST_TORRENS
 
-        # Prospect
-        lgas["prospect"] = cls.PROSPECT
-        lgas["city of prospect"] = cls.PROSPECT
+        # Marion
+        lgas["marion"] = cls.MARION
+        lgas["city of marion"] = cls.MARION
 
-        # Sydney
-        lgas["sydney"] = cls.SYDNEY
-        lgas["city of sydney"] = cls.SYDNEY
+        # Onkaparinga
+        lgas["onkaparinga"] = cls.ONKAPARINGA
+        lgas["city of onkaparinga"] = cls.ONKAPARINGA
 
-        # Parramatta
-        lgas["parramatta"] = cls.PARRAMATTA
+        # Salisbury
+        lgas["salisbury"] = cls.SALISBURY
+        lgas["city of salisbury"] = cls.SALISBURY
 
-        # Melbourne
-        lgas["melbourne"] = cls.MELBOURNE
-        lgas["city of melbourne"] = cls.MELBOURNE
+        # Holdfast Bay
+        lgas["holdfast bay"] = cls.HOLDFAST_BAY
+        lgas["holdfast"] = cls.HOLDFAST_BAY
+        lgas["city of holdfast bay"] = cls.HOLDFAST_BAY
+
+        # Tea Tree Gully
+        lgas["tea tree gully"] = cls.TEA_TREE_GULLY
+        lgas["city of tea tree gully"] = cls.TEA_TREE_GULLY
+
+        # Playford
+        lgas["playford"] = cls.PLAYFORD
+        lgas["city of playford"] = cls.PLAYFORD
 
         return lgas
 

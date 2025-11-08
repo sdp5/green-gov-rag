@@ -42,9 +42,13 @@ DEFAULT_ARGS = {
 
 # DAG Parameters (can be overridden via Airflow Variables)
 STORAGE_PROVIDER = Variable.get("STORAGE_PROVIDER", default_var="local")
-STORAGE_CONTAINER = Variable.get("STORAGE_CONTAINER", default_var="greengovrag-documents")
+STORAGE_CONTAINER = Variable.get(
+    "STORAGE_CONTAINER", default_var="greengovrag-documents"
+)
 ENABLE_AUTO_TAGGING = Variable.get("ENABLE_AUTO_TAGGING", default_var="true")
-WORKING_DIR = Variable.get("WORKING_DIR", default_var="/home/sundeep/github/green-gov-rag/backend")
+WORKING_DIR = Variable.get(
+    "WORKING_DIR", default_var="/home/sundeep/github/green-gov-rag/backend"
+)
 
 
 # Build tagging flag for CLI commands
@@ -65,7 +69,6 @@ with DAG(
         "enable_auto_tagging": ENABLE_AUTO_TAGGING,
     },
 ) as dag:
-
     # Task 1: Ingest documents (cloud-aware via environment config)
     ingest_task = BashOperator(
         task_id="ingest_documents",
@@ -105,9 +108,9 @@ with DAG(
     test_query_task = BashOperator(
         task_id="test_rag_query",
         bash_command=(
-            'greengovrag-cli rag query '
+            "greengovrag-cli rag query "
             '"What are the key environmental regulations in Australia?" '
-            '--top-k 3'
+            "--top-k 3"
         ),
         cwd=WORKING_DIR,
     )

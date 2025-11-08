@@ -141,6 +141,47 @@ def download_file(
     return False
 
 
+def detect_file_type(file_path: Path) -> str | None:
+    """Detect file type from magic bytes.
+
+    Args:
+        file_path: Path to file
+
+    Returns:
+        File extension (.pdf, .html, etc.) or None if unknown
+    """
+    if not file_path.exists():
+        return None
+
+    # Read first 16 bytes for magic number detection
+    try:
+        with open(file_path, "rb") as f:
+            header = f.read(16)
+    except Exception:
+        return None
+
+    # PDF magic bytes
+    if header.startswith(b"%PDF"):
+        return ".pdf"
+
+    # HTML detection (check for common HTML tags in first 1KB)
+    try:
+        with open(file_path, "rb") as f:
+            content = f.read(1024).lower()
+            if any(
+                tag in content for tag in [b"<html", b"<!doctype", b"<head", b"<body"]
+            ):
+                return ".html"
+    except Exception:
+        pass
+
+    # XML/HTML variants
+    if header.startswith(b"<?xml") or header.startswith(b"<"):
+        return ".html"
+
+    return None
+
+
 def safe_filename(url):
     """Generate a safe filename from a URL."""
     parsed = urlparse(url)
@@ -225,9 +266,23 @@ def _process_document_local(doc: dict[str, Any], metadata: dict[str, Any]) -> No
         return
 
     if download_file(url, dest_path):
+        # Detect actual file type and fix extension if needed
+        detected_ext = detect_file_type(dest_path)
+        final_path = dest_path
+
+        if detected_ext and not filename.lower().endswith(detected_ext):
+            # Rename file with correct extension
+            final_filename = f"{filename}{detected_ext}"
+            final_path = dest_dir / final_filename
+            dest_path.rename(final_path)
+            logger.info(
+                f"Renamed {filename} → {final_filename} (detected: {detected_ext})"
+            )
+            filename = final_filename
+
         metadata["filename"] = filename
         metadata["download_timestamp"] = datetime.utcnow().isoformat()
-        metadata["sha256"] = sha256sum(dest_path)
+        metadata["sha256"] = sha256sum(final_path)
 
         with open(
             dest_dir / f"{filename}{METADATA_FILE_SUFFIX}",
@@ -306,7 +361,7 @@ def ingest_documents(
         config = yaml.safe_load(f)
 
     documents = config.get("documents", [])
-    print(f"Found {len(documents)} documents in config.")
+    print(f"Found {len(documents)} document sources in config.")
     print(f"Storage mode: {'cloud' if use_cloud else 'local'}")
 
     # Initialize factory and storage adapter
@@ -372,13 +427,31 @@ def ingest_documents(
 
                         # Download file
                         if download_file(url, str(dest_path_obj)):
+                            # Detect actual file type and fix extension if needed
+                            detected_ext = detect_file_type(dest_path_obj)
+                            final_path = dest_path_obj
+
+                            if detected_ext and not dest_path_obj.name.lower().endswith(
+                                detected_ext
+                            ):
+                                # Rename file with correct extension
+                                final_filename = f"{dest_path_obj.name}{detected_ext}"
+                                final_path = dest_path_obj.parent / final_filename
+                                dest_path_obj.rename(final_path)
+                                logger.info(
+                                    f"Renamed {dest_path_obj.name} → {final_filename} "
+                                    f"(detected: {detected_ext})"
+                                )
+                            else:
+                                final_filename = dest_path_obj.name
+
                             # Save metadata
                             metadata_with_file = metadata.copy()
-                            metadata_with_file["filename"] = dest_path_obj.name
+                            metadata_with_file["filename"] = final_filename
                             metadata_with_file[
                                 "download_timestamp"
                             ] = datetime.utcnow().isoformat()
-                            metadata_with_file["sha256"] = sha256sum(dest_path_obj)
+                            metadata_with_file["sha256"] = sha256sum(final_path)
                             metadata_with_file[
                                 "document_id"
                             ] = doc_id  # NEW: for delta indexing
@@ -387,8 +460,8 @@ def ingest_documents(
                             ] = url  # Add PDF URL for deep linking
 
                             metadata_path = (
-                                dest_path_obj.parent
-                                / f"{dest_path_obj.name}{METADATA_FILE_SUFFIX}"
+                                final_path.parent
+                                / f"{final_filename}{METADATA_FILE_SUFFIX}"
                             )
                             with open(metadata_path, "w", encoding="utf-8") as mf:
                                 json.dump(metadata_with_file, mf, indent=2)
@@ -423,7 +496,7 @@ def main() -> None:
     """Main entry point for CLI usage."""
     config = load_config()
     documents = config.get("documents", [])
-    print(f"Found {len(documents)} documents in config.")
+    print(f"Found {len(documents)} document sources in config.")
 
     # Detect storage mode from settings
     use_cloud = settings.cloud_provider != "local"

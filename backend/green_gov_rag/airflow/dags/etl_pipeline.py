@@ -15,7 +15,7 @@ All steps use the greengovrag-cli commands to ensure consistency
 between manual and automated runs.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
@@ -25,7 +25,7 @@ default_args = {
     "owner": "greengovrag",
     "depends_on_past": False,
     "retries": 2,
-    "retry_delay": datetime.timedelta(minutes=5),
+    "retry_delay": timedelta(minutes=5),
 }
 
 # --- DAG Definition ---
@@ -38,7 +38,6 @@ with DAG(
     catchup=False,
     tags=["greengovrag", "etl", "rag"],
 ) as dag:
-
     # Task 1: Ingest documents from config
     ingest_task = BashOperator(
         task_id="ingest_documents",
@@ -89,9 +88,9 @@ with DAG(
     test_query_task = BashOperator(
         task_id="test_rag_query",
         bash_command=(
-            'greengovrag-cli rag query '
+            "greengovrag-cli rag query "
             '"What are the key environmental regulations in Australia?" '
-            '--top-k 3'
+            "--top-k 3"
         ),
         cwd="/home/sundeep/github/green-gov-rag/backend",
     )

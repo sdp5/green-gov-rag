@@ -231,7 +231,7 @@ def get_document_chunks_from_storage(
 
 if __name__ == "__main__":
     docs = load_documents_config()
-    print(f"Found {len(docs)} documents in config.")
+    print(f"Found {len(docs)} document sources in config.")
 
     # Test cloud storage loading if enabled
     if settings.cloud_provider != "local":

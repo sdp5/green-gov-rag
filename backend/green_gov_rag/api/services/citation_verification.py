@@ -378,42 +378,68 @@ class CitationVerificationService:
         Returns:
             QuoteVerificationResult with match information
         """
-        # For now, this is a placeholder implementation
-        # In a real system, you would:
-        # 1. Load the document content from storage
-        # 2. Search for the exact quote
-        # 3. Use fuzzy matching if exact match not found
+        from green_gov_rag.models.chunk import Chunk
 
-        # Placeholder: Check if we have metadata about the content
-        metadata = version.metadata_ or {}
-        document_content = metadata.get("content")
+        # Query chunks for this file_id
+        statement = select(Chunk).where(Chunk.file_id == version.file_id)
+        chunks = session.exec(statement).all()
 
-        if not document_content:
+        if not chunks:
             return QuoteVerificationResult(
                 exact_match=False,
                 similarity_score=0.0,
                 found_in_version=None,
-                warning="Document content not available for verification",
+                warning="No chunks found for document",
             )
 
-        # Check for exact match
-        if excerpt in document_content:
+        # Normalize excerpt for comparison
+        excerpt_normalized = excerpt.strip().lower()
+
+        # Check for exact match in any chunk
+        for chunk in chunks:
+            chunk_text_normalized = chunk.text.lower()
+            if excerpt_normalized in chunk_text_normalized:
+                return QuoteVerificationResult(
+                    exact_match=True,
+                    similarity_score=1.0,
+                    found_in_version=version.version_number,
+                )
+
+        # Fuzzy matching across all chunks to find best match
+        best_similarity = 0.0
+        best_chunk_text = ""
+
+        for chunk in chunks:
+            chunk_text_normalized = chunk.text.lower()
+            similarity = difflib.SequenceMatcher(
+                None, excerpt_normalized, chunk_text_normalized
+            ).ratio()
+
+            if similarity > best_similarity:
+                best_similarity = similarity
+                best_chunk_text = chunk.text[:100]  # Keep snippet for context
+
+        # Determine match quality
+        if best_similarity > 0.8:
             return QuoteVerificationResult(
-                exact_match=True,
-                similarity_score=1.0,
+                exact_match=False,
+                similarity_score=best_similarity,
                 found_in_version=version.version_number,
+                snippet_context=best_chunk_text,
+                warning="Close match found (not exact)",
             )
-
-        # Use fuzzy matching
-        similarity = difflib.SequenceMatcher(
-            None, excerpt.lower(), document_content.lower()
-        ).ratio()
-
-        return QuoteVerificationResult(
-            exact_match=False,
-            similarity_score=similarity,
-            found_in_version=version.version_number if similarity > 0.8 else None,
-            warning="Exact quote not found. Similarity-based match."
-            if similarity > 0.8
-            else "Quote not found in document",
-        )
+        elif best_similarity > 0.5:
+            return QuoteVerificationResult(
+                exact_match=False,
+                similarity_score=best_similarity,
+                found_in_version=None,
+                snippet_context=best_chunk_text,
+                warning="Partial match found, verify manually",
+            )
+        else:
+            return QuoteVerificationResult(
+                exact_match=False,
+                similarity_score=best_similarity,
+                found_in_version=None,
+                warning="Quote not found in document chunks",
+            )

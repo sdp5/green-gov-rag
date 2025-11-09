@@ -65,6 +65,10 @@ param embeddingModel string = 'BAAI/bge-large-en-v1.5'
 @secure()
 param apiAccessKey string = 'REPLACE_VIA_GITHUB_SECRETS'
 
+@description('Qdrant API Key for vector database authentication')
+@secure()
+param qdrantApiKey string = 'REPLACE_VIA_GITHUB_SECRETS'
+
 @description('MapBox Access Token')
 @secure()
 param mapboxToken string = ''
@@ -360,6 +364,7 @@ docker run -d \
   --restart unless-stopped \
   -p 6333:6333 \
   -p 6334:6334 \
+  -e QDRANT__SERVICE__API_KEY='${qdrantApiKey}' \
   -v /qdrant/storage:/qdrant/storage \
   qdrant/qdrant:latest
 ''')
@@ -453,6 +458,10 @@ resource apiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
             {
               name: 'QDRANT_URL'
               value: 'http://${qdrantNIC.properties.ipConfigurations[0].properties.privateIPAddress}:6333'
+            }
+            {
+              name: 'QDRANT_API_KEY'
+              value: qdrantApiKey
             }
             {
               name: 'VECTOR_STORE_TYPE'
@@ -625,6 +634,10 @@ resource etlJob 'Microsoft.App/jobs@2023-05-01' = {
             {
               name: 'QDRANT_URL'
               value: 'http://${qdrantNIC.properties.ipConfigurations[0].properties.privateIPAddress}:6333'
+            }
+            {
+              name: 'QDRANT_API_KEY'
+              value: qdrantApiKey
             }
             {
               name: 'VECTOR_STORE_TYPE'

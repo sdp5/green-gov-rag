@@ -85,6 +85,7 @@ jobs:
                   {\"name\": \"AWS_REGION\", \"value\": \"$AWS_REGION\"},
                   {\"name\": \"STORAGE_CONTAINER\", \"value\": \"$BUCKET\"},
                   {\"name\": \"VECTOR_STORE_TYPE\", \"value\": \"qdrant\"},
+                  {\"name\": \"QDRANT_API_KEY\", \"value\": \"${{ secrets.QDRANT_API_KEY }}\"},
                   {\"name\": \"EMBEDDING_MODEL\", \"value\": \"${EMBEDDING_MODEL:-BAAI/bge-large-en-v1.5}\"}
                 ],
                 \"command\": [

@@ -73,6 +73,7 @@ class GreenGovRAGStack(Stack):
         api_access_key = self.node.try_get_context("api_access_key") or "REPLACE_VIA_GITHUB_SECRETS"
         azure_openai_api_key = self.node.try_get_context("azure_openai_api_key") or "REPLACE_VIA_GITHUB_SECRETS"
         azure_openai_endpoint = self.node.try_get_context("azure_openai_endpoint") or "REPLACE_VIA_GITHUB_SECRETS"
+        qdrant_api_key = self.node.try_get_context("qdrant_api_key") or "REPLACE_VIA_GITHUB_SECRETS"
 
         # Configurable settings - Retrieved from context with sensible defaults
         llm_provider = self.node.try_get_context("llm_provider") or "azure"
@@ -336,6 +337,7 @@ class GreenGovRAGStack(Stack):
             environment={
                 "DATABASE_URL": f"postgresql://postgres:PASSWORD@{db_instance.db_instance_endpoint_address}:5432/greengovrag",
                 "QDRANT_URL": "http://qdrant.greengovrag.local:6333",
+                "QDRANT_API_KEY": qdrant_api_key,
                 "VECTOR_STORE_TYPE": vector_store_type,
                 "EMBEDDING_MODEL": embedding_model,
                 "S3_BUCKET": docs_bucket.bucket_name,
@@ -424,6 +426,7 @@ class GreenGovRAGStack(Stack):
             "  --restart unless-stopped \\",
             "  -p 6333:6333 \\",
             "  -p 6334:6334 \\",
+            f"  -e QDRANT__SERVICE__API_KEY={qdrant_api_key} \\",
             "  -v /qdrant/storage:/qdrant/storage \\",
             "  qdrant/qdrant:latest",
         )

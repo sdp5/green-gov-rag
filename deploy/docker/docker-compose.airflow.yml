@@ -43,6 +43,8 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:-dev-qdrant-key}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6333/"]
       interval: 10s
@@ -80,6 +82,7 @@ services:
       # Vector store configuration
       VECTOR_STORE_TYPE: qdrant
       QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-dev-qdrant-key}
 
       # Optional: Add your API keys here or mount .env file
       # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -135,6 +138,7 @@ services:
       # Vector store configuration
       VECTOR_STORE_TYPE: qdrant
       QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-dev-qdrant-key}
 
       # Optional: Add your API keys here or mount .env file
       # OPENAI_API_KEY: ${OPENAI_API_KEY:-}

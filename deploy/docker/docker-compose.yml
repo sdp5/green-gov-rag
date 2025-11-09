@@ -45,6 +45,8 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
       interval: 10s
@@ -72,6 +74,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-greengovrag}
       REDIS_URL: redis://redis:6379
       QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${QDRANT_API_KEY}
       VECTOR_STORE_TYPE: ${VECTOR_STORE_TYPE:-qdrant}
       LLM_PROVIDER: ${LLM_PROVIDER:-azure}
       LLM_MODEL: ${LLM_MODEL:-gpt-5-mini}
@@ -134,6 +137,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-greengovrag}
       REDIS_URL: redis://redis:6379
       QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${QDRANT_API_KEY}
       VECTOR_STORE_TYPE: ${VECTOR_STORE_TYPE:-qdrant}
     volumes:
       - ../../data:/opt/airflow/data

@@ -53,11 +53,27 @@ class APIKeyAuthMiddleware(BaseHTTPMiddleware):
                 detail="Missing API access key. Include X-API-Key header in your request.",
             )
 
-        if api_key != settings.api_access_key:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Invalid API access key",
-            )
+        # Check if this is an admin route
+        if request.url.path.startswith("/api/admin/"):
+            # Admin routes require admin API key
+            if not settings.admin_api_key:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Admin API key not configured. Contact system administrator.",
+                )
+
+            if api_key != settings.admin_api_key:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Invalid admin API key. Admin access denied.",
+                )
+        else:
+            # Regular API routes require regular API key
+            if api_key != settings.api_access_key:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Invalid API access key",
+                )
 
         # API key is valid, proceed with request
         return await call_next(request)

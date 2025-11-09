@@ -508,6 +508,10 @@ resource apiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
               name: 'API_ACCESS_KEY'
               secretRef: 'api-access-key'
             }
+            {
+              name: 'CORS_ORIGINS'
+              value: 'https://greengovrag.sundeep.id.au,https://greengovrag.au'
+            }
             // Embedding Model
             {
               name: 'EMBEDDING_MODEL'

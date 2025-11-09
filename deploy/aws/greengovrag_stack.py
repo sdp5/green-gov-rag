@@ -539,7 +539,7 @@ class GreenGovRAGStack(Stack):
             f"{project_name}ApiGateway",
             api_name=f"{project_name}-API",
             cors_preflight=apigw.CorsPreflightOptions(
-                allow_origins=["*"],
+                allow_origins=["https://greengovrag.sundeep.id.au", "https://greengovrag.au"],
                 allow_methods=[apigw.CorsHttpMethod.ANY],
                 allow_headers=["*"],
             ),

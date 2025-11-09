@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from sqlmodel import Session, func, select
 
+from green_gov_rag.api.routes import limiter
 from green_gov_rag.api.schemas import (
     AdminActionResponse,
     AdminDocumentDetailResponse,
@@ -22,10 +23,12 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 @router.get("/dashboard", response_model=DashboardStats)
-async def get_dashboard_stats() -> DashboardStats:
+@limiter.limit("10/minute")
+async def get_dashboard_stats(request: Request) -> DashboardStats:
     """Get dashboard statistics.
 
     Returns overview metrics for admin dashboard.
+    Rate limited to 10 requests per minute.
     """
     with Session(engine) as session:
         # Document stats
@@ -85,7 +88,9 @@ async def get_dashboard_stats() -> DashboardStats:
 
 
 @router.get("/documents", response_model=AdminDocumentListResponse)
+@limiter.limit("10/minute")
 async def list_documents(
+    request: Request,
     skip: int = 0,
     limit: int = 50,
     status: str | None = None,
@@ -128,7 +133,10 @@ async def list_documents(
 
 
 @router.get("/documents/{document_id}", response_model=AdminDocumentDetailResponse)
-async def get_document(document_id: str) -> AdminDocumentDetailResponse:
+@limiter.limit("10/minute")
+async def get_document(
+    request: Request, document_id: str
+) -> AdminDocumentDetailResponse:
     """Get document details."""
     from fastapi import HTTPException
 
@@ -152,7 +160,8 @@ async def get_document(document_id: str) -> AdminDocumentDetailResponse:
 
 
 @router.post("/documents/{document_id}/reprocess", response_model=AdminActionResponse)
-async def reprocess_document(document_id: str) -> AdminActionResponse:
+@limiter.limit("10/minute")
+async def reprocess_document(request: Request, document_id: str) -> AdminActionResponse:
     """Trigger document reprocessing.
 
     Updates document status to 'pending' to trigger reprocessing.
@@ -189,7 +198,8 @@ async def reprocess_document(document_id: str) -> AdminActionResponse:
 
 
 @router.delete("/documents/{document_id}", response_model=AdminActionResponse)
-async def delete_document(document_id: str) -> AdminActionResponse:
+@limiter.limit("10/minute")
+async def delete_document(request: Request, document_id: str) -> AdminActionResponse:
     """Delete a document.
 
     Also invalidates cache entries that use this document.
@@ -223,7 +233,9 @@ async def delete_document(document_id: str) -> AdminActionResponse:
 
 
 @router.get("/analytics/queries", response_model=QueryAnalyticsResponse)
+@limiter.limit("10/minute")
 async def get_query_analytics(
+    request: Request,
     days: int = 7,
     session_id: Optional[str] = None,
 ) -> QueryAnalyticsResponse:
@@ -278,7 +290,8 @@ async def get_query_analytics(
 
 
 @router.get("/system/health", response_model=SystemHealthResponse)
-async def get_system_health() -> SystemHealthResponse:
+@limiter.limit("10/minute")
+async def get_system_health(request: Request) -> SystemHealthResponse:
     """Get system health status.
 
     Checks database connectivity and basic system status.
@@ -303,7 +316,8 @@ async def get_system_health() -> SystemHealthResponse:
 
 
 @router.get("/cache/metrics")
-async def get_cache_metrics() -> dict:
+@limiter.limit("10/minute")
+async def get_cache_metrics(request: Request) -> dict:
     """Get cache performance metrics.
 
     Returns cache hit rate, cost savings, and other statistics.
@@ -317,7 +331,8 @@ async def get_cache_metrics() -> dict:
 
 
 @router.post("/cache/clear")
-async def clear_cache() -> dict:
+@limiter.limit("10/minute")
+async def clear_cache(request: Request) -> dict:
     """Clear all cache entries.
 
     Use with caution - this will remove all cached responses.

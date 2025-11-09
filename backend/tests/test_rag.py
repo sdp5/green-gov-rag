@@ -454,6 +454,7 @@ def test_vector_store_factory_qdrant():
 # LLM Factory Tests
 # ============================================================================
 
+
 @pytest.mark.skip(reason="Requires OPENAI_API_KEY environment variable")
 def test_llm_factory_openai():
     """Test LLM factory for OpenAI."""
@@ -478,7 +479,9 @@ def test_llm_factory_anthropic():
             assert llm is not None
 
 
-@pytest.mark.skip(reason="Requires AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables")
+@pytest.mark.skip(
+    reason="Requires AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables"
+)
 def test_llm_factory_bedrock():
     """Test LLM factory for AWS Bedrock."""
     with patch("langchain_aws.ChatBedrock") as mock_bedrock:

@@ -104,7 +104,7 @@ def _check_vector_store_health() -> VectorStoreStatus:
 
 
 @router.post("/query", response_model=QueryResponse)
-@limiter.limit("20/minute")
+@limiter.limit("30/minute")
 async def query_rag(request: Request, query_request: QueryRequest) -> QueryResponse:
     """Execute RAG query with filters.
 
@@ -138,7 +138,9 @@ async def query_rag(request: Request, query_request: QueryRequest) -> QueryRespo
 
 
 @router.get("/documents", response_model=DocumentListResponse)
+@limiter.limit("30/minute")
 async def list_documents(
+    request: Request,
     jurisdiction: Optional[str] = QueryParam(
         None, description="Filter by jurisdiction"
     ),
@@ -182,7 +184,8 @@ async def list_documents(
 
 
 @router.get("/documents/{document_id}", response_model=DocumentResponse)
-async def get_document(document_id: str) -> DocumentResponse:
+@limiter.limit("30/minute")
+async def get_document(request: Request, document_id: str) -> DocumentResponse:
     """Get document by ID.
 
     Args:
@@ -210,7 +213,8 @@ async def get_document(document_id: str) -> DocumentResponse:
 
 
 @router.get("/documents/files/{filename}")
-async def serve_pdf(filename: str) -> Response:
+@limiter.limit("30/minute")
+async def serve_pdf(request: Request, filename: str) -> Response:
     """Serve PDF files for deep linking and viewing.
 
     This endpoint serves source PDF documents with cloud-aware implementation:
@@ -379,7 +383,8 @@ async def submit_feedback(
 
 
 @router.get("/analytics/stats", response_model=AnalyticsStats)
-async def get_analytics() -> AnalyticsStats:
+@limiter.limit("30/minute")
+async def get_analytics(request: Request) -> AnalyticsStats:
     """Get analytics statistics.
 
     Returns:
@@ -399,7 +404,9 @@ async def get_analytics() -> AnalyticsStats:
 
 
 @router.get("/lga-coverage", response_model=CoverageInfo)
+@limiter.limit("30/minute")
 async def get_lga_coverage(
+    request: Request,
     lga_code: Optional[str] = QueryParam(None, description="LGA code (e.g., '40070')"),
     lga_name: Optional[str] = QueryParam(
         None, description="LGA name (e.g., 'City of Adelaide')"
@@ -435,7 +442,8 @@ async def get_lga_coverage(
 
 
 @router.get("/map/lgas", response_model=GeoJSONResponse)
-async def get_lga_geojson() -> GeoJSONResponse:
+@limiter.limit("30/minute")
+async def get_lga_geojson(request: Request) -> GeoJSONResponse:
     """Get LGA boundaries as GeoJSON.
 
     Returns:

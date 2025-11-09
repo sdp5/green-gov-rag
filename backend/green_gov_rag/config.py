@@ -113,7 +113,7 @@ class Settings(BaseSettings):
         description="Azure OpenAI endpoint URL",
     )
     azure_openai_api_version: str = Field(
-        default="2024-02-15-preview",
+        default="2024-12-01-preview",
         description="Azure OpenAI API version",
     )
     azure_openai_deployment: str | None = Field(
@@ -135,7 +135,7 @@ class Settings(BaseSettings):
 
     # Model Settings
     llm_model: str = Field(
-        default="gpt-4",
+        default="gpt-5-mini",
         description="LLM model to use for generation",
     )
     embedding_model: str = Field(
@@ -219,12 +219,16 @@ class Settings(BaseSettings):
         description="Enable API auto-reload",
     )
     cors_origins: str = Field(
-        default="http://localhost:3000,http://localhost:5173",
+        default="https://greengovrag.sundeep.id.au,https://greengovrag.au",
         description="CORS allowed origins (comma-separated)",
     )
     api_access_key: str = Field(
         default="dev-insecure-key-change-in-prod",
         description="API access key required for all API endpoints (set via environment variable in production)",
+    )
+    admin_api_key: str | None = Field(
+        default=None,
+        description="Admin API access key for /api/admin/* endpoints (must be different from API_ACCESS_KEY)",
     )
 
     # =========================================================================

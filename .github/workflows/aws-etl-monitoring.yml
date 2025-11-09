@@ -2,7 +2,7 @@ name: ETL Pipeline - Monitoring Driven
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # Daily at 2 AM UTC (matches Airflow monitoring DAG)
+    - cron: '30 15 * * 0,4'  # Sun,Thu at 2 AM ACDT
   workflow_dispatch:
 
 env:
@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     # Disabled - change to true to enable monitoring
     if: false
-    timeout-minutes: 30
+    timeout-minutes: 360
     permissions:
       id-token: write
       contents: read

@@ -2,7 +2,7 @@ name: ETL Pipeline - Monitoring Driven
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+    - cron: '30 15 * * 0,4'  # Sun,Thu at 2 AM ACDT
   workflow_dispatch:
 
 jobs:
@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     # Disabled - change to true to enable monitoring
     if: false
-    timeout-minutes: 30
+    timeout-minutes: 360
     outputs:
       changes_detected: ${{ steps.check-changes.outputs.has_changes }}
       total_discovered: ${{ steps.check-changes.outputs.discovered }}

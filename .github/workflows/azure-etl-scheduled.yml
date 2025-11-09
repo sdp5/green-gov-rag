@@ -2,7 +2,7 @@ name: ETL Pipeline - Scheduled
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+    - cron: '30 15 */2 * *'  # Every two days at 2 AM ACDT
   workflow_dispatch:
     inputs:
       config_path:
@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     # Disabled - change to true to enable ETL pipeline
     if: false
-    timeout-minutes: 120
+    timeout-minutes: 360
 
     steps:
       - name: Checkout code
@@ -52,9 +52,10 @@ jobs:
           echo "  greengovrag-cli etl ingest --config /app/configs/documents_config.yml && \"
           echo "  greengovrag-cli etl parse --input data/raw --output data/processed && \"
           echo "  greengovrag-cli etl chunk --input data/processed --output data/chunks --chunk-size 500 --chunk-overlap 100 --mode delta --accurate --raw-dir data/raw && \"
+          echo "  greengovrag-cli db load-chunks --chunks-dir data/chunks --batch-size 100 && \"
           echo "  greengovrag-cli rag index --chunks data/chunks --vector-store qdrant --collection greengovrag --model \$EMBEDDING_MODEL"
           echo ""
-          echo "This ensures the full ETL pipeline: ingest → parse → chunk → index"
+          echo "This ensures the full ETL pipeline: ingest → parse → chunk → load → index"
           echo ""
 
           # Start the ETL job execution

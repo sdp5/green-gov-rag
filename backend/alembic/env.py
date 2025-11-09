@@ -11,7 +11,14 @@ from alembic import context
 from green_gov_rag.config import settings
 
 # Import all models so Alembic can detect them
-from green_gov_rag.models import Chunk, Document, QueryHistory
+from green_gov_rag.models import (
+    Chunk,
+    DocumentFile,
+    DocumentSource,
+    DocumentVersion,
+    MonitoringLog,
+    QueryHistory,
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

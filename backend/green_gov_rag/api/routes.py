@@ -384,8 +384,19 @@ async def submit_feedback(
 
 @router.get("/analytics/stats", response_model=AnalyticsStats)
 @limiter.limit("30/minute")
-async def get_analytics(request: Request) -> AnalyticsStats:
+async def get_analytics(
+    request: Request,
+    session_id: Optional[str] = QueryParam(
+        None, description="Browser session ID for user-specific query count"
+    ),
+) -> AnalyticsStats:
     """Get analytics statistics.
+
+    Returns user-specific query counts if session_id is provided,
+    otherwise returns global statistics.
+
+    Args:
+        session_id: Optional session ID for user-specific query count
 
     Returns:
         AnalyticsStats: Overall statistics and distributions
@@ -394,7 +405,7 @@ async def get_analytics(request: Request) -> AnalyticsStats:
         HTTPException: If database error occurs
     """
     try:
-        return analytics_service.get_stats()
+        return analytics_service.get_stats(session_id=session_id)
     except Exception as e:
         import logging
 

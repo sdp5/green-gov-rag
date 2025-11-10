@@ -590,7 +590,7 @@ export default function PlaygroundPage() {
                           </div>
                         ))}
                         <p className="text-xs text-slate-500 text-center pt-2">
-                          Showing {Math.min(5, documents.documents.length)} of {documents.total} documents
+                          Showing {Math.min(5, documents.documents.length)} of {documents.total} document sources.
                         </p>
                       </div>
                     ) : (

@@ -1169,6 +1169,7 @@ def load_chunks(
 
             # Create document version record for citation verification
             # Only create version if content has changed or no version exists
+            content_has_changed = True  # Default to True for safety
             try:
                 with Session(engine) as session:
                     # Check if a version with this content_hash already exists
@@ -1199,14 +1200,18 @@ def load_chunks(
                         console.print(
                             f"[dim]  Created document version ({change_type}) for {filename}[/dim]"
                         )
+                        content_has_changed = True
                     else:
                         console.print(
                             f"[dim]  Skipped version creation for {filename} (content unchanged)[/dim]"
                         )
+                        content_has_changed = False
             except Exception as e:
                 console.print(
                     f"[yellow]Warning: Failed to create document version: {e}[/yellow]"
                 )
+                # On error, default to treating as changed to ensure data isn't lost
+                content_has_changed = True
 
             total_documents += 1
 
@@ -1241,80 +1246,87 @@ def load_chunks(
                         f"[yellow]Warning: Failed to update chunk file: {e}[/yellow]"
                     )
 
-            # Save chunks in batches
+            # Only insert chunks into database if content is new or has changed
             chunk_count_for_doc = 0
-            for i in range(0, len(data), batch_size):
-                batch = data[i : i + batch_size]
+            if content_has_changed:
+                # Save chunks in batches
+                for i in range(0, len(data), batch_size):
+                    batch = data[i : i + batch_size]
 
-                for chunk in batch:
-                    chunk_metadata = chunk.get("metadata", {})
+                    for chunk in batch:
+                        chunk_metadata = chunk.get("metadata", {})
 
-                    # Use chunk_index from metadata (set during chunking)
-                    # Try chunk_id first (new format), fallback to chunk_index (legacy)
-                    chunk_idx = chunk_metadata.get("chunk_id") or chunk_metadata.get(
-                        "chunk_index", 0
+                        # Use chunk_index from metadata (set during chunking)
+                        # Try chunk_id first (new format), fallback to chunk_index (legacy)
+                        chunk_idx = chunk_metadata.get(
+                            "chunk_id"
+                        ) or chunk_metadata.get("chunk_index", 0)
+
+                        # Build citation string if not already present
+                        citation = chunk_metadata.get("citation")
+                        if not citation:
+                            citation = _build_citation(title, chunk_metadata)
+
+                        # Build deep link to PDF page if page number is available
+                        deep_link = chunk_metadata.get("deep_link")
+                        if not deep_link and chunk_metadata.get("page_number"):
+                            page_num = chunk_metadata.get("page_number")
+
+                            # Try to build deep link from available metadata
+                            # Priority: 1) Direct PDF URL, 2) Source URL + filename, 3) Filename only
+                            source_url = chunk_metadata.get("source_url", "")
+                            filename = chunk_metadata.get("filename", "")
+
+                            if source_url and source_url.lower().endswith(".pdf"):
+                                # Direct PDF URL (external)
+                                deep_link = f"{source_url}#page={page_num}"
+                            elif filename and filename.lower().endswith(".pdf"):
+                                # Use API endpoint to serve PDF with page anchor
+                                # Format: /api/documents/files/{filename}#page={page_num}
+                                deep_link = (
+                                    f"/api/documents/files/{filename}#page={page_num}"
+                                )
+
+                        save_chunk(
+                            source_id=source.id,
+                            file_id=doc_file.id,
+                            chunk_index=chunk_idx,
+                            text=chunk.get("content", ""),
+                            page_number=chunk_metadata.get("page_number"),
+                            page_range=chunk_metadata.get("page_range"),
+                            section_title=chunk_metadata.get("section_title"),
+                            section_hierarchy=chunk_metadata.get("section_hierarchy"),
+                            clause_reference=chunk_metadata.get("clause_reference"),
+                            source_pdf_url=source_pdf_url,
+                            deep_link=deep_link,
+                            citation=citation,
+                            metadata=chunk_metadata,
+                        )
+
+                    total_chunks += len(batch)
+                    chunk_count_for_doc += len(batch)
+                    console.print(
+                        f"[dim]  Loaded batch {i//batch_size + 1}: "
+                        f"{len(batch)} chunks from {chunk_file.name}[/dim]"
                     )
 
-                    # Build citation string if not already present
-                    citation = chunk_metadata.get("citation")
-                    if not citation:
-                        citation = _build_citation(title, chunk_metadata)
-
-                    # Build deep link to PDF page if page number is available
-                    deep_link = chunk_metadata.get("deep_link")
-                    if not deep_link and chunk_metadata.get("page_number"):
-                        page_num = chunk_metadata.get("page_number")
-
-                        # Try to build deep link from available metadata
-                        # Priority: 1) Direct PDF URL, 2) Source URL + filename, 3) Filename only
-                        source_url = chunk_metadata.get("source_url", "")
-                        filename = chunk_metadata.get("filename", "")
-
-                        if source_url and source_url.lower().endswith(".pdf"):
-                            # Direct PDF URL (external)
-                            deep_link = f"{source_url}#page={page_num}"
-                        elif filename and filename.lower().endswith(".pdf"):
-                            # Use API endpoint to serve PDF with page anchor
-                            # Format: /api/documents/files/{filename}#page={page_num}
-                            deep_link = (
-                                f"/api/documents/files/{filename}#page={page_num}"
-                            )
-
-                    save_chunk(
-                        source_id=source.id,
-                        file_id=doc_file.id,
-                        chunk_index=chunk_idx,
-                        text=chunk.get("content", ""),
-                        page_number=chunk_metadata.get("page_number"),
-                        page_range=chunk_metadata.get("page_range"),
-                        section_title=chunk_metadata.get("section_title"),
-                        section_hierarchy=chunk_metadata.get("section_hierarchy"),
-                        clause_reference=chunk_metadata.get("clause_reference"),
-                        source_pdf_url=source_pdf_url,
-                        deep_link=deep_link,
-                        citation=citation,
-                        metadata=chunk_metadata,
-                    )
-
-                total_chunks += len(batch)
-                chunk_count_for_doc += len(batch)
-                console.print(
-                    f"[dim]  Loaded batch {i//batch_size + 1}: "
-                    f"{len(batch)} chunks from {chunk_file.name}[/dim]"
+                # Update document source and file with chunk count
+                update_document_source_status(
+                    source_id=source.id,
+                    status="completed",
+                    chunk_count=chunk_count_for_doc,
                 )
 
-            # Update document source and file with chunk count
-            update_document_source_status(
-                source_id=source.id,
-                status="completed",
-                chunk_count=chunk_count_for_doc,
-            )
-
-            update_document_file_status(
-                file_id=doc_file.id,
-                status="completed",
-                chunk_count=chunk_count_for_doc,
-            )
+                update_document_file_status(
+                    file_id=doc_file.id,
+                    status="completed",
+                    chunk_count=chunk_count_for_doc,
+                )
+            else:
+                # Content unchanged - skip database insertion
+                console.print(
+                    f"[dim]  Skipped chunk insertion for {filename} (content unchanged)[/dim]"
+                )
 
         except Exception as e:
             console.print(f"[red]Error loading {chunk_file.name}: {e}[/red]")

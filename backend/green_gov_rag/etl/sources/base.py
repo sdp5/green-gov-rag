@@ -90,6 +90,66 @@ class DocumentSource(ABC):
 
         Returns:
             Dictionary containing document metadata (title, jurisdiction, etc.)
+            Should include esg_metadata and spatial_metadata if present in config.
+        """
+        pass
+
+    def _extract_structured_metadata(self) -> dict[str, Any]:
+        """Extract esg_metadata and spatial_metadata from config.
+
+        Returns:
+            Dictionary with esg_metadata and spatial_metadata keys
+        """
+        metadata = {}
+
+        # Extract ESG metadata if present
+        if "esg_metadata" in self.config:
+            metadata["esg_metadata"] = self.config["esg_metadata"]
+
+        # Extract spatial metadata if present
+        if "spatial_metadata" in self.config:
+            metadata["spatial_metadata"] = self.config["spatial_metadata"]
+
+        return metadata
+
+    @abstractmethod
+    def get_document_id(self, url: str) -> str:
+        """Generate unique document ID for delta indexing.
+
+        This ID must be:
+        - Stable: Same URL always generates same ID
+        - Unique: Different documents have different IDs
+        - Consistent: Monitoring and ingestion generate the same ID
+
+        Args:
+            url: Download URL for the document
+
+        Returns:
+            Unique document identifier (e.g., "federal_legislation_epbc_act")
+
+        Example:
+            >>> source.get_document_id("https://legislation.gov.au/epbc/2025.pdf")
+            'federal_legislation_epbc_act_2025'
+        """
+        pass
+
+    @abstractmethod
+    def get_destination_path(self, url: str, base_dir: str = "data/raw") -> str:
+        """Get local filesystem path for downloaded document.
+
+        Creates hierarchical directory structure based on document metadata:
+        {base_dir}/{jurisdiction}/{category}/{topic}/{filename}
+
+        Args:
+            url: Download URL for the document
+            base_dir: Base directory for raw documents (default: data/raw)
+
+        Returns:
+            Full path where document should be saved
+
+        Example:
+            >>> source.get_destination_path("https://example.gov/doc.pdf")
+            'data/raw/federal/legislation/biodiversity/epbc_act.pdf'
         """
         pass
 
@@ -155,6 +215,93 @@ class DocumentSource(ABC):
                 errors.append(f"Invalid download URL: {url}")
 
         return errors
+
+    def _generate_document_id(self, url: str) -> str:
+        """Generate document ID from metadata and URL.
+
+        Default implementation creates ID from:
+        jurisdiction_category_topic_filename
+
+        Subclasses can override for custom ID generation.
+
+        Args:
+            url: Download URL
+
+        Returns:
+            Document ID string
+        """
+        import hashlib
+        import re
+        from pathlib import Path
+        from urllib.parse import urlparse
+
+        # Extract metadata
+        jurisdiction = self.config.get("jurisdiction", "unknown")
+        category = self.config.get("category", "misc")
+        topic = self.config.get("topic", "general")
+
+        # Get filename from URL
+        parsed = urlparse(url)
+        filename = Path(parsed.path).stem
+
+        # Clean and normalize
+        parts = [jurisdiction, category, topic, filename]
+        cleaned_parts = []
+        for part in parts:
+            # Remove special characters, convert to lowercase
+            cleaned = re.sub(r"[^\w\s-]", "", part.lower())
+            cleaned = re.sub(r"[-\s]+", "_", cleaned)
+            cleaned_parts.append(cleaned)
+
+        # Create ID
+        doc_id = "_".join(cleaned_parts)
+
+        # Add hash suffix if ID too long
+        if len(doc_id) > 100:
+            url_hash = hashlib.sha256(url.encode()).hexdigest()[:8]
+            doc_id = doc_id[:90] + "_" + url_hash
+
+        return doc_id
+
+    def _generate_destination_path(self, url: str, base_dir: str = "data/raw") -> str:
+        """Generate destination path from metadata and URL.
+
+        Default implementation creates hierarchical structure:
+        {base_dir}/{jurisdiction}/{category}/{topic}/{filename}
+
+        Subclasses can override for custom directory structures.
+
+        Args:
+            url: Download URL
+            base_dir: Base directory for raw documents
+
+        Returns:
+            Full path for downloaded file
+        """
+        import re
+        from pathlib import Path
+        from urllib.parse import urlparse
+
+        # Extract metadata
+        jurisdiction = self.config.get("jurisdiction", "unknown")
+        category = self.config.get("category", "misc")
+        topic = self.config.get("topic", "general")
+
+        # Normalize directory names (replace spaces with underscores)
+        jurisdiction = re.sub(r"[^\w\s-]", "", jurisdiction).replace(" ", "_")
+        category = re.sub(r"[^\w\s-]", "", category).replace(" ", "_")
+        topic = re.sub(r"[^\w\s-]", "", topic).replace(" ", "_")
+
+        # Get filename from URL
+        parsed = urlparse(url)
+        filename = Path(parsed.path).name
+        if not filename:
+            filename = "downloaded_file"
+
+        # Build path
+        dest_path = Path(base_dir) / jurisdiction / category / topic / filename
+
+        return str(dest_path)
 
 
 # ============================================================================

@@ -11,6 +11,8 @@ from typing import Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from green_gov_rag.types import CloudProvider, LLMProvider, VectorStoreType
+
 # Determine the .env file path (look in backend/ directory)
 ENV_FILE = Path(__file__).parent.parent / ".env"
 
@@ -34,8 +36,8 @@ class Settings(BaseSettings):
     # =========================================================================
     # Cloud Storage Settings
     # =========================================================================
-    cloud_provider: Literal["local", "aws", "azure"] = Field(
-        default="local",
+    cloud_provider: CloudProvider = Field(
+        default=CloudProvider.LOCAL,
         description="Cloud storage provider (local, aws, azure)",
     )
     cloud_region: str | None = Field(
@@ -49,6 +51,22 @@ class Settings(BaseSettings):
     local_storage_path: str = Field(
         default="./data/storage",
         description="Local storage path when using local provider",
+    )
+    raw_data_dir: str = Field(
+        default="./data/raw",
+        description="Directory for raw downloaded documents (local development only)",
+    )
+    processed_data_dir: str = Field(
+        default="./data/processed",
+        description="Directory for processed/parsed documents",
+    )
+    chunks_data_dir: str = Field(
+        default="./data/chunks",
+        description="Directory for chunked documents",
+    )
+    documents_config_path: str = Field(
+        default="configs/documents_config.yml",
+        description="Path to documents configuration file",
     )
 
     # AWS Settings
@@ -74,8 +92,8 @@ class Settings(BaseSettings):
     # =========================================================================
     # LLM & Embedding Settings
     # =========================================================================
-    llm_provider: Literal["openai", "azure", "bedrock", "anthropic"] = Field(
-        default="openai",
+    llm_provider: LLMProvider = Field(
+        default=LLMProvider.OPENAI,
         description="LLM provider (openai, azure, bedrock, anthropic)",
     )
 
@@ -95,7 +113,7 @@ class Settings(BaseSettings):
         description="Azure OpenAI endpoint URL",
     )
     azure_openai_api_version: str = Field(
-        default="2024-02-15-preview",
+        default="2024-12-01-preview",
         description="Azure OpenAI API version",
     )
     azure_openai_deployment: str | None = Field(
@@ -117,7 +135,7 @@ class Settings(BaseSettings):
 
     # Model Settings
     llm_model: str = Field(
-        default="gpt-4",
+        default="gpt-5-mini",
         description="LLM model to use for generation",
     )
     embedding_model: str = Field(
@@ -152,9 +170,9 @@ class Settings(BaseSettings):
     # =========================================================================
     # Vector Store Settings
     # =========================================================================
-    vector_store_type: Literal["faiss", "qdrant", "chromadb"] = Field(
-        default="qdrant",
-        description="Vector store type",
+    vector_store_type: VectorStoreType = Field(
+        default=VectorStoreType.QDRANT,
+        description="Vector store type (faiss for local dev, qdrant for production)",
     )
     vector_store_path: str = Field(
         default="./data/vector_store",
@@ -201,8 +219,16 @@ class Settings(BaseSettings):
         description="Enable API auto-reload",
     )
     cors_origins: str = Field(
-        default="http://localhost:3000,http://localhost:5173",
+        default="https://greengovrag.sundeep.id.au,https://greengovrag.au",
         description="CORS allowed origins (comma-separated)",
+    )
+    api_access_key: str = Field(
+        default="dev-insecure-key-change-in-prod",
+        description="API access key required for all API endpoints (set via environment variable in production)",
+    )
+    admin_api_key: str | None = Field(
+        default=None,
+        description="Admin API access key for /api/admin/* endpoints (must be different from API_ACCESS_KEY)",
     )
 
     # =========================================================================

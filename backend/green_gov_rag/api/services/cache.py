@@ -193,8 +193,8 @@ class CacheService:
         if not self._query_embeddings or not self.embedder:
             return None, 0.0
 
-        # Embed the query
-        query_embedding = self.embedder.embed_query(query)  # type: ignore
+        # Embed the query (access underlying embedder from ChunkEmbedder)
+        query_embedding = self.embedder.embedder.embed_query(query)
 
         # Calculate cosine similarity with all cached queries
         best_key = None
@@ -262,7 +262,7 @@ class CacheService:
         # Store query embedding for semantic caching
         if self.enable_semantic and self.embedder and query:
             try:
-                query_embedding = self.embedder.embed_query(query)  # type: ignore
+                query_embedding = self.embedder.embedder.embed_query(query)
                 self._query_embeddings[key] = query_embedding
                 logger.debug(f"Stored query embedding for semantic cache: {key[:8]}...")
             except Exception as e:

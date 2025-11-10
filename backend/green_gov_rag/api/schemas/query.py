@@ -19,6 +19,10 @@ class SourceDocument(BaseModel):
     source_url: str = Field(..., description="Document source URL")
     excerpt: Optional[str] = Field(None, description="Relevant excerpt from document")
     relevance_score: Optional[float] = Field(None, description="Similarity score (0-1)")
+    file_id: Optional[str] = Field(
+        None,
+        description="Unique file identifier for citation verification and version tracking",
+    )
 
     # Citation metadata (from hierarchical PDF parsing)
     page_number: Optional[int] = Field(
@@ -117,10 +121,20 @@ class QueryRequest(BaseModel):
     """Query request schema."""
 
     query: str = Field(..., min_length=1, description="User query")
-    region: Optional[str] = Field(None, description="Region filter")
+    region: Optional[str] = Field(
+        None,
+        description="Region filter (state/territory name or abbreviation)",
+    )
+    lgas: Optional[list[str]] = Field(
+        None,
+        description="Local Government Area names (takes priority over region)",
+    )
     jurisdiction: Optional[str] = Field(None, description="Jurisdiction filter")
     topics: Optional[list[str]] = Field(None, description="Topic filters")
     max_sources: int = Field(5, ge=1, le=20, description="Max source documents")
+    session_id: Optional[str] = Field(
+        None, description="Browser session ID for user-specific query history"
+    )
 
     class Config:
         """Schema config."""

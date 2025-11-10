@@ -287,6 +287,259 @@ documents:
       applies_to_all_lgas: true  # Federal documents apply to all LGAs nationwide
       applies_to_point: false
 
+  # --- Federal Acts and Regulations ---
+  - title: National Greenhouse and Energy Reporting Act 2007
+    source_url: https://www.legislation.gov.au/Series/C2007A00175
+    download_urls:
+      - https://www.legislation.gov.au/C2007A00175/2025-11-03/2025-11-03/text/original/pdf
+    jurisdiction: federal
+    category: legislation
+    topic: emissions_reporting
+    region: Australia
+    sovereign: true
+    esg_metadata:
+      frameworks: [NGER]
+      emission_scopes: [scope_1, scope_2]
+      greenhouse_gases: [CO2, CH4, N2O, SF6, HFCs, PFCs, NF3]
+      consolidation_method: operational_control
+      methodology_type: reporting
+      reportable_under_nger: true
+      scope_3_reportable: false
+      nger_threshold_tonnes: 25000
+      regulator: Clean Energy Regulator
+      regulation_type: legislation
+      activity_types: [all]
+      facility_types: [all]
+      industry_codes: []
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: Environment Protection and Biodiversity Conservation Regulations 2000
+    source_url: https://www.legislation.gov.au/Series/F2000B00190
+    download_urls:
+      - https://www.legislation.gov.au/C2004A00485/2025-10-31/2025-10-31/text/original/pdf/1
+      - https://www.legislation.gov.au/C2004A00485/2025-10-31/2025-10-31/text/original/pdf/2
+    jurisdiction: federal
+    category: regulation
+    topic: biodiversity
+    region: Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: National Greenhouse and Energy Reporting Regulations 2008
+    source_url: https://www.legislation.gov.au/Series/F2008L02309
+    download_urls:
+      - https://www.legislation.gov.au/C2007A00175/2025-11-03/2025-11-03/text/original/pdf
+    jurisdiction: federal
+    category: regulation
+    topic: emissions_reporting
+    region: Australia
+    sovereign: true
+    esg_metadata:
+      frameworks: [NGER]
+      emission_scopes: [scope_1, scope_2]
+      greenhouse_gases: [CO2, CH4, N2O, SF6, HFCs, PFCs, NF3]
+      consolidation_method: operational_control
+      methodology_type: reporting
+      reportable_under_nger: true
+      scope_3_reportable: false
+      nger_threshold_tonnes: 25000
+      regulator: Clean Energy Regulator
+      regulation_type: regulation
+      activity_types: [all]
+      facility_types: [all]
+      industry_codes: []
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: National Greenhouse and Energy Reporting Safeguard Mechanism Rule 2015
+    source_url: https://www.legislation.gov.au/Series/F2015L00126
+    download_urls:
+      - https://www.legislation.gov.au/C2007A00175/2025-11-03/2025-11-03/text/original/pdf
+    jurisdiction: federal
+    category: regulation
+    topic: emissions_reporting
+    region: Australia
+    sovereign: true
+    esg_metadata:
+      frameworks: [NGER, Safeguard_Mechanism]
+      emission_scopes: [scope_1]
+      greenhouse_gases: [CO2, CH4, N2O, SF6, HFCs, PFCs, NF3]
+      consolidation_method: operational_control
+      methodology_type: reporting
+      reportable_under_nger: true
+      scope_3_reportable: false
+      nger_threshold_tonnes: 100000
+      regulator: Clean Energy Regulator
+      regulation_type: rule
+      activity_types: [all]
+      facility_types: [large_emitters]
+      industry_codes: []
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: Australian Carbon Credit Units Act 2011
+    source_url: https://www.legislation.gov.au/Series/C2011A00101
+    download_urls:
+      - https://faolex.fao.org/docs/pdf/aus112294.pdf
+    jurisdiction: federal
+    category: legislation
+    topic: carbon_credits
+    region: Australia
+    sovereign: true
+    esg_metadata:
+      frameworks: [ERF, ACCU]
+      emission_scopes: [scope_1, scope_2]
+      greenhouse_gases: [CO2, CH4, N2O]
+      consolidation_method: project_based
+      methodology_type: calculation
+      reportable_under_nger: false
+      scope_3_reportable: false
+      regulator: Clean Energy Regulator
+      regulation_type: legislation
+      activity_types: [carbon_sequestration, avoided_emissions]
+      facility_types: [all]
+      industry_codes: []
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: Carbon Credits Carbon Farming Initiative Regulations 2011
+    source_url: https://www.legislation.gov.au/Series/F2011L02583
+    download_urls:
+      - https://faolex.fao.org/docs/pdf/aus112295.pdf
+    jurisdiction: federal
+    category: regulation
+    topic: carbon_credits
+    region: Australia
+    sovereign: true
+    esg_metadata:
+      frameworks: [ERF, CFI]
+      emission_scopes: [scope_1, scope_2]
+      greenhouse_gases: [CO2, CH4, N2O]
+      consolidation_method: project_based
+      methodology_type: calculation
+      reportable_under_nger: false
+      scope_3_reportable: false
+      regulator: Clean Energy Regulator
+      regulation_type: regulation
+      activity_types: [carbon_farming, sequestration]
+      facility_types: [agricultural, forestry]
+      industry_codes: []
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: Renewable Energy Electricity Regulations 2001
+    source_url: https://www.legislation.gov.au/Series/F2001B00179
+    download_urls:
+      - https://faolex.fao.org/docs/pdf/aus45248.pdf
+    jurisdiction: federal
+    category: regulation
+    topic: renewable_energy
+    region: Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: Water Efficiency Labelling and Standards Regulations 2013
+    source_url: https://www.legislation.gov.au/Series/F2013L01633
+    download_urls:
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/a/water%20efficiency%20labelling%20and%20standards%20(south%20australia)%20act%202013/current/2013.30.auth.pdf
+    jurisdiction: federal
+    category: regulation
+    topic: water_efficiency
+    region: Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: National Environment Protection Council Act 1994
+    source_url: https://www.legislation.gov.au/Series/C2004A04820
+    download_urls:
+      - https://faolex.fao.org/docs/pdf/aus6365.pdf
+    jurisdiction: federal
+    category: legislation
+    topic: environment_protection
+    region: Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: Ozone Protection and Synthetic Greenhouse Gas Management Regulations 1995
+    source_url: https://www.legislation.gov.au/Series/F1995B00375
+    download_urls:
+      - https://ozone.unep.org/sites/default/files/Australia-Ozone_Protection_and_Synthetic_Greenhouse_Gas_Manageme_KYUTMau.pdf
+    jurisdiction: federal
+    category: regulation
+    topic: greenhouse_gases
+    region: Australia
+    sovereign: true
+    esg_metadata:
+      frameworks: [Montreal_Protocol]
+      emission_scopes: [scope_1]
+      greenhouse_gases: [HFCs, PFCs, SF6]
+      consolidation_method: operational_control
+      methodology_type: reporting
+      reportable_under_nger: true
+      scope_3_reportable: false
+      regulator: Department of Climate Change Energy Environment and Water
+      regulation_type: regulation
+      activity_types: [refrigerant_use, synthetic_gases]
+      facility_types: [all]
+      industry_codes: []
+    spatial_metadata:
+      spatial_scope: federal
+      state: null
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
   # ============================================================================
   # SCOPE 3 EMISSIONS GUIDANCE (ISSB/GHG Protocol - 15 Categories)
   # ============================================================================
@@ -627,6 +880,75 @@ documents:
       applies_to_all_lgas: true  # State documents apply to all LGAs in NSW
       applies_to_point: false
 
+  # --- NSW State Regulations ---
+  - title: NSW Environmental Planning and Assessment Regulation 2021
+    source_url: https://legislation.nsw.gov.au/
+    download_urls:
+      - https://legislation.nsw.gov.au/view/pdf/asmade/sl-2021-759
+    jurisdiction: state
+    category: regulation
+    topic: environmental_planning
+    region: New South Wales
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: NSW
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: NSW Biodiversity Conservation Regulation 2017
+    source_url: https://legislation.nsw.gov.au/
+    download_urls:
+      - https://legislation.nsw.gov.au/view/pdf/asmade/sl-2017-432
+    jurisdiction: state
+    category: regulation
+    topic: biodiversity
+    region: New South Wales
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: NSW
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: NSW Protection of the Environment Operations Regulation 2021
+    source_url: https://legislation.nsw.gov.au/
+    download_urls:
+      - https://legislation.nsw.gov.au/view/pdf/asmade/sl-2021-699
+    jurisdiction: state
+    category: regulation
+    topic: environment_protection
+    region: New South Wales
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: NSW
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: NSW Local Land Services Regulation 2021
+    source_url: https://legislation.nsw.gov.au/
+    download_urls:
+      - https://legislation.nsw.gov.au/view/pdf/asmade/sl-2021-676
+    jurisdiction: state
+    category: regulation
+    topic: land_management
+    region: New South Wales
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: NSW
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
   # ============================================================================
   # VICTORIA (VIC)
   # ============================================================================
@@ -651,6 +973,7 @@ documents:
   - title: Victoria Environment Protection Act 2017
     source_url: https://www.epa.vic.gov.au/about-epa/laws
     download_urls:
+      - https://content.legislation.vic.gov.au/sites/default/files/2021-06/17-51aa005%20authorised.pdf
       - https://www.epa.vic.gov.au/sites/default/files/2025-05/consolidated-ERS.pdf
     jurisdiction: state
     category: legislation
@@ -753,6 +1076,75 @@ documents:
       applies_to_all_lgas: true  # State documents apply to all LGAs in VIC
       applies_to_point: false
 
+  # --- VIC State Regulations ---
+  - title: Victoria Planning and Environment Regulations 2015
+    source_url: https://www.legislation.vic.gov.au/
+    download_urls:
+      - https://content.legislation.vic.gov.au/sites/default/files/2025-05/15-33sra009-authorised.pdf
+    jurisdiction: state
+    category: regulation
+    topic: planning
+    region: Victoria
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: VIC
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: Victoria Environment Protection Regulations 2021
+    source_url: https://www.legislation.vic.gov.au/
+    download_urls:
+      - https://content.legislation.vic.gov.au/sites/default/files/2021-05/21-047sra%20authorised.pdf
+    jurisdiction: state
+    category: regulation
+    topic: environment_protection
+    region: Victoria
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: VIC
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: Victoria Flora and Fauna Guarantee Regulations 2020
+    source_url: https://www.legislation.vic.gov.au/
+    download_urls:
+      - https://content.legislation.vic.gov.au/sites/default/files/2020-05/20-41sra001%20authorised.pdf
+    jurisdiction: state
+    category: regulation
+    topic: biodiversity
+    region: Victoria
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: VIC
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: Victoria Aboriginal Heritage Regulations 2018
+    source_url: https://www.legislation.vic.gov.au/
+    download_urls:
+      - https://content.legislation.vic.gov.au/sites/default/files/e0e1e95d-4d99-3fec-aae2-5ef6cc5eff88_18-59sra001%20authorised.pdf
+    jurisdiction: state
+    category: regulation
+    topic: heritage
+    region: Victoria
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: VIC
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
   # ============================================================================
   # QUEENSLAND (QLD)
   # ============================================================================
@@ -778,6 +1170,8 @@ documents:
     source_url: https://www.legislation.qld.gov.au/view/html/inforce/current/act-2016-025
     download_urls:
       - https://www.legislation.qld.gov.au/view/pdf/inforce/current/act-2016-025
+      - https://www.legislation.qld.gov.au/view/pdf/inforce/current/act-1954-003
+      - https://www.legislation.qld.gov.au/view/pdf/inforce/current/act-1977-047
     jurisdiction: state
     category: legislation
     topic: planning
@@ -792,9 +1186,9 @@ documents:
       applies_to_point: false
 
   - title: Queensland Vegetation Management Act 1999
-    source_url: https://www.legislation.qld.gov.au/view/html/inforce/current/act-1999-068
+    source_url: https://www.legislation.qld.gov.au/view/pdf/current/act-1999-090
     download_urls:
-      - https://www.legislation.qld.gov.au/view/pdf/inforce/current/act-1999-068
+      - https://www.legislation.qld.gov.au/view/pdf/current/act-1999-090
     jurisdiction: state
     category: legislation
     topic: vegetation_management
@@ -808,6 +1202,7 @@ documents:
       applies_to_all_lgas: true  # State documents apply to all LGAs in QLD
       applies_to_point: false
 
+  # --- QLD State Regulations ---
   - title: Queensland Environmental Protection Regulation 2019
     source_url: https://www.legislation.qld.gov.au/view/html/inforce/current/sl-2019-0155
     download_urls:
@@ -822,7 +1217,58 @@ documents:
       state: QLD
       lga_codes: []
       lga_names: []
-      applies_to_all_lgas: true  # State documents apply to all LGAs in QLD
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: Queensland Planning Regulation 2017
+    source_url: https://www.legislation.qld.gov.au/
+    download_urls:
+      - https://www.legislation.qld.gov.au/view/pdf/inforce/current/sl-2017-0078
+    jurisdiction: state
+    category: regulation
+    topic: planning
+    region: Queensland
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: QLD
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: Queensland Vegetation Management Regulation 2012
+    source_url: https://www.legislation.qld.gov.au/
+    download_urls:
+      - https://www.legislation.qld.gov.au/view/pdf/2018-03-09/sl-2012-0128
+    jurisdiction: state
+    category: regulation
+    topic: vegetation_management
+    region: Queensland
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: QLD
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: Queensland Nature Conservation Wildlife Management Regulation 2006
+    source_url: https://www.legislation.qld.gov.au/
+    download_urls:
+      - https://www.legislation.qld.gov.au/view/pdf/inforce/2017-05-12/sl-2006-0206
+    jurisdiction: state
+    category: regulation
+    topic: biodiversity
+    region: Queensland
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: QLD
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
       applies_to_point: false
 
   - title: Queensland Department of Environment - Vegetation Management Framework (HTML)
@@ -860,14 +1306,28 @@ documents:
   # ============================================================================
 
   - title: Planning and Design Code (SA)
-    source_url: https://code.plan.sa.gov.au/
+    source_url: https://plan.sa.gov.au/
     download_urls:
-      - https://code.plan.sa.gov.au/__data/assets/pdf_file/0008/1405817/Full-Code-31072025-1.pdf
-      - https://plan.sa.gov.au/__data/assets/pdf_file/0008/597842/Fact_Sheet_-_Native_Vegetation.pdf
-      - https://plan.sa.gov.au/__data/assets/pdf_file/0010/799939/Guide_to_the_Planning_and_Design_Code.pdf
+      - https://code.plan.sa.gov.au/__data/assets/pdf_file/0008/1405817/Full-Code-23102025.pdf
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0009/1482633/Greater-Adelaide-Regional-Plan-Version-GA2025-2-27-March-2025.pdf
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0011/656327/Eyre_and_Western_Region_Plan.pdf
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0003/656328/Far_North_Region_Plan.pdf
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0006/656331/Kangaroo_Island_Plan.pdf
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0007/656332/Limestone_Coast_Region_Plan.pdf
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0008/656333/Mid_North_Region_Plan.pdf
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0009/656334/Murray_and_Mallee_Region_Plan.pdf
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0011/656336/Yorke_Peninsula_Regional_Land_Use_Framework.pdf
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0010/786268/Gerard_Community_Land_Use_Structure_Plan.pdf
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0009/786267/Raukkan_Community_Land_Use_Structure_Plan.pdf
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0011/1112060/Guide-Verify-a-Land-Division-Consent.pdf?v=0.2.5
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0008/699029/Guide_-_Verify_a_Building_Consent.pdf?v=0.3.3
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0007/699028/Guide_-_Verify_a_Planning_and_Land_Division_Consent.pdf?v=0.4.2
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0007/681406/Guide-Issue-Development-Approval.pdf?v=0.4.2
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0011/699896/Guide_-_Assess_a_Planning_and_Land_Division_Consent.pdf?v=0.4.3
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0004/684004/Guide-Make-a-decision-on-an-assessed-consent.pdf?v=0.5.4
     jurisdiction: state
     category: planning
-    topic: land_use
+    topic: planning
     region: South Australia
     sovereign: true
     spatial_metadata:
@@ -878,10 +1338,13 @@ documents:
       applies_to_all_lgas: true  # State documents apply to all LGAs in SA
       applies_to_point: false
 
-  - title: Environment Protection Act 1993 (SA)
+  # --- Environment Protection (Acts & Regulations) ---
+  - title: SA Environment Protection - Acts and Regulations
     source_url: https://www.legislation.sa.gov.au/
     download_urls:
       - https://www.legislation.sa.gov.au/__legislation/lz/c/a/environment%20protection%20act%201993/current/1993.76.auth.pdf
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/r/environment%20protection%20regulations%202023/2025.06.30/2023.109.auth.pdf
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/a/national%20environment%20protection%20council%20(south%20australia)%20act%201995/2008.06.04_(2003.12.20)/1995.1.auth.pdf
     jurisdiction: state
     category: legislation
     topic: environment_protection
@@ -892,14 +1355,19 @@ documents:
       state: SA
       lga_codes: []
       lga_names: []
-      applies_to_all_lgas: true  # State documents apply to all LGAs in SA
+      applies_to_all_lgas: true
       applies_to_point: false
 
-  - title: Native Vegetation Guidelines (SA)
-    source_url: https://www.environment.sa.gov.au/topics/native-vegetation
+  # --- Planning & Development (Acts & Regulations) ---
+  - title: SA Planning Development and Infrastructure - Acts and Regulations
+    source_url: https://www.legislation.sa.gov.au/
+    download_urls:
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/r/planning%20development%20and%20infrastructure%20(general)%20regulations%202017/2025.11.06/2017.24.auth.pdf
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/r/planning%20development%20and%20infrastructure%20(general)%20regulations%202017/current/2017.24.auth.pdf
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/r/planning%20development%20and%20infrastructure%20(accredited%20professionals)%20regulations%202019/current/2019.11.auth.pdf
     jurisdiction: state
-    category: environment
-    topic: vegetation_clearance
+    category: regulation
+    topic: planning_development
     region: South Australia
     sovereign: true
     spatial_metadata:
@@ -907,7 +1375,178 @@ documents:
       state: SA
       lga_codes: []
       lga_names: []
-      applies_to_all_lgas: true  # State documents apply to all LGAs in SA
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  # --- Native Vegetation & Landscape (Acts & Regulations) ---
+  - title: SA Native Vegetation and Landscape - Acts and Regulations
+    source_url: https://www.legislation.sa.gov.au/
+    download_urls:
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/a/native%20vegetation%20act%201991/current/1991.16.auth.pdf
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/r/native%20vegetation%20regulations%202017/current/2017.15.auth.pdf
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/a/landscape%20south%20australia%20act%202019/current/2019.33.auth.pdf
+      - https://cdn.environment.sa.gov.au/greenadelaide/images/1076678-GA-Urban-Greening-Strategy-2025-V20-WEB.pdf?utm_source=web&utm_medium=download&utm_campaign=launch&utm_id=ugs
+    jurisdiction: state
+    category: regulation
+    topic: vegetation_management
+    region: South Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: SA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  # --- Climate Change & Heritage (Regulations) ---
+  - title: SA Climate Change and Heritage Regulations
+    source_url: https://www.legislation.sa.gov.au/
+    download_urls:
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/a/climate%20change%20and%20greenhouse%20emissions%20reduction%20act%202007/current/2007.22.auth.pdf
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/a/heritage%20places%20act%201993/current/1993.56.auth.pdf
+    jurisdiction: state
+    category: regulation
+    topic: climate_heritage
+    region: South Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: SA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  # --- Water Resources (Regulations) ---
+  - title: SA Water Resources Regulations 2020
+    source_url: https://www.legislation.sa.gov.au/
+    download_urls:
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/pol/environment%20protection%20(water%20quality)%20policy%202015/2020.06.30/2015.-.un.pdf
+    jurisdiction: state
+    category: regulation
+    topic: water_management
+    region: South Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: SA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  # --- Building, Development Fees & Local Government (Regulations) ---
+  - title: SA Building and Development Compliance Regulations
+    source_url: https://www.legislation.sa.gov.au/
+    download_urls:
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/a/building%20work%20contractors%20act%201995/current/1995.87.auth.pdf
+    jurisdiction: state
+    category: regulation
+    topic: building_compliance
+    region: South Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: SA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  # --- Fire Services & Local Government (Regulations) ---
+  - title: SA Fire Services and Local Government Regulations
+    source_url: https://www.legislation.sa.gov.au/
+    download_urls:
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/p/fire%20and%20emergency%20services%20(bushfire%20management%20areas)%20proclamation%202012/current/2012.-.auth.pdf
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/r/local%20government%20(general)%20regulations%202013/current/2013.290.auth.pdf
+    jurisdiction: state
+    category: regulation
+    topic: local_government
+    region: South Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: SA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  # --- Additional Environmental & Land Management Regulations ---
+  - title: SA Crown Land and Natural Resources Regulations
+    source_url: https://www.legislation.sa.gov.au/
+    download_urls:
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/a/crown%20land%20management%20act%202009/current/2009.20.auth.pdf
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/r/natural%20resources%20management%20(central%20adelaide%20-%20prescribed%20wells%20area)%20regulations%202007/current/2007.164.auth.pdf
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/r/electricity%20(principles%20of%20vegetation%20clearance)%20regulations%202021/2021.08.31_(2021.08.12)/2021.114.auth.pdf
+    jurisdiction: state
+    category: regulation
+    topic: land_management
+    region: South Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: SA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  # --- Stormwater, Coast & Aboriginal Heritage Regulations ---
+  - title: SA Stormwater Coast and Heritage Regulations
+    source_url: https://www.legislation.sa.gov.au/
+    download_urls:
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/a/coast%20protection%20act%201972/current/1972.49.auth.pdf
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/r/aboriginal%20heritage%20regulations%202017/current/2017.291.auth.pdf
+    jurisdiction: state
+    category: regulation
+    topic: environmental_management
+    region: South Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: SA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  # --- Planning Transitional & Development Regulations ---
+  - title: SA Planning Transitional and Legacy Development Regulations
+    source_url: https://www.legislation.sa.gov.au/
+    download_urls:
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/r/planning%20development%20and%20infrastructure%20(transitional%20provisions)%20regulations%202017/current/2017.25.auth.pdf
+      - https://www.legislation.sa.gov.au/__legislation/lz/v/r/2008/development%20regulations%202008_233/2008.233.un.pdf
+    jurisdiction: state
+    category: regulation
+    topic: planning_transitional
+    region: South Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: SA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  # --- Dog & Cat Management Regulations ---
+  - title: SA Dog and Cat Management Regulations 2017
+    source_url: https://www.legislation.sa.gov.au/
+    download_urls:
+      - https://www.legislation.sa.gov.au/__legislation/lz/c/a/dog%20and%20cat%20management%20act%201995/2020.06.30/1995.15.auth.pdf
+    jurisdiction: state
+    category: regulation
+    topic: animal_management
+    region: South Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: SA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
       applies_to_point: false
 
   - title: SA Planning Portal - Planning and Design Code (HTML)
@@ -943,10 +1582,10 @@ documents:
   - title: City of Adelaide Development Guidelines
     source_url: https://www.cityofadelaide.com.au/planning
     download_urls:
+      - https://plan.sa.gov.au/__data/assets/pdf_file/0007/593080/City_of_Adelaide_-_Council_Specific_Code_Extract.pdf
       - https://d31atr86jnqrq2.cloudfront.net/docs/guidelines-adelaide-park-lands-buildings.pdf
       - https://d31atr86jnqrq2.cloudfront.net/docs/guidelines-infrastructure-design-city-of-adelaide.pdf
       - https://d31atr86jnqrq2.cloudfront.net/docs/uec-lighting-electrical-design.pdf
-      - https://plan.sa.gov.au/__data/assets/pdf_file/0007/593080/City_of_Adelaide_-_Council_Specific_Code_Extract.pdf
     jurisdiction: local
     category: development_plan
     topic: zoning
@@ -957,36 +1596,6 @@ documents:
       state: SA
       lga_codes: [40070]
       lga_names: [City of Adelaide]
-      applies_to_all_lgas: false  # Local documents apply only to specific LGAs
-      applies_to_point: false
-
-  - title: Port Adelaide Enfield Sustainability Policies
-    source_url: https://www.cityofpae.sa.gov.au
-    download_urls:
-      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0023/1611671/PAE-private-planting-on-verges-policy.pdf
-      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0040/1595758/PAE-significant-and-regulated-trees-assistance-scheme-policy.pdf
-      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0027/1754361/PAE-tree-management-guidelines.pdf
-      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0035/1594763/PAE-tree-management-policy.pdf
-      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0034/1595761/PAE-verge-development-guidelines.pdf
-      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0033/1593465/PAE-building-and-swimming-pools-notification-policy.pdf
-      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0027/1634841/PAE-Code-Amendment-Proposals-from-Private-Parties-Guidelines.pdf
-      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0036/1593468/PAE-fencing-cost-reimbursements-policy.pdf
-      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0038/1593497/PAE-Heritage-Plaques-Guidelines.pdf
-      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0038/1837829/Lease-Licence-and-Property-Agreements-Guidelines-CURRENT.pdf
-      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0039/1597944/ECM_18240115_v2_Lease-Licence-and-Property-Agreement-CURRENT.pdf
-      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0037/1593496/PAE-Sustainable-Buildings-Guidelines.pdf
-      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0035/1593494/PAE-sustainable-buildings.pdf
-      - https://www.cityofpae.sa.gov.au/__data/assets/pdf_file/0035/1593476/PAE-waiving-reduction-development-fees.pdf
-    jurisdiction: local
-    category: environment
-    topic: sustainable_development
-    region: Port Adelaide Enfield
-    sovereign: true
-    spatial_metadata:
-      spatial_scope: local
-      state: SA
-      lga_codes: [40280]
-      lga_names: [Port Adelaide Enfield]
       applies_to_all_lgas: false  # Local documents apply only to specific LGAs
       applies_to_point: false
 
@@ -1046,7 +1655,7 @@ documents:
     spatial_metadata:
       spatial_scope: local
       state: SA
-      lga_codes: [40070]
+      lga_codes: [40080]
       lga_names: [Burnside]
       applies_to_all_lgas: false
       applies_to_point: false
@@ -1070,11 +1679,128 @@ documents:
       applies_to_all_lgas: false
       applies_to_point: false
 
+  - title: City of Marion Strategic Plans and Policies
+    source_url: https://www.marion.sa.gov.au
+    download_urls:
+      - https://www.marion.sa.gov.au/assets/sp/City-of-Marion-Strategic-Plan-24-34.pdf
+      - https://www.marion.sa.gov.au/assets/sp/Documents-Policies/Tree-Management-Policy.pdf
+      - https://www.marion.sa.gov.au/assets/sp/City-of-Marion-Coastal-Climate-Change-Adaptation-Study-2018.pdf
+    jurisdiction: local
+    category: planning
+    topic: sustainable_development
+    region: City of Marion
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: local
+      state: SA
+      lga_codes: [40210]
+      lga_names: [Marion]
+      applies_to_all_lgas: false
+      applies_to_point: false
+
+  - title: City of Onkaparinga Strategic Plans
+    source_url: https://www.onkaparinga.sa.gov.au
+    download_urls:
+      - https://www.onkaparingacity.com/files/assets/public/strategic-plans/ecm_4490623_v32_delivering_onkaparinga_2035.pdf
+      - https://www.onkaparingacity.com/files/sharedassets/public/v/1/agendas-and-minutes/resilient_south_adaptation_plan_small.pdf
+      - https://www.onkaparingacity.com/files/assets/public/environment/climate-change-snapshot-2023.pdf
+      - https://hdp-au-prod-app-onka-yoursay-files.s3.ap-southeast-2.amazonaws.com/6817/5436/6673/Council-approved_OSSMP_2025-30.pdf
+      - https://www.onkaparingacity.com/files/assets/public/publications/community-plan-2030-accessible.pdf
+    jurisdiction: local
+    category: planning
+    topic: sustainable_development
+    region: City of Onkaparinga
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: local
+      state: SA
+      lga_codes: [40270]
+      lga_names: [Onkaparinga]
+      applies_to_all_lgas: false
+      applies_to_point: false
+
+  - title: City of Salisbury Environment and Planning Strategies
+    source_url: https://www.salisbury.sa.gov.au
+    download_urls:
+      - https://www.salisbury.sa.gov.au/assets/images/Council/City-of-Salisbury_Sustainability-Strategy_FINAL.pdf
+      - https://www.salisbury.sa.gov.au/assets/files/assets/public/general_documents/live/environment_and_sustainability/sustaining_our_environment_online_version_1.pdf
+      - https://www.salisbury.sa.gov.au/assets/downloads/Policies/Tree-Management-Policy.pdf
+      - https://www.salisbury.sa.gov.au/assets/downloads/Salisbury-Plus/Downloads/SalisburyPlus-Economic-Development-and-Growth-Strategy-WEB-Aug-2025.pdf
+    jurisdiction: local
+    category: environment
+    topic: sustainable_development
+    region: City of Salisbury
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: local
+      state: SA
+      lga_codes: [40300]
+      lga_names: [Salisbury]
+      applies_to_all_lgas: false
+      applies_to_point: false
+
+  - title: City of Holdfast Bay Plans and Strategies
+    source_url: https://www.holdfast.sa.gov.au
+    download_urls:
+      - https://www.holdfast.sa.gov.au/assets/general-downloads/Council/Strategy-and-plans/2712-CoHB-Strategic-Plan_FA_DIGITAL.pdf
+      - https://www.holdfast.sa.gov.au/assets/general-downloads/Council/Strategy-and-plans/Environment-Strategy-2020-2025.pdf
+      - https://www.holdfast.sa.gov.au/assets/general-downloads/Council/Strategy-and-plans/1809-CoHB-Open-Space-Strategy_v11FA_digital.pdf
+      - https://www.holdfast.sa.gov.au/assets/general-downloads/Council/Strategy-and-plans/Arts-Culture-Strategy.pdf
+    jurisdiction: local
+    category: planning
+    topic: sustainable_development
+    region: City of Holdfast Bay
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: local
+      state: SA
+      lga_codes: [40160]
+      lga_names: [Holdfast Bay]
+      applies_to_all_lgas: false
+      applies_to_point: false
+
+  - title: City of Tea Tree Gully Strategic Plans
+    source_url: https://www.cttg.sa.gov.au
+    download_urls:
+      - https://hdp-au-prod-app-cttg-yoursay-files.s3.ap-southeast-2.amazonaws.com/1017/5005/7785/a686b2f20ac30ea317e322db50129862_Draft_Strategic_Plan_2030_-_community_engagement_outcomes_report.PDF
+    jurisdiction: local
+    category: planning
+    topic: sustainable_development
+    region: City of Tea Tree Gully
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: local
+      state: SA
+      lga_codes: [40360]
+      lga_names: [Tea Tree Gully]
+      applies_to_all_lgas: false
+      applies_to_point: false
+
+  - title: City of Playford Strategic Framework
+    source_url: https://www.playford.sa.gov.au
+    download_urls:
+      - https://cdn.playford.sa.gov.au/general-downloads/Policy-Documents/SC-SP_1310_CommunityVision2043.pdf
+      - https://cdn.playford.sa.gov.au/general-downloads/City-of-Playford-Strategic-Plan-2025-28.pdf
+      - https://cdn.playford.sa.gov.au/general-downloads/Council-Documents/Urban-Tree-Strategy-2022.pdf
+      - https://cdn.playford.sa.gov.au/general-downloads/Policy-Documents/SC-SP_1810_OpenSpaceStrategy2018-28.pdf
+    jurisdiction: local
+    category: planning
+    topic: sustainable_development
+    region: City of Playford
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: local
+      state: SA
+      lga_codes: [40260]
+      lga_names: [Playford]
+      applies_to_all_lgas: false
+      applies_to_point: false
+
   - title: Adelaide Airport Master Plan
     source_url: https://corporate.adelaideairport.com.au/community/adelaide-airport-master-plan/
     download_urls:
-      - https://corporate.adelaideairport.com.au/wp-content/uploads/2019/08/adelaide-airport-preliminary-draft-master-plan-2019-chapter-10.pdf
-      - https://corporate.adelaideairport.com.au/wp-content/uploads/2020/05/Master-Plan-Chapter-9-Commercial-Development.pdf
+      - https://corporate.adelaideairport.com.au/media/bcmair2w/090-nj01311_mp_final_-digital_fa-compressed.pdf
+      - https://corporate.adelaideairport.com.au/media/aoihzh1y/master-plan-chapter-4-planning-framework.pdf
     jurisdiction: federal
     category: planning
     topic: airport_development
@@ -1095,7 +1821,7 @@ documents:
   - title: WA Environmental Protection Act 1986
     source_url: https://www.legislation.wa.gov.au/legislation/statutes.nsf/main_mrtitle_304_homepage.html
     download_urls:
-      - https://www.legislation.wa.gov.au/legislation/prod/filestore.nsf/FileURL/mrdoc_48028.pdf/$FILE/Environmental%20Protection%20Act%201986%20-%20%5B09-f0-00%5D.pdf
+      - https://www.legislation.wa.gov.au/legislation/prod/filestore.nsf/FileURL/mrdoc_17587.pdf/$FILE/Environmental%20Protection%20Act%201986%20-%20%5B04-00-01%5D.pdf?OpenElement
     jurisdiction: state
     category: legislation
     topic: environment_protection
@@ -1112,7 +1838,7 @@ documents:
   - title: WA Planning and Development Act 2005
     source_url: https://www.legislation.wa.gov.au/legislation/statutes.nsf/main_mrtitle_722_homepage.html
     download_urls:
-      - https://www.legislation.wa.gov.au/legislation/prod/filestore.nsf/FileURL/mrdoc_48537.pdf/$FILE/Planning%20and%20Development%20Act%202005%20-%20%5B14-h0-00%5D.pdf
+      - https://www.legislation.wa.gov.au/legislation/prod/filestore.nsf/FileURL/mrdoc_29428.pdf/$FILE/Planning%20and%20Development%20Act%202005%20-%20%5B04-c0-02%5D.pdf?OpenElement
     jurisdiction: state
     category: legislation
     topic: planning
@@ -1129,7 +1855,7 @@ documents:
   - title: WA Biodiversity Conservation Act 2016
     source_url: https://www.legislation.wa.gov.au/legislation/statutes.nsf/main_mrtitle_13738_homepage.html
     download_urls:
-      - https://www.legislation.wa.gov.au/legislation/prod/filestore.nsf/FileURL/mrdoc_45255.pdf/$FILE/Biodiversity%20Conservation%20Act%202016%20-%20%5B01-e0-02%5D.pdf
+      - https://www.legislation.wa.gov.au/legislation/prod/filestore.nsf/FileURL/mrdoc_48894.pdf/$FILE/Biodiversity%20Conservation%20Act%202016%20-%20%5B00-i0-00%5D.pdf?OpenElement
     jurisdiction: state
     category: legislation
     topic: biodiversity
@@ -1143,8 +1869,79 @@ documents:
       applies_to_all_lgas: true  # State documents apply to all LGAs in WA
       applies_to_point: false
 
+  # --- WA State Regulations ---
+  - title: WA Environmental Protection Regulations 1987
+    source_url: https://www.legislation.wa.gov.au/
+    download_urls:
+      - https://www.legislation.wa.gov.au/legislation/prod/filestore.nsf/FileURL/mrdoc_48225.pdf/$FILE/Environmental%20Protection%20Regulations%201987%20-%20%5B08-af0-00%5D.pdf?OpenElement
+    jurisdiction: state
+    category: regulation
+    topic: environment_protection
+    region: Western Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: WA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: WA Planning and Development Regulations 2015
+    source_url: https://www.legislation.wa.gov.au/
+    download_urls:
+      - https://www.wa.gov.au/system/files/2024-08/planning-and-development-local-planning-schemes-regulations-2015.pdf
+    jurisdiction: state
+    category: regulation
+    topic: planning
+    region: Western Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: WA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: WA Biodiversity Conservation Regulations 2018
+    source_url: https://www.legislation.wa.gov.au/
+    download_urls:
+      - https://www.legislation.wa.gov.au/legislation/prod/filestore.nsf/FileURL/mrdoc_48142.pdf/$FILE/Biodiversity%20Conservation%20Regulations%202018%20-%20%5B00-h0-00%5D.pdf?OpenElement
+    jurisdiction: state
+    category: regulation
+    topic: biodiversity
+    region: Western Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: WA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
+  - title: WA Environmental Protection Clearing of Native Vegetation Regulations 2004
+    source_url: https://www.legislation.wa.gov.au/
+    download_urls:
+      - https://www.legislation.wa.gov.au/legislation/prod/filestore.nsf/FileURL/mrdoc_44343.pdf/$FILE/Environmental%20Protection%20(Clearing%20of%20Native%20Vegetation)%20Regulations%202004%20-%20%5B02-f0-01%5D.pdf?OpenElement
+    jurisdiction: state
+    category: regulation
+    topic: vegetation_management
+    region: Western Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: WA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true
+      applies_to_point: false
+
   - title: WA EPA Environmental Impact Assessment Procedures Manual
     source_url: https://www.epa.wa.gov.au/procedures-manual
+    download_urls:
+      - https://www.epa.wa.gov.au/sites/default/files/Policies_and_Guidance/EIA%20%28Part%20IV%20Divisions%201%20and%202%29%20Procedures%20Manual_2.pdf
     jurisdiction: state
     category: guidelines
     topic: environmental_assessment
@@ -1173,8 +1970,36 @@ documents:
       applies_to_all_lgas: true  # State documents apply to all LGAs in WA
       applies_to_point: false
 
-  - title: WA Planning Commission - State Planning Policies (HTML)
+  - title: WA Planning Commission - State Planning Policies
     source_url: https://www.dplh.wa.gov.au/policy-and-legislation/state-planning-framework/state-planning-policies
+    download_urls:
+      - https://www.wa.gov.au/system/files/2021-06/SPP_1_State_Planning_Framework.pdf
+      - https://www.wa.gov.au/system/files/2021-06/SPP_2-5_Rural_Planning.pdf
+      - https://www.wa.gov.au/system/files/2021-06/SPP_3_urban_growth_settlement.pdf
+      - https://www.wa.gov.au/system/files/2022-07/SPP_4.1-Industrial-Interface-July-2022_0.pdf
+      - https://www.wa.gov.au/system/files/2021-06/SPP-5_2_Telecommunications_Infrastructure.pdf
+    jurisdiction: state
+    category: policy
+    topic: planning
+    region: Western Australia
+    sovereign: true
+    spatial_metadata:
+      spatial_scope: state
+      state: WA
+      lga_codes: []
+      lga_names: []
+      applies_to_all_lgas: true  # State documents apply to all LGAs in WA
+      applies_to_point: false
+
+  - title: WA Planning Commission - Development control and operational policies
+    source_url: https://www.dplh.wa.gov.au/policy-and-legislation/state-planning-framework/state-planning-policies
+    download_urls:
+      - https://www.wa.gov.au/system/files/2021-07/OP_1-1_Subdivision_of_Land.pdf
+      - https://www.wa.gov.au/system/files/2021-06/DCP_1-3_Strata_Titles.pdf
+      - https://www.wa.gov.au/system/files/2021-07/DCP_1-6_transit_use.pdf
+      - https://www.wa.gov.au/system/files/2024-09/dc-policy-19-amendment-to-region-scheme-repealed.pdf
+      - https://www.wa.gov.au/system/files/2024-05/op_policy_2.2_residential_subdivision-31may24-active_0.pdf
+      - https://www.wa.gov.au/system/files/2021-07/DCP_4-1_industrial_subdivision.pdf
     jurisdiction: state
     category: policy
     topic: planning

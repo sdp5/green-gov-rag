@@ -2,7 +2,7 @@ name: ETL Pipeline - Monitoring Driven
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+    - cron: '30 15 * * 0,4'  # Sun,Thu at 2 AM ACDT
   workflow_dispatch:
 
 jobs:
@@ -12,11 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     # Disabled - change to true to enable monitoring
     if: false
-    timeout-minutes: 30
+    timeout-minutes: 360
     outputs:
       changes_detected: ${{ steps.check-changes.outputs.has_changes }}
       total_discovered: ${{ steps.check-changes.outputs.discovered }}
       total_updated: ${{ steps.check-changes.outputs.updated }}
+      changed_doc_ids: ${{ steps.check-changes.outputs.changed_doc_ids }}
 
     steps:
       - name: Checkout code
@@ -110,6 +111,7 @@ jobs:
             echo "has_changes=false" >> $GITHUB_OUTPUT
             echo "discovered=0" >> $GITHUB_OUTPUT
             echo "updated=0" >> $GITHUB_OUTPUT
+            echo "changed_doc_ids=[]" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -117,8 +119,17 @@ jobs:
           UPDATED=$(echo "$RESULTS" | jq -r '.total_updated // 0')
           TOTAL=$((DISCOVERED + UPDATED))
 
+          # Extract changed document IDs for delta indexing
+          CHANGED_IDS=$(echo "$RESULTS" | jq -c '.changed_document_ids // []')
+
+          echo "Documents discovered: $DISCOVERED"
+          echo "Documents updated: $UPDATED"
+          echo "Total changes: $TOTAL"
+          echo "Changed document IDs: $CHANGED_IDS"
+
           echo "discovered=$DISCOVERED" >> $GITHUB_OUTPUT
           echo "updated=$UPDATED" >> $GITHUB_OUTPUT
+          echo "changed_doc_ids=$CHANGED_IDS" >> $GITHUB_OUTPUT
 
           if [ "$TOTAL" -gt 0 ]; then
             echo "has_changes=true" >> $GITHUB_OUTPUT
@@ -154,6 +165,30 @@ jobs:
             --file configs/documents_config.yml \
             --overwrite
 
+      - name: Create changed files JSON for delta indexing
+        run: |
+          CHANGED_IDS='${{ needs.monitor-sources-azure.outputs.changed_doc_ids }}'
+          TOTAL_CHANGED=${{ needs.monitor-sources-azure.outputs.total_discovered }} + ${{ needs.monitor-sources-azure.outputs.total_updated }}
+
+          echo "Creating changed_files.json with ${TOTAL_CHANGED} documents"
+
+          cat > changed_files.json <<EOF
+          {
+            "changed_document_ids": ${CHANGED_IDS},
+            "total_changed": ${TOTAL_CHANGED}
+          }
+          EOF
+
+          cat changed_files.json
+
+          # Upload to Azure Blob Storage
+          az storage blob upload \
+            --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
+            --container-name configs \
+            --name changed_files.json \
+            --file changed_files.json \
+            --overwrite
+
       - name: Run ETL via Azure Container App Job
         id: run-etl-azure
         run: |
@@ -162,6 +197,16 @@ jobs:
           JOB_NAME="greengovrag-etl-job"
 
           echo "Starting Azure Container App Job: $JOB_NAME"
+          echo ""
+          echo "Note: The Container App Job must be configured with the following command:"
+          echo "  greengovrag-cli etl ingest --config /app/configs/documents_config.yml && \"
+          echo "  greengovrag-cli etl parse --input data/raw --output data/processed && \"
+          echo "  greengovrag-cli etl chunk --input data/processed --output data/chunks --chunk-size 500 --chunk-overlap 100 --mode delta --accurate --raw-dir data/raw && \"
+          echo "  greengovrag-cli rag index --chunks data/chunks --vector-store qdrant --collection greengovrag --model \$EMBEDDING_MODEL --changed-files /tmp/changed_files.json --mode delta"
+          echo ""
+          echo "This ensures the full ETL pipeline: ingest → parse → chunk → index"
+          echo "Delta mode uses changed_files.json uploaded to /tmp/changed_files.json by previous step"
+          echo ""
 
           # Start the ETL job execution
           JOB_EXECUTION=$(az containerapp job start \

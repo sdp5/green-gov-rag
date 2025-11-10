@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from langchain.docstore.document import Document
-from langchain.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader
 
 from green_gov_rag.config import settings
 from green_gov_rag.etl.chunker import TextChunker
@@ -93,7 +93,15 @@ class EnhancedETLPipeline:
 
         documents = []
 
+        # Import DocumentSourceFactory to generate file_ids
+        from green_gov_rag.etl.sources.factory import DocumentSourceFactory
+
+        factory = DocumentSourceFactory()
+
         for doc_config in doc_configs:
+            # Create source plugin to generate file_id
+            source = factory.create_source(doc_config)
+
             # Get document metadata from config
             base_metadata = {
                 "title": doc_config.get("title", "Untitled"),
@@ -115,13 +123,23 @@ class EnhancedETLPipeline:
             # Download URLs
             urls = doc_config.get("download_urls", [])
 
-            for _url in urls:
+            for url in urls:
+                # Generate file_id for this URL (consistent with ingest.py)
+                file_id = source.get_document_id(url)
+
+                # Add file_id to metadata for citation verification
+                metadata_with_file_id = base_metadata.copy()
+                metadata_with_file_id["file_id"] = file_id
+                metadata_with_file_id[
+                    "document_id"
+                ] = file_id  # Alias for backward compatibility
+
                 # For now, assume PDFs are already downloaded
                 # In production, integrate with download_documents()
                 # Create document with config metadata
                 doc = Document(
                     page_content="",  # Will be populated by PDF loader
-                    metadata=base_metadata.copy(),
+                    metadata=metadata_with_file_id,
                 )
                 documents.append(doc)
 

@@ -5,34 +5,38 @@ This directory contains Azure Bicep templates for deploying GreenGovRAG to Azure
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Azure Container Apps                     │
-│  ┌──────────────────────┐    ┌──────────────────────────┐  │
-│  │   Streamlit UI       │    │   FastAPI Backend        │  │
-│  │   (Port 8501)        │    │   (Port 8000)            │  │
-│  └──────────────────────┘    └──────────────────────────┘  │
-│             │                           │                    │
-│             └───────────┬───────────────┘                    │
-│                         │                                    │
-└─────────────────────────┼────────────────────────────────────┘
-                          │
-         ┌────────────────┼────────────────┐
-         │                │                │
-    ┌────▼─────┐   ┌─────▼─────┐   ┌─────▼──────┐
-    │   Blob   │   │ PostgreSQL│   │ Key Vault  │
-    │  Storage │   │  Database │   │  (Secrets) │
-    └──────────┘   └───────────┘   └────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                    Azure Container Apps                          │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │             FastAPI Backend (Port 8000)                    │  │
+│  │              Container App + ETL Jobs                      │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                              │                                   │
+└──────────────────────────────┼───────────────────────────────────┘
+                               │
+        ┌──────────────────────┼──────────────────────┐
+        │                      │                      │
+   ┌────▼─────┐      ┌─────────▼───────┐    ┌─────────▼──────┐
+   │  Blob    │      │  PostgreSQL     │    │  Spot VM       │
+   │  Storage │      │  Flex Server    │    │  (Qdrant)      │
+   │+ Tables  │      │  (pgvector)     │    │                │
+   └──────────┘      └─────────────────┘    └────────────────┘
+
+   ┌─────────────────────────────────────────┐
+   │        Static Web App (Frontend)        │
+   │              React + TypeScript         │
+   └─────────────────────────────────────────┘
 ```
 
 ## Resources Deployed
 
-- **Azure Container Apps Environment** - Serverless container hosting
-- **Azure Container Registry** - Private Docker registry
-- **Storage Account** - Blob storage for documents
-- **Azure Database for PostgreSQL** - Flexible Server
-- **Key Vault** - Secret management
+- **Azure Container Apps** - FastAPI backend (1 vCPU, 3GB)
+- **Container App Jobs** - ETL pipeline + monitoring jobs
+- **Storage Account** - Blob storage (documents) + Table Storage (cache)
+- **PostgreSQL Flexible Server** - B1s with pgvector extension
+- **Spot VM (Ubuntu)** - Qdrant vector database (60-90% cost savings)
+- **Static Web App** - React frontend (Free tier)
 - **Log Analytics Workspace** - Centralized logging
-- **Managed Identity** - Secure access without credentials
 
 ## Prerequisites
 

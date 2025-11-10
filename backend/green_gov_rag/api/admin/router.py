@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from typing import Optional
+
+from fastapi import APIRouter, Request
 from sqlmodel import Session, func, select
 
+from green_gov_rag.api.routes import limiter
 from green_gov_rag.api.schemas import (
     AdminActionResponse,
     AdminDocumentDetailResponse,
@@ -13,35 +16,39 @@ from green_gov_rag.api.schemas import (
     QueryAnalyticsResponse,
     SystemHealthResponse,
 )
-from green_gov_rag.models import Document, QueryHistory
+from green_gov_rag.models import DocumentSource, QueryHistory
 from green_gov_rag.models.base import engine
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 @router.get("/dashboard", response_model=DashboardStats)
-async def get_dashboard_stats() -> DashboardStats:
+@limiter.limit("10/minute")
+async def get_dashboard_stats(request: Request) -> DashboardStats:
     """Get dashboard statistics.
 
     Returns overview metrics for admin dashboard.
+    Rate limited to 10 requests per minute.
     """
     with Session(engine) as session:
         # Document stats
-        total_docs = session.exec(select(func.count()).select_from(Document)).one()
+        total_docs = session.exec(
+            select(func.count()).select_from(DocumentSource)
+        ).one()
         processing = session.exec(
             select(func.count())
-            .select_from(Document)
-            .where(Document.status == "processing")
+            .select_from(DocumentSource)
+            .where(DocumentSource.status == "processing")
         ).one()
         failed = session.exec(
             select(func.count())
-            .select_from(Document)
-            .where(Document.status == "failed")
+            .select_from(DocumentSource)
+            .where(DocumentSource.status == "failed")
         ).one()
         completed = session.exec(
             select(func.count())
-            .select_from(Document)
-            .where(Document.status == "completed")
+            .select_from(DocumentSource)
+            .where(DocumentSource.status == "completed")
         ).one()
 
         # Query stats
@@ -81,7 +88,9 @@ async def get_dashboard_stats() -> DashboardStats:
 
 
 @router.get("/documents", response_model=AdminDocumentListResponse)
+@limiter.limit("10/minute")
 async def list_documents(
+    request: Request,
     skip: int = 0,
     limit: int = 50,
     status: str | None = None,
@@ -96,12 +105,12 @@ async def list_documents(
         jurisdiction: Filter by jurisdiction
     """
     with Session(engine) as session:
-        query = select(Document)
+        query = select(DocumentSource)
 
         if status:
-            query = query.where(Document.status == status)
+            query = query.where(DocumentSource.status == status)
         if jurisdiction:
-            query = query.where(Document.jurisdiction == jurisdiction)
+            query = query.where(DocumentSource.jurisdiction == jurisdiction)
 
         query = query.offset(skip).limit(limit)
         documents = session.exec(query).all()
@@ -124,12 +133,15 @@ async def list_documents(
 
 
 @router.get("/documents/{document_id}", response_model=AdminDocumentDetailResponse)
-async def get_document(document_id: str) -> AdminDocumentDetailResponse:
+@limiter.limit("10/minute")
+async def get_document(
+    request: Request, document_id: str
+) -> AdminDocumentDetailResponse:
     """Get document details."""
     from fastapi import HTTPException
 
     with Session(engine) as session:
-        doc = session.get(Document, document_id)
+        doc = session.get(DocumentSource, document_id)
         if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
 
@@ -148,7 +160,8 @@ async def get_document(document_id: str) -> AdminDocumentDetailResponse:
 
 
 @router.post("/documents/{document_id}/reprocess", response_model=AdminActionResponse)
-async def reprocess_document(document_id: str) -> AdminActionResponse:
+@limiter.limit("10/minute")
+async def reprocess_document(request: Request, document_id: str) -> AdminActionResponse:
     """Trigger document reprocessing.
 
     Updates document status to 'pending' to trigger reprocessing.
@@ -159,7 +172,7 @@ async def reprocess_document(document_id: str) -> AdminActionResponse:
     from green_gov_rag.api.routes import query_service
 
     with Session(engine) as session:
-        doc = session.get(Document, document_id)
+        doc = session.get(DocumentSource, document_id)
         if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
 
@@ -185,7 +198,8 @@ async def reprocess_document(document_id: str) -> AdminActionResponse:
 
 
 @router.delete("/documents/{document_id}", response_model=AdminActionResponse)
-async def delete_document(document_id: str) -> AdminActionResponse:
+@limiter.limit("10/minute")
+async def delete_document(request: Request, document_id: str) -> AdminActionResponse:
     """Delete a document.
 
     Also invalidates cache entries that use this document.
@@ -195,7 +209,7 @@ async def delete_document(document_id: str) -> AdminActionResponse:
     from green_gov_rag.api.routes import query_service
 
     with Session(engine) as session:
-        doc = session.get(Document, document_id)
+        doc = session.get(DocumentSource, document_id)
         if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
 
@@ -219,35 +233,46 @@ async def delete_document(document_id: str) -> AdminActionResponse:
 
 
 @router.get("/analytics/queries", response_model=QueryAnalyticsResponse)
-async def get_query_analytics(days: int = 7) -> QueryAnalyticsResponse:
+@limiter.limit("10/minute")
+async def get_query_analytics(
+    request: Request,
+    days: int = 7,
+    session_id: Optional[str] = None,
+) -> QueryAnalyticsResponse:
     """Get query analytics for last N days.
 
     Args:
         days: Number of days to analyze (default: 7)
+        session_id: Optional session ID to filter by user (for user-specific analytics)
     """
     from datetime import datetime, timedelta
 
     with Session(engine) as session:
         cutoff_date = datetime.now() - timedelta(days=days)
 
+        # Build base query filter
+        base_filter = QueryHistory.created_at >= cutoff_date
+        if session_id:
+            base_filter = (QueryHistory.created_at >= cutoff_date) & (
+                QueryHistory.session_id == session_id
+            )
+
         # Total queries in period
         total = session.exec(
-            select(func.count())
-            .select_from(QueryHistory)
-            .where(QueryHistory.created_at >= cutoff_date)
+            select(func.count()).select_from(QueryHistory).where(base_filter)
         ).one()
 
         # Average response time
         avg_response = session.exec(
             select(func.avg(QueryHistory.response_time_ms))
             .select_from(QueryHistory)
-            .where(QueryHistory.created_at >= cutoff_date)
+            .where(base_filter)
         ).one()
 
         # Top topics
         top_topics = session.exec(
             select(QueryHistory.topic_filter, func.count())
-            .where(QueryHistory.created_at >= cutoff_date)
+            .where(base_filter)
             .where(QueryHistory.topic_filter.is_not(None))  # type: ignore[union-attr]
             .group_by(QueryHistory.topic_filter)
             .order_by(func.count().desc())
@@ -265,7 +290,8 @@ async def get_query_analytics(days: int = 7) -> QueryAnalyticsResponse:
 
 
 @router.get("/system/health", response_model=SystemHealthResponse)
-async def get_system_health() -> SystemHealthResponse:
+@limiter.limit("10/minute")
+async def get_system_health(request: Request) -> SystemHealthResponse:
     """Get system health status.
 
     Checks database connectivity and basic system status.
@@ -277,7 +303,7 @@ async def get_system_health() -> SystemHealthResponse:
     # Check database
     try:
         with Session(engine) as session:
-            session.exec(select(func.count()).select_from(Document)).one()
+            session.exec(select(func.count()).select_from(DocumentSource)).one()
             database_status = "connected"
     except Exception as e:
         database_status = f"error: {str(e)}"
@@ -290,7 +316,8 @@ async def get_system_health() -> SystemHealthResponse:
 
 
 @router.get("/cache/metrics")
-async def get_cache_metrics() -> dict:
+@limiter.limit("10/minute")
+async def get_cache_metrics(request: Request) -> dict:
     """Get cache performance metrics.
 
     Returns cache hit rate, cost savings, and other statistics.
@@ -304,7 +331,8 @@ async def get_cache_metrics() -> dict:
 
 
 @router.post("/cache/clear")
-async def clear_cache() -> dict:
+@limiter.limit("10/minute")
+async def clear_cache(request: Request) -> dict:
     """Clear all cache entries.
 
     Use with caution - this will remove all cached responses.

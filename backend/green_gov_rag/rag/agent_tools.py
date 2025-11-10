@@ -65,9 +65,10 @@ class RAGAgent:
     """RAG Agent with separated retrieval and generation phases for caching."""
 
     def __init__(self, vector_store=None, embedder=None):
+        from green_gov_rag.config import settings
         from green_gov_rag.rag.embeddings import ChunkEmbedder
         from green_gov_rag.rag.rag_chain import RAGChain
-        from green_gov_rag.rag.vector_store import VectorStore
+        from green_gov_rag.rag.vector_store_factory import create_vector_store
 
         # Initialize embedder if not provided
         if embedder is None:
@@ -77,8 +78,36 @@ class RAGAgent:
 
         # Initialize vector store if not provided
         if vector_store is None:
-            # VectorStore requires embeddings, so we create one with the embedder
-            vector_store = VectorStore(embeddings=self.embedder.embedder)
+            # Use factory to create vector store based on configuration
+            store_type = settings.vector_store_type.lower()
+
+            store_kwargs = {}
+            if store_type == "qdrant":
+                store_kwargs["url"] = settings.qdrant_url
+                store_kwargs["collection_name"] = "greengovrag"
+            elif store_type == "faiss":
+                store_kwargs["index_path"] = settings.vector_store_path + "/faiss.index"
+
+            vector_store = create_vector_store(
+                embeddings=self.embedder.embedder, store_type=store_type, **store_kwargs
+            )
+
+            # Load existing collection if Qdrant or FAISS
+            if hasattr(vector_store, "load"):
+                try:
+                    if store_type == "qdrant":
+                        # For Qdrant, load() connects to existing collection
+                        vector_store.load(path="")  # Path not used for Qdrant
+                    elif store_type == "faiss":
+                        # For FAISS, load from index file
+                        index_path = store_kwargs.get("index_path")
+                        if index_path:
+                            vector_store.load(path=index_path)
+                except Exception as e:
+                    import logging
+
+                    logging.warning(f"Could not load existing vector store: {e}")
+                    raise  # Re-raise so we know what went wrong
 
         self.vector_store = vector_store
 
@@ -90,30 +119,40 @@ class RAGAgent:
     def _validate_vector_store(self) -> None:
         """Validate that vector store exists and has documents.
 
-        Raises:
-            RuntimeError: If vector store is empty or invalid
+        Note:
+            Empty vector store is logged as warning, not error.
+            Allows API to start before ETL pipeline runs.
+            Queries will fail with helpful error until documents indexed.
         """
+        import logging
+
+        logger = logging.getLogger(__name__)
+
         try:
             # Try to get vector store count
             doc_count = self._get_vector_store_count()
 
             if doc_count == 0:
-                raise RuntimeError(
-                    "Vector store is empty. No documents found.\n\n"
+                # Log warning but don't block API startup
+                logger.warning(
+                    "Vector store is empty. No documents found. "
+                    "RAG queries will fail until documents are indexed.\n\n"
                     "To fix this, run the document ingestion pipeline:\n"
-                    "  python -m green_gov_rag.etl.ingest_documents\n\n"
+                    "  greengovrag-cli etl ingest --config configs/documents_config.yml\n"
+                    "  greengovrag-cli etl parse --input data/raw --output data/processed\n"
+                    "  greengovrag-cli etl chunk --input data/processed --output data/chunks\n"
+                    "  greengovrag-cli rag index --chunks data/chunks\n\n"
                     "Or if using Docker:\n"
-                    "  docker-compose run --rm backend python -m green_gov_rag.etl.ingest_documents"
+                    "  docker-compose run --rm backend greengovrag-cli etl ingest\n"
+                    "  docker-compose run --rm backend greengovrag-cli rag index"
                 )
+            else:
+                logger.info(f"Vector store validated: {doc_count} documents indexed")
 
         except Exception as e:
-            if "Vector store is empty" in str(e):
-                raise
             # If we can't validate, log warning but don't fail
             # (allows for non-standard vector store implementations)
-            import logging
-
-            logging.warning(f"Could not validate vector store: {e}")
+            logger.warning(f"Could not validate vector store: {e}")
 
     def _get_vector_store_count(self) -> int:
         """Get count of documents in vector store.
@@ -121,35 +160,72 @@ class RAGAgent:
         Returns:
             Number of documents in vector store
         """
-        # Try different methods depending on vector store type
-        vs = self.vector_store.vector_store
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        # Get the underlying LangChain vector store
+        # Factory pattern stores use .store attribute
+        vs = getattr(self.vector_store, "store", self.vector_store)
+
+        logger.debug(f"Vector store type: {type(vs)}")
+        logger.debug(f"Vector store has client: {hasattr(vs, 'client')}")
+        logger.debug(
+            f"Vector store has collection_name: {hasattr(vs, 'collection_name')}"
+        )
 
         # FAISS
         if hasattr(vs, "index") and hasattr(vs.index, "ntotal"):
-            return vs.index.ntotal
+            count = vs.index.ntotal
+            logger.debug(f"FAISS index count: {count}")
+            return count
 
-        # Qdrant
-        if hasattr(vs, "client"):
+        # Qdrant - check the wrapper object first
+        if hasattr(self.vector_store, "client") and hasattr(
+            self.vector_store, "collection_name"
+        ):
+            try:
+                collection_name = self.vector_store.collection_name
+                info = self.vector_store.client.get_collection(collection_name)
+                count = info.points_count or 0
+                logger.debug(f"Qdrant collection '{collection_name}' count: {count}")
+                return count
+            except Exception as e:
+                logger.debug(f"Failed to get Qdrant count from wrapper: {e}")
+
+        # Qdrant - check the underlying store
+        if hasattr(vs, "client") and hasattr(vs, "collection_name"):
             try:
                 collection_name = vs.collection_name
                 info = vs.client.get_collection(collection_name)
-                return info.vectors_count
-            except Exception:
-                pass
+                count = info.points_count or 0
+                logger.debug(f"Qdrant collection '{collection_name}' count: {count}")
+                return count
+            except Exception as e:
+                logger.debug(f"Failed to get Qdrant count: {e}")
 
         # Chroma
         if hasattr(vs, "_collection"):
-            return vs._collection.count()
+            count = vs._collection.count()
+            logger.debug(f"Chroma collection count: {count}")
+            return count
 
         # Generic fallback - try a test search
         try:
             results = vs.similarity_search("test", k=1)
-            return 1 if results else 0
-        except Exception:
+            count = 1 if results else 0
+            logger.debug(f"Fallback search count: {count}")
+            return count
+        except Exception as e:
+            logger.debug(f"Fallback search failed: {e}")
             return 0
 
     def retrieve(
-        self, query: str, metadata_filters: dict | None = None, k: int = 5
+        self,
+        query: str,
+        metadata_filters: dict | None = None,
+        k: int = 5,
+        use_auto_location: bool = False,
     ) -> tuple[str, list]:
         """Retrieve relevant documents without LLM generation.
 
@@ -160,13 +236,17 @@ class RAGAgent:
             query: User query string
             metadata_filters: Optional metadata filters (region, jurisdiction, etc.)
             k: Number of documents to retrieve
+            use_auto_location: If True, automatically extract locations from query using NER
 
         Returns:
             Tuple of (context_string, source_documents)
         """
         # Retrieve documents from vector store
         documents = self.chain.retrieve_documents(
-            query=query, metadata_filters=metadata_filters, k=k
+            query=query,
+            metadata_filters=metadata_filters,
+            k=k,
+            use_auto_location=use_auto_location,
         )
 
         # Build formatted context for LLM

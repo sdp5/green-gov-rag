@@ -11,6 +11,7 @@ from slowapi.errors import RateLimitExceeded
 
 from green_gov_rag import __version__
 from green_gov_rag.api.admin import router as admin_router
+from green_gov_rag.api.middleware.auth import APIKeyAuthMiddleware
 from green_gov_rag.api.routes import limiter
 from green_gov_rag.api.routes import router as api_router
 from green_gov_rag.api.schemas import RootResponse
@@ -30,6 +31,9 @@ app = FastAPI(
 # Add rate limiting
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, cast(type, _rate_limit_exceeded_handler))
+
+# Add API key authentication middleware (must be added before CORS)
+app.add_middleware(APIKeyAuthMiddleware)
 
 # Add CORS middleware
 app.add_middleware(

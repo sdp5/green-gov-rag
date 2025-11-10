@@ -118,7 +118,7 @@ docker-compose --profile dev up
 
 **ETL Execution:**
 ```python
-python -m green_gov_rag.cli etl run-pipeline \
+greengovrag-cli etl run-pipeline \
   --config /app/data/configs/documents_config.yml
 ```
 
@@ -215,7 +215,7 @@ GitHub Actions (daily cron or manual)
 Upload config to S3/Blob
     ↓
 Run ECS Fargate Task:
-  python -m green_gov_rag.cli etl run-pipeline
+  greengovrag-cli etl run-pipeline
     ↓
 Monitor task logs in CloudWatch
     ↓

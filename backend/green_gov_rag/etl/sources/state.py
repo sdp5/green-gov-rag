@@ -160,3 +160,30 @@ class StateLegislationSource(DocumentSource):
             'state_legislation'
         """
         return "state_legislation"
+
+    def get_document_id(self, url: str) -> str:
+        """Generate unique document ID for delta indexing.
+
+        Uses default implementation from base class.
+
+        Args:
+            url: Download URL
+
+        Returns:
+            Document ID like "state_legislation_environmental_planning_nsw_epa_act"
+        """
+        return self._generate_document_id(url)
+
+    def get_destination_path(self, url: str, base_dir: str = "data/raw") -> str:
+        """Get filesystem path for downloaded document.
+
+        Uses default implementation from base class.
+
+        Args:
+            url: Download URL
+            base_dir: Base directory for raw documents
+
+        Returns:
+            Full path where file should be saved
+        """
+        return self._generate_destination_path(url, base_dir)

@@ -57,14 +57,55 @@ class FAISSVectorStore(VectorStoreInterface):
         if self.index_path:
             self.persist()
 
-    def build_store(self, chunks: list[dict]) -> None:
-        """Build vector store from chunks."""
+    def build_store(self, chunks: list[dict], batch_size: int = 100) -> None:
+        """Build vector store from chunks using batched processing.
+
+        Args:
+            chunks: List of chunk dictionaries
+            batch_size: Number of documents to process per batch (default: 100)
+        """
+        if not chunks:
+            logger.warning("No chunks provided for indexing")
+            return
+
+        total_batches = (len(chunks) + batch_size - 1) // batch_size
+        logger.info(
+            f"Building FAISS store with {len(chunks)} chunks in {total_batches} batches"
+        )
+
+        # Process first batch to create index
+        first_batch_size = min(batch_size, len(chunks))
+        first_batch = chunks[:first_batch_size]
         documents = [
             Document(page_content=chunk["content"], metadata=chunk.get("metadata", {}))
-            for chunk in chunks
+            for chunk in first_batch
         ]
+
         self.store = FAISS.from_documents(documents, self.embeddings)
-        logger.info(f"Built FAISS store with {len(chunks)} chunks")
+        logger.info(
+            f"Created FAISS index with first batch of {len(first_batch)} chunks"
+        )
+
+        # Process remaining batches if any
+        if len(chunks) > first_batch_size:
+            for i in range(first_batch_size, len(chunks), batch_size):
+                batch = chunks[i : i + batch_size]
+                batch_num = (i // batch_size) + 1
+
+                documents = [
+                    Document(
+                        page_content=chunk["content"],
+                        metadata=chunk.get("metadata", {}),
+                    )
+                    for chunk in batch
+                ]
+
+                self.add_documents(documents)
+                logger.info(
+                    f"Added batch {batch_num}/{total_batches}: {len(documents)} chunks"
+                )
+
+        logger.info(f"Completed building FAISS store with {len(chunks)} total chunks")
 
     def add_chunks(self, chunks: list[dict]) -> None:
         """Add chunks to existing store."""

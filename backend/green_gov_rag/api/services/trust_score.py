@@ -132,7 +132,7 @@ class TrustScoreService:
         """
         if not citation_results:
             warnings.append("No citation verification performed")
-            return 0.5  # Neutral score
+            return 0.0  # No verification = no confidence
 
         total_score = 0.0
         superseded_count = 0
@@ -289,7 +289,7 @@ class TrustScoreService:
             Accuracy score (0-1)
         """
         if not citation_results:
-            return 0.5  # Neutral if no verification
+            return 0.5  # LLM baseline accuracy, but unverified
 
         verified_count = 0
         total_with_quotes = 0
@@ -309,6 +309,9 @@ class TrustScoreService:
             return 0.7  # Assume reasonable accuracy
 
         accuracy = verified_count / total_with_quotes
+
+        # Cap at 0.95 to acknowledge inherent uncertainty (OCR errors, version differences, etc.)
+        accuracy = min(accuracy, 0.95)
 
         if mismatch_count > 0:
             warnings.append(

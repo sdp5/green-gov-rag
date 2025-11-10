@@ -1,5 +1,5 @@
 
-.PHONY: help clean dist test devel mypy lint fix format deploy-aws ingest run
+.PHONY: help clean dist test devel mypy lint fix format deploy-aws ingest run migrate migrate-rollback migrate-history
 
 help:
 	@echo "Available commands:"
@@ -11,6 +11,9 @@ help:
 	@echo "    lint: run pylint on the library"
 	@echo "    fix: run fixers for consistent code formatting"
 	@echo "    format: executes mypy, lint and fix commands"
+	@echo "    migrate: run database migrations (alembic upgrade head)"
+	@echo "    migrate-rollback: rollback last migration (alembic downgrade -1)"
+	@echo "    migrate-history: show migration history (alembic history)"
 
 clean-build:
 	rm -fr build/
@@ -72,4 +75,13 @@ ingest:
 	python scripts/ingest_docs.py
 
 run:
-	uvicorn green_gov_rag.api.main:app --reload
+	uvicorn green_gov_rag.api.main:app --reload --host 0.0.0.0 --port 8000
+
+migrate:
+	alembic upgrade head
+
+migrate-rollback:
+	alembic downgrade -1
+
+migrate-history:
+	alembic history --verbose

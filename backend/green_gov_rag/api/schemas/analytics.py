@@ -24,6 +24,7 @@ class AnalyticsStats(BaseModel):
 
     total_documents: int
     total_queries: int
+    avg_response_time_ms: float | None = None
     documents_by_jurisdiction: list[DistributionData]
     documents_by_topic: list[DistributionData]
     documents_by_region: list[DistributionData]

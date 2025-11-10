@@ -23,11 +23,16 @@ class DocumentVersion(SQLModel, table=True):
     # Primary key
     id: int = Field(default=None, primary_key=True)
 
-    # Foreign key to documents table
-    document_id: str = Field(
+    # Foreign keys
+    file_id: str = Field(
         index=True,
-        foreign_key="documents.id",
-        description="Reference to parent document",
+        foreign_key="document_files.id",
+        description="Reference to specific document file",
+    )
+    source_id: str = Field(
+        index=True,
+        foreign_key="document_sources.id",
+        description="Reference to parent document source",
     )
 
     # Version tracking
@@ -120,7 +125,7 @@ class DocumentVersion(SQLModel, table=True):
         json_schema_extra = {
             "example": {
                 "id": 1,
-                "document_id": "cer_scope2_guideline",
+                "source_id": "cer_scope2_guideline",
                 "version_number": 3,
                 "content_hash": "a1b2c3d4e5f6...",
                 "source_url": "https://cer.gov.au/scope2-guideline.pdf",

@@ -56,15 +56,23 @@ jobs:
 
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      - name: Update SSM parameters with secrets
+      - name: Deploy CDK Stack with Secrets
+        env:
+          API_ACCESS_KEY: ${{ secrets.API_ACCESS_KEY }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
         run: |
-          # Store OpenAI API key in SSM Parameter Store
-          aws ssm put-parameter \
-            --name "/greengovrag/prod/openai-api-key" \
-            --value "${{ secrets.OPENAI_API_KEY }}" \
-            --type "SecureString" \
-            --overwrite \
-            --region ${{ env.AWS_REGION }}
+          cd deploy/aws
+
+          # Deploy stack with secrets passed as context
+          cdk deploy --require-approval never \
+            --context api_access_key="${API_ACCESS_KEY}" \
+            --context azure_openai_api_key="${AZURE_OPENAI_API_KEY}" \
+            --context azure_openai_endpoint="${AZURE_OPENAI_ENDPOINT}" \
+            --context llm_provider="${LLM_PROVIDER:-azure}" \
+            --context llm_model="${LLM_MODEL:-gpt-5-mini}" \
+            --context azure_openai_deployment="${AZURE_OPENAI_DEPLOYMENT:-gpt-5-mini}" \
+            --context embedding_model="${EMBEDDING_MODEL:-BAAI/bge-large-en-v1.5}"
 
       - name: Force new ECS deployment
         run: |

@@ -156,6 +156,33 @@ class EmissionsReportingSource(DocumentSource):
         """
         return "emissions_reporting"
 
+    def get_document_id(self, url: str) -> str:
+        """Generate unique document ID for delta indexing.
+
+        Uses default implementation from base class.
+
+        Args:
+            url: Download URL
+
+        Returns:
+            Document ID like "federal_environment_emissions_reporting_nger_guideline"
+        """
+        return self._generate_document_id(url)
+
+    def get_destination_path(self, url: str, base_dir: str = "data/raw") -> str:
+        """Get filesystem path for downloaded document.
+
+        Uses default implementation from base class.
+
+        Args:
+            url: Download URL
+            base_dir: Base directory for raw documents
+
+        Returns:
+            Full path where file should be saved
+        """
+        return self._generate_destination_path(url, base_dir)
+
     def _validate_esg_metadata(self, esg_metadata: dict[str, Any]) -> list[str]:
         """Validate ESG metadata structure.
 

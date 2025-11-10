@@ -50,6 +50,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+backend/tests/quality/
 
 # Translations
 *.mo
@@ -203,6 +204,8 @@ CLAUDE.md
 
 data/processed/
 data/raw/
+backend/data/
+backend/logs/
 
 # Node
 node_modules/
@@ -212,3 +215,31 @@ yarn-debug.log
 pnpm-debug.log
 
 docs/.local
+temp.py
+
+# Frontend
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

@@ -100,9 +100,8 @@ class FederalLegislationSource(DocumentSource):
             "source_url": self.config.get("source_url"),
         }
 
-        # Include spatial metadata if present
-        if "spatial_metadata" in self.config:
-            metadata["spatial_metadata"] = self.config["spatial_metadata"]
+        # Include structured metadata (esg_metadata, spatial_metadata)
+        metadata.update(self._extract_structured_metadata())
 
         return metadata
 
@@ -121,3 +120,30 @@ class FederalLegislationSource(DocumentSource):
             'federal_legislation'
         """
         return "federal_legislation"
+
+    def get_document_id(self, url: str) -> str:
+        """Generate unique document ID for delta indexing.
+
+        Uses default implementation from base class.
+
+        Args:
+            url: Download URL
+
+        Returns:
+            Document ID like "federal_legislation_epbc_act_2025"
+        """
+        return self._generate_document_id(url)
+
+    def get_destination_path(self, url: str, base_dir: str = "data/raw") -> str:
+        """Get filesystem path for downloaded document.
+
+        Uses default implementation from base class.
+
+        Args:
+            url: Download URL
+            base_dir: Base directory for raw documents
+
+        Returns:
+            Full path where file should be saved
+        """
+        return self._generate_destination_path(url, base_dir)

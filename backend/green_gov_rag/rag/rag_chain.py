@@ -73,7 +73,11 @@ class RAGChain:
         )
 
     def retrieve_documents(
-        self, query: str, metadata_filters: dict | None = None, k: int | None = None
+        self,
+        query: str,
+        metadata_filters: dict | None = None,
+        k: int | None = None,
+        use_auto_location: bool = False,
     ) -> list:
         """Retrieve relevant documents using vector similarity search.
 
@@ -81,13 +85,26 @@ class RAGChain:
             query: User query string
             metadata_filters: Optional metadata filters (region, jurisdiction, etc.)
             k: Number of documents to retrieve (defaults to self.top_k)
+            use_auto_location: If True, automatically extract locations from query using NER
 
         Returns:
             List of Document objects with page_content and metadata
         """
         k = k or self.top_k
 
-        # Use vector store's similarity_search with optional filters
+        # Check if we should use HybridGeospatialSearch for auto-location
+        if use_auto_location and hasattr(self.vector_store, "store"):
+            # Import here to avoid circular dependency
+            from green_gov_rag.rag.hybrid_search import HybridGeospatialSearch
+
+            # Create hybrid search instance with NER enabled
+            hybrid_search = HybridGeospatialSearch(
+                vector_store=self.vector_store, enable_ner=True
+            )
+            # Use auto-location search
+            return hybrid_search.search_with_auto_location(query=query, k=k)
+
+        # Standard search with optional filters
         if metadata_filters:
             documents = self.vector_store.similarity_search(
                 query,

@@ -11,7 +11,7 @@ from langchain_core.embeddings import Embeddings
 from green_gov_rag.rag.vector_store_interface import VectorStoreInterface
 
 if TYPE_CHECKING:
-    from langchain_qdrant import Qdrant
+    from langchain_qdrant import QdrantVectorStore as LangChainQdrantVectorStore
     from qdrant_client import QdrantClient
 
 logger = logging.getLogger(__name__)
@@ -45,15 +45,15 @@ class QdrantVectorStore(VectorStoreInterface):
         self.url = url
         self.api_key = api_key
         self.collection_name = collection_name
-        self.store: Optional[Qdrant] = None
+        self.store: Optional[LangChainQdrantVectorStore] = None
         self.client: Optional[QdrantClient] = None
 
         # Lazy import - only when Qdrant is actually used
         try:
-            from langchain_qdrant import Qdrant
+            from langchain_qdrant import QdrantVectorStore as LangChainQdrantVectorStore
             from qdrant_client import QdrantClient
 
-            self.Qdrant = Qdrant
+            self.LangChainQdrantVectorStore = LangChainQdrantVectorStore
             self.QdrantClient = QdrantClient
             self._initialize_client()
         except ImportError as e:
@@ -98,22 +98,43 @@ class QdrantVectorStore(VectorStoreInterface):
         self.store.add_documents(docs)
         logger.info(f"Added {len(docs)} documents to Qdrant")
 
-    def build_store(self, chunks: list[dict]) -> None:
-        """Build Qdrant collection from chunks."""
-        if not hasattr(self, "Qdrant") or self.Qdrant is None:
+    def build_store(self, chunks: list[dict], batch_size: int = 100) -> None:
+        """Build Qdrant collection from chunks using batched processing.
+
+        Args:
+            chunks: List of chunk dictionaries
+            batch_size: Number of documents to process per batch (default: 100)
+        """
+        if (
+            not hasattr(self, "LangChainQdrantVectorStore")
+            or self.LangChainQdrantVectorStore is None
+        ):
             raise ImportError("Qdrant not available")
 
-        assert self.Qdrant is not None  # Help MyPy
+        assert self.LangChainQdrantVectorStore is not None  # Help MyPy
 
+        if not chunks:
+            logger.warning("No chunks provided for indexing")
+            return
+
+        total_batches = (len(chunks) + batch_size - 1) // batch_size
+        logger.info(
+            f"Building Qdrant collection '{self.collection_name}' "
+            f"with {len(chunks)} chunks in {total_batches} batches"
+        )
+
+        # Process first batch to create collection
+        first_batch_size = min(batch_size, len(chunks))
+        first_batch = chunks[:first_batch_size]
         documents = [
             Document(
                 page_content=chunk["content"],
                 metadata=chunk.get("metadata", {}),
             )
-            for chunk in chunks
+            for chunk in first_batch
         ]
 
-        self.store = self.Qdrant.from_documents(
+        self.store = self.LangChainQdrantVectorStore.from_documents(
             documents,
             self.embeddings,
             url=self.url,
@@ -121,8 +142,30 @@ class QdrantVectorStore(VectorStoreInterface):
             collection_name=self.collection_name,
             prefer_grpc=False,  # Use HTTP for compatibility
         )
+        logger.info(f"Created collection with first batch of {len(first_batch)} chunks")
+
+        # Process remaining batches if any
+        if len(chunks) > first_batch_size:
+            for i in range(first_batch_size, len(chunks), batch_size):
+                batch = chunks[i : i + batch_size]
+                batch_num = (i // batch_size) + 1
+
+                documents = [
+                    Document(
+                        page_content=chunk["content"],
+                        metadata=chunk.get("metadata", {}),
+                    )
+                    for chunk in batch
+                ]
+
+                self.add_documents(documents)
+                logger.info(
+                    f"Added batch {batch_num}/{total_batches}: {len(documents)} chunks"
+                )
+
         logger.info(
-            f"Built Qdrant collection '{self.collection_name}' with {len(chunks)} chunks"
+            f"Completed building Qdrant collection '{self.collection_name}' "
+            f"with {len(chunks)} total chunks"
         )
 
     def add_chunks(self, chunks: list[dict]) -> None:
@@ -150,7 +193,7 @@ class QdrantVectorStore(VectorStoreInterface):
             raise ValueError("Vector store not initialized.")
 
         # Qdrant supports native metadata filtering
-        filter_dict = None
+        filter_dict: Any = None
         if metadata_filters:
             # Convert to Qdrant filter format
             filter_dict = self._build_qdrant_filter(metadata_filters)
@@ -163,26 +206,46 @@ class QdrantVectorStore(VectorStoreInterface):
 
         return results
 
-    def _build_qdrant_filter(self, metadata_filters: dict) -> dict | None:
+    def _build_qdrant_filter(self, metadata_filters: dict) -> Any:
         """Build Qdrant filter from metadata dictionary.
 
-        Qdrant uses a specific filter format:
+        Qdrant uses a specific filter format with nested metadata:
         {
             "must": [
-                {"key": "region", "match": {"value": "NSW"}},
-                {"key": "topic", "match": {"value": "emissions"}}
+                {"key": "metadata.region", "match": {"value": "NSW"}},
+                {"key": "metadata.topic", "match": {"value": "emissions"}}
             ]
         }
+
+        Note: LangChain's QdrantVectorStore stores metadata in a nested structure
+        under the 'metadata' key, so filters must use 'metadata.' prefix.
+
+        IMPORTANT: Qdrant performs exact string matching (case-sensitive).
+        Values are passed as-is from the query service, which should handle
+        normalization (e.g., "SA" -> "South Australia", "State" -> "state").
+
+        Special handling for LGA filtering:
+        - lga_names: Filters by metadata.spatial_metadata.lga_names array
         """
         must_conditions = []
 
         for key, value in metadata_filters.items():
+            # Special handling for LGA names (nested in spatial_metadata)
+            if key == "lga_names":
+                filter_key = "metadata.spatial_metadata.lga_names"
+            # Skip region_specified (used only for filters_applied transparency)
+            elif key == "region_specified":
+                continue
+            else:
+                # Add 'metadata.' prefix for nested structure
+                filter_key = f"metadata.{key}"
+
             if isinstance(value, list):
                 # OR condition for lists
-                must_conditions.append({"key": key, "match": {"any": value}})
+                must_conditions.append({"key": filter_key, "match": {"any": value}})
             else:
                 # Exact match
-                must_conditions.append({"key": key, "match": {"value": value}})
+                must_conditions.append({"key": filter_key, "match": {"value": value}})
 
         return {"must": must_conditions} if must_conditions else None
 
@@ -202,16 +265,19 @@ class QdrantVectorStore(VectorStoreInterface):
         """
         if not self.client:
             self._initialize_client()
-        if not hasattr(self, "Qdrant") or self.Qdrant is None:
+        if (
+            not hasattr(self, "LangChainQdrantVectorStore")
+            or self.LangChainQdrantVectorStore is None
+        ):
             raise ImportError("Qdrant not available")
 
-        assert self.Qdrant is not None  # Help MyPy
+        assert self.LangChainQdrantVectorStore is not None  # Help MyPy
         assert self.client is not None
 
-        self.store = self.Qdrant(
+        self.store = self.LangChainQdrantVectorStore(
             client=self.client,
             collection_name=self.collection_name,
-            embeddings=self.embeddings,
+            embedding=self.embeddings,
         )
         logger.info(f"Loaded Qdrant collection '{self.collection_name}'")
 
@@ -227,6 +293,47 @@ class QdrantVectorStore(VectorStoreInterface):
             points_selector=ids,
         )
         logger.info(f"Deleted {len(ids)} documents from Qdrant")
+
+    def delete_by_metadata(self, metadata_filters: dict) -> int:
+        """Delete documents matching metadata filters (optimized for Qdrant).
+
+        Args:
+            metadata_filters: Metadata filters (e.g., {"document_id": "doc_123"})
+
+        Returns:
+            Number of documents deleted
+        """
+        if not self.client:
+            raise ValueError("Qdrant client not initialized.")
+        if not hasattr(self, "QdrantClient") or self.QdrantClient is None:
+            raise ImportError("QdrantClient not available")
+
+        # Use Qdrant's native filtering for efficient deletion
+        from qdrant_client.models import FieldCondition, Filter, MatchValue
+
+        # Build filter conditions
+        conditions = [
+            FieldCondition(
+                key=f"metadata.{key}",
+                match=MatchValue(value=value),
+            )
+            for key, value in metadata_filters.items()
+        ]
+
+        # Type ignore for Qdrant's complex union type - runtime works correctly
+        filter_obj: Filter | None = Filter(must=conditions) if conditions else None  # type: ignore[arg-type]
+
+        # Delete using filter
+        result = self.client.delete(
+            collection_name=self.collection_name,
+            points_selector=filter_obj,
+        )
+
+        deleted_count = getattr(result, "deleted", 0) if result else 0
+        logger.info(
+            f"Deleted {deleted_count} documents from Qdrant matching filters: {metadata_filters}"
+        )
+        return deleted_count
 
     def list_metadata(self) -> list[dict]:
         """List all metadata in Qdrant collection."""

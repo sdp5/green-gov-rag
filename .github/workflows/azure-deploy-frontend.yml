@@ -93,6 +93,7 @@ jobs:
           cat > dist/config.js << EOF
           window.__RUNTIME_CONFIG__ = {
             API_URL: '${{ steps.az-outputs.outputs.api_url }}/api',
+            API_ACCESS_KEY: '${{ secrets.API_ACCESS_KEY }}',
             MAPBOX_TOKEN: '${{ secrets.VITE_MAPBOX_TOKEN }}'
           };
           EOF

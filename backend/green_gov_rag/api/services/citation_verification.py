@@ -83,15 +83,15 @@ class CitationVerificationService:
 
         sources = query_response.get("sources", [])
         for source in sources:
-            # Extract document identifier
-            document_id = self._extract_document_id(source)
-            if not document_id:
-                logger.warning(f"Could not extract document_id from source: {source}")
+            # Extract file identifier from chunk metadata
+            file_id = self._extract_file_id(source)
+            if not file_id:
+                logger.warning(f"Could not extract file_id from source: {source}")
                 continue
 
             # Verify this citation
             result = await self.verify_citation(
-                document_id=document_id,
+                file_id=file_id,
                 excerpt=source.get("excerpt"),
                 metadata=source,
             )
@@ -102,14 +102,14 @@ class CitationVerificationService:
 
     async def verify_citation(
         self,
-        document_id: str,
+        file_id: str,
         excerpt: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> CitationVerificationResult:
         """Verify a single citation references the current document version.
 
         Args:
-            document_id: Document identifier
+            file_id: Document file identifier
             excerpt: Quoted text from the document
             metadata: Additional citation metadata
 
@@ -117,10 +117,10 @@ class CitationVerificationService:
             CitationVerificationResult with verification status
         """
         with Session(engine) as session:
-            # Get all versions of this document
+            # Get all versions of this file
             statement = (
                 select(DocumentVersion)
-                .where(DocumentVersion.document_id == document_id)
+                .where(DocumentVersion.file_id == file_id)
                 .order_by(desc(col(DocumentVersion.version_number)))
             )
             versions = session.exec(statement).all()
@@ -129,7 +129,7 @@ class CitationVerificationService:
                 return CitationVerificationResult(
                     is_current=False,
                     confidence=0.0,
-                    document_id=document_id,
+                    document_id=file_id,
                     cited_version=None,
                     current_version=0,
                     is_superseded=False,
@@ -168,7 +168,7 @@ class CitationVerificationService:
                     return CitationVerificationResult(
                         is_current=False,
                         confidence=1.0,
-                        document_id=document_id,
+                        document_id=file_id,
                         cited_version=cited_version_num,
                         current_version=current_version.version_number,
                         is_superseded=True,
@@ -196,7 +196,7 @@ class CitationVerificationService:
             return CitationVerificationResult(
                 is_current=True,
                 confidence=1.0 if quote_match else 0.8,
-                document_id=document_id,
+                document_id=file_id,
                 cited_version=current_version.version_number,
                 current_version=current_version.version_number,
                 is_superseded=False,
@@ -207,12 +207,12 @@ class CitationVerificationService:
             )
 
     async def check_citation_currency(
-        self, document_id: str, last_checked: datetime | None = None
+        self, file_id: str, last_checked: datetime | None = None
     ) -> dict[str, Any]:
         """Check if a citation is current or if document has been updated.
 
         Args:
-            document_id: Document identifier
+            file_id: Document file identifier
             last_checked: When the citation was last verified
 
         Returns:
@@ -222,7 +222,7 @@ class CitationVerificationService:
             # Get current version
             statement = (
                 select(DocumentVersion)
-                .where(DocumentVersion.document_id == document_id)
+                .where(DocumentVersion.file_id == file_id)
                 .where(DocumentVersion.is_current == True)  # noqa: E712
             )
             current_version = session.exec(statement).first()
@@ -266,7 +266,7 @@ class CitationVerificationService:
         """Verify multiple citations in bulk.
 
         Args:
-            citations: List of citation dicts with document_id and excerpt
+            citations: List of citation dicts with file_id and excerpt
 
         Returns:
             Summary of verification results
@@ -274,8 +274,13 @@ class CitationVerificationService:
         results = []
 
         for citation in citations:
+            file_id = citation.get("file_id", "")
+            if not file_id:
+                logger.warning(f"Skipping citation without file_id: {citation}")
+                continue
+
             result = await self.verify_citation(
-                document_id=citation.get("document_id", ""),
+                file_id=file_id,
                 excerpt=citation.get("excerpt"),
                 metadata=citation,
             )
@@ -296,11 +301,11 @@ class CitationVerificationService:
             "results": results,
         }
 
-    async def get_version_history(self, document_id: str) -> list[dict[str, Any]]:
-        """Get version history for a document.
+    async def get_version_history(self, file_id: str) -> list[dict[str, Any]]:
+        """Get version history for a document file.
 
         Args:
-            document_id: Document identifier
+            file_id: Document file identifier
 
         Returns:
             List of version metadata dicts
@@ -308,7 +313,7 @@ class CitationVerificationService:
         with Session(engine) as session:
             statement = (
                 select(DocumentVersion)
-                .where(DocumentVersion.document_id == document_id)
+                .where(DocumentVersion.file_id == file_id)
                 .order_by(desc(col(DocumentVersion.version_number)))
             )
             versions = session.exec(statement).all()
@@ -334,29 +339,27 @@ class CitationVerificationService:
     # Helper Methods
     # ========================================================================
 
-    def _extract_document_id(self, source: dict[str, Any]) -> str | None:
-        """Extract document ID from source metadata.
+    def _extract_file_id(self, source: dict[str, Any]) -> str | None:
+        """Extract file ID from source metadata.
 
         Args:
-            source: Source document dict
+            source: Source document dict from chunk metadata
 
         Returns:
-            Document ID or None
+            File ID or None
         """
-        # Try multiple ways to get document ID
-        doc_id = source.get("document_id")
-        if doc_id:
-            return str(doc_id)
+        # Try to get file_id directly (should be in chunk metadata)
+        file_id = source.get("file_id")
+        if file_id:
+            return str(file_id)
 
-        # Generate from source URL
-        source_url = source.get("source_url")
-        if source_url:
-            import hashlib
+        # Fallback: try spatial_metadata or other nested fields
+        metadata = source.get("metadata", {})
+        file_id = metadata.get("file_id")
+        if file_id:
+            return str(file_id)
 
-            # Use same ID generation as monitoring service
-            url_hash = hashlib.sha256(source_url.encode("utf-8")).hexdigest()[:16]
-            return f"unknown_{url_hash}"
-
+        logger.warning(f"Could not find file_id in source metadata: {source.keys()}")
         return None
 
     async def _verify_quote(
@@ -375,42 +378,68 @@ class CitationVerificationService:
         Returns:
             QuoteVerificationResult with match information
         """
-        # For now, this is a placeholder implementation
-        # In a real system, you would:
-        # 1. Load the document content from storage
-        # 2. Search for the exact quote
-        # 3. Use fuzzy matching if exact match not found
+        from green_gov_rag.models.chunk import Chunk
 
-        # Placeholder: Check if we have metadata about the content
-        metadata = version.metadata_ or {}
-        document_content = metadata.get("content")
+        # Query chunks for this file_id
+        statement = select(Chunk).where(Chunk.file_id == version.file_id)
+        chunks = session.exec(statement).all()
 
-        if not document_content:
+        if not chunks:
             return QuoteVerificationResult(
                 exact_match=False,
                 similarity_score=0.0,
                 found_in_version=None,
-                warning="Document content not available for verification",
+                warning="No chunks found for document",
             )
 
-        # Check for exact match
-        if excerpt in document_content:
+        # Normalize excerpt for comparison
+        excerpt_normalized = excerpt.strip().lower()
+
+        # Check for exact match in any chunk
+        for chunk in chunks:
+            chunk_text_normalized = chunk.text.lower()
+            if excerpt_normalized in chunk_text_normalized:
+                return QuoteVerificationResult(
+                    exact_match=True,
+                    similarity_score=1.0,
+                    found_in_version=version.version_number,
+                )
+
+        # Fuzzy matching across all chunks to find best match
+        best_similarity = 0.0
+        best_chunk_text = ""
+
+        for chunk in chunks:
+            chunk_text_normalized = chunk.text.lower()
+            similarity = difflib.SequenceMatcher(
+                None, excerpt_normalized, chunk_text_normalized
+            ).ratio()
+
+            if similarity > best_similarity:
+                best_similarity = similarity
+                best_chunk_text = chunk.text[:100]  # Keep snippet for context
+
+        # Determine match quality
+        if best_similarity > 0.8:
             return QuoteVerificationResult(
-                exact_match=True,
-                similarity_score=1.0,
+                exact_match=False,
+                similarity_score=best_similarity,
                 found_in_version=version.version_number,
+                snippet_context=best_chunk_text,
+                warning="Close match found (not exact)",
             )
-
-        # Use fuzzy matching
-        similarity = difflib.SequenceMatcher(
-            None, excerpt.lower(), document_content.lower()
-        ).ratio()
-
-        return QuoteVerificationResult(
-            exact_match=False,
-            similarity_score=similarity,
-            found_in_version=version.version_number if similarity > 0.8 else None,
-            warning="Exact quote not found. Similarity-based match."
-            if similarity > 0.8
-            else "Quote not found in document",
-        )
+        elif best_similarity > 0.5:
+            return QuoteVerificationResult(
+                exact_match=False,
+                similarity_score=best_similarity,
+                found_in_version=None,
+                snippet_context=best_chunk_text,
+                warning="Partial match found, verify manually",
+            )
+        else:
+            return QuoteVerificationResult(
+                exact_match=False,
+                similarity_score=best_similarity,
+                found_in_version=None,
+                warning="Quote not found in document chunks",
+            )

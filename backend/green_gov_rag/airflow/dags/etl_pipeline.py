@@ -1,151 +1,106 @@
-# airflow/dags/greengovrag_pipeline.py
-import json
-from datetime import datetime
-from pathlib import Path
+"""GreenGovRAG ETL Pipeline DAG using CLI commands.
+
+This DAG orchestrates the complete ETL pipeline for document processing
+by calling greengovrag-cli commands via BashOperator:
+
+Pipeline Flow:
+1. Ingest: Download documents from configured sources
+2. Parse: Extract text from PDFs using Unstructured.io
+3. Chunk: Split documents into semantic chunks
+4. Load: Save chunks to PostgreSQL database
+5. Index: Build vector store for similarity search
+6. Query: Test pipeline with sample query
+
+All steps use the greengovrag-cli commands to ensure consistency
+between manual and automated runs.
+"""
+
+from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.operators.python import PythonOperator
-
-# Import your project modules
-from green_gov_rag.etl import ingest, loader
-from green_gov_rag.etl.chunker import TextChunker
-from green_gov_rag.etl.parsers import get_parser
-from green_gov_rag.rag.embeddings import ChunkEmbedder
-from green_gov_rag.rag.rag_chain import RAGChain
-from green_gov_rag.rag.vector_store_factory import VectorStoreFactory
+from airflow.operators.bash import BashOperator
 
 # --- DAG Default Arguments ---
 default_args = {
-    "owner": "sundeep",
+    "owner": "greengovrag",
     "depends_on_past": False,
-    "retries": 1,
+    "retries": 2,
+    "retry_delay": timedelta(minutes=5),
 }
 
-dag = DAG(
-    "greengovrag_full_pipeline",
-    start_date=datetime(2025, 8, 21),
-    schedule_interval=None,  # Or '0 2 * * *' for daily at 2 AM
+# --- DAG Definition ---
+with DAG(
+    dag_id="greengovrag_full_pipeline",
     default_args=default_args,
+    description="Complete ETL pipeline using greengovrag-cli commands",
+    schedule_interval=None,  # Manual trigger or '0 2 * * *' for daily at 2 AM
+    start_date=datetime(2025, 11, 1),
     catchup=False,
-)
-
-# --- Paths & Config ---
-RAW_DIR = Path("data/raw")
-PROCESSED_DIR = Path("data/processed")
-CHUNK_DIR = Path("data/chunks")
-VECTOR_STORE_DIR = Path("data/vector_store")
-CONFIG_PATH = "configs/documents_config.yml"
-MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
-
-
-# --- Tasks ---
-def task_ingest_docs() -> None:
-    """Download documents from config."""
-    docs = loader.load_documents_config(CONFIG_PATH)
-    RAW_DIR.mkdir(parents=True, exist_ok=True)
-    ingest.download_documents(docs, str(RAW_DIR))
-
-
-def task_parse_docs() -> None:
-    """Parse downloaded documents to text."""
-    PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-    for doc_file in RAW_DIR.rglob("*"):
-        if doc_file.is_file() and doc_file.suffix in [".pdf", ".html", ".htm"]:
-            parser = get_parser(str(doc_file))
-            text = parser(str(doc_file))
-            out_file = PROCESSED_DIR / (doc_file.stem + ".txt")
-            out_file.write_text(text, encoding="utf-8")
-
-
-def task_chunk_docs() -> None:
-    """Chunk parsed text files."""
-    CHUNK_DIR.mkdir(parents=True, exist_ok=True)
-    chunker = TextChunker(chunk_size=1000, chunk_overlap=100)
-
-    for txt_file in PROCESSED_DIR.rglob("*.txt"):
-        text = txt_file.read_text(encoding="utf-8")
-        chunks = chunker.chunk_text(text)
-        out_file = CHUNK_DIR / (txt_file.stem + "_chunks.json")
-        with open(out_file, "w", encoding="utf-8") as f:
-            json.dump(chunks, f, indent=2)
-
-
-def task_build_vector_store() -> None:
-    """Embed chunks and build vector store."""
-    VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
-
-    # Collect all chunks
-    all_chunks = []
-    for chunk_file in CHUNK_DIR.glob("*_chunks.json"):
-        with open(chunk_file, encoding="utf-8") as f:
-            chunks = json.load(f)
-            all_chunks.extend(chunks)
-
-    # Embed and build vector store
-    embedder = ChunkEmbedder(model_name=MODEL_NAME)
-    embedded_chunks = embedder.embed_chunks(all_chunks)
-
-    # Create embeddings instance for VectorStore
-    from langchain_huggingface import HuggingFaceEmbeddings
-
-    embeddings = HuggingFaceEmbeddings(model_name=MODEL_NAME)
-
-    # Use factory to create vector store (automatically uses Qdrant if configured)
-    vector_store = VectorStoreFactory.create_vector_store(
-        embeddings=embeddings,
-        index_path=str(VECTOR_STORE_DIR / "faiss_index"),  # For FAISS fallback
+    tags=["greengovrag", "etl", "rag"],
+) as dag:
+    # Task 1: Ingest documents from config
+    ingest_task = BashOperator(
+        task_id="ingest_documents",
+        bash_command="greengovrag-cli etl ingest --config configs/documents_config.yml",
+        cwd="/home/sundeep/github/green-gov-rag/backend",
     )
-    vector_store.build_store(embedded_chunks)
-    vector_store.persist()
 
-
-def task_test_rag() -> None:
-    """Test RAG with sample query."""
-    from langchain_huggingface import HuggingFaceEmbeddings
-
-    embeddings = HuggingFaceEmbeddings(model_name=MODEL_NAME)
-
-    # Load vector store using factory
-    vector_store = VectorStoreFactory.create_vector_store(
-        embeddings=embeddings,
-        index_path=str(VECTOR_STORE_DIR / "faiss_index"),  # For FAISS fallback
+    # Task 2: Parse documents (PDF/HTML to text)
+    parse_task = BashOperator(
+        task_id="parse_documents",
+        bash_command="greengovrag-cli etl parse --input data/raw --output data/processed",
+        cwd="/home/sundeep/github/green-gov-rag/backend",
     )
-    # Load existing data
-    if hasattr(vector_store, "load"):
-        vector_store.load(str(VECTOR_STORE_DIR))
 
-    rag_chain = RAGChain(vector_store)
-    query = "What are the biodiversity offsets in NSW?"
-    result = rag_chain.query(query)
-    print("RAG Query Result:\n", result)
+    # Task 3: Chunk documents
+    chunk_task = BashOperator(
+        task_id="chunk_documents",
+        bash_command=(
+            "greengovrag-cli etl chunk "
+            "--input data/processed "
+            "--output data/chunks "
+            "--chunk-size 1000 "
+            "--chunk-overlap 100"
+        ),
+        cwd="/home/sundeep/github/green-gov-rag/backend",
+    )
 
+    # Task 4: Load chunks to database
+    load_db_task = BashOperator(
+        task_id="load_chunks_to_db",
+        bash_command="greengovrag-cli db load-chunks --chunks-dir data/chunks --batch-size 100",
+        cwd="/home/sundeep/github/green-gov-rag/backend",
+    )
 
-# --- Operators ---
-ingest_task = PythonOperator(
-    task_id="ingest_docs",
-    python_callable=task_ingest_docs,
-    dag=dag,
-)
-parse_task = PythonOperator(
-    task_id="parse_docs",
-    python_callable=task_parse_docs,
-    dag=dag,
-)
-chunk_task = PythonOperator(
-    task_id="chunk_docs",
-    python_callable=task_chunk_docs,
-    dag=dag,
-)
-vector_task = PythonOperator(
-    task_id="build_vector_store",
-    python_callable=task_build_vector_store,
-    dag=dag,
-)
-test_rag_task = PythonOperator(
-    task_id="test_rag_query",
-    python_callable=task_test_rag,
-    dag=dag,
-)
+    # Task 5: Build vector store index
+    index_task = BashOperator(
+        task_id="build_vector_index",
+        bash_command=(
+            "greengovrag-cli rag index "
+            "--chunks data/chunks "
+            "--vector-store faiss "
+            "--collection greengovrag"
+        ),
+        cwd="/home/sundeep/github/green-gov-rag/backend",
+    )
 
-# --- Dependencies ---
-ingest_task >> parse_task >> chunk_task >> vector_task >> test_rag_task
+    # Task 6: Test query
+    test_query_task = BashOperator(
+        task_id="test_rag_query",
+        bash_command=(
+            "greengovrag-cli rag query "
+            '"What are the key environmental regulations in Australia?" '
+            "--top-k 3"
+        ),
+        cwd="/home/sundeep/github/green-gov-rag/backend",
+    )
+
+    # Define task dependencies
+    (
+        ingest_task
+        >> parse_task
+        >> chunk_task
+        >> load_db_task
+        >> index_task
+        >> test_query_task
+    )

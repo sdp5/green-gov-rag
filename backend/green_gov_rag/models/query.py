@@ -16,6 +16,25 @@ class QueryHistory(SQLModel, table=True):
     # Primary key
     id: Optional[int] = Field(default=None, primary_key=True)
 
+    # User tracking
+    session_id: Optional[str] = Field(
+        default=None,
+        index=True,
+        description="Browser session ID for user-specific query history",
+    )
+    ip_address: Optional[str] = Field(
+        default=None,
+        description="Client IP address (anonymized for privacy)",
+    )
+    user_agent: Optional[str] = Field(
+        default=None,
+        description="Client user agent string",
+    )
+    referer: Optional[str] = Field(
+        default=None,
+        description="HTTP referer header",
+    )
+
     # Query details
     query_text: str = Field(index=True, description="User query text")
     answer: str = Field(description="Generated answer")

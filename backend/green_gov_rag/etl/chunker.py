@@ -14,8 +14,7 @@ from typing import Any
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter, TokenTextSplitter
 
-DEFAULT_CHUNK_SIZE = 1000
-DEFAULT_CHUNK_OVERLAP = 100
+from green_gov_rag.types import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE
 
 
 class TextChunker:
@@ -90,6 +89,7 @@ class TextChunker:
 
         """
         chunked_docs = []
+        global_chunk_id = 0  # Sequential integer ID across all chunks
 
         for doc_chunk in hierarchical_chunks:
             content = doc_chunk.get("content", "")
@@ -105,12 +105,16 @@ class TextChunker:
                         "content": text_chunk,
                         "metadata": {
                             **metadata,  # Preserve all hierarchical metadata
+                            "original_chunk_id": metadata.get(
+                                "chunk_id"
+                            ),  # Original from parser
                             "sub_chunk_id": i,  # Track sub-chunks within section
-                            # Update chunk_id to be unique across all chunks
-                            "chunk_id": f"{metadata.get('chunk_id', 0)}_{i}",
+                            # Use global sequential integer chunk_id (required for DB)
+                            "chunk_id": global_chunk_id,
                         },
                     },
                 )
+                global_chunk_id += 1
 
         return chunked_docs
 

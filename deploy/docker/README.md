@@ -1,19 +1,21 @@
 # Docker Deployment
 
-Complete Docker setup for GreenGovRAG with all services.
+Docker setup for GreenGovRAG local development and testing.
+
+**Note**: For production deployments, use AWS (ECS Fargate) or Azure (Container Apps). See `deploy/aws/` and `deploy/azure/` directories.
 
 ## Services
 
-- **PostgreSQL** (port 5432) - Database
+- **PostgreSQL** (port 5432) - Database with pgvector extension
+- **Qdrant** (port 6333) - Vector database
 - **Redis** (port 6379) - Caching
 - **Backend** (port 8000) - FastAPI
-- **Frontend** (port 3000/80) - React
-- **Streamlit** (port 8501) - Legacy UI
-- **Airflow** (port 8080) - Orchestration
+- **Frontend** (port 3000/80) - React (WIP)
+- **Airflow** (port 8080) - ETL Orchestration
 
 ## Quick Start
 
-### Development
+### Local Development
 
 ```bash
 # Copy environment file
@@ -21,65 +23,89 @@ cp .env.example .env
 # Edit .env with your API keys
 
 # Start all services
-docker-compose up --build
+docker compose up --build
 
 # Or start specific services
-docker-compose up postgres redis backend
+docker compose up postgres qdrant redis backend
 ```
 
-### Production
+### Airflow Only
+
+For ETL pipeline orchestration with Airflow:
 
 ```bash
-# Copy and configure
-cp .env.example .env
-# Edit with production values
-
-# Deploy
-docker-compose -f docker-compose.prod.yml up -d --build
-
-# View logs
-docker-compose -f docker-compose.prod.yml logs -f backend
-
-# Stop services
-docker-compose -f docker-compose.prod.yml down
+cd deploy/docker
+docker compose -f docker-compose.airflow.yml up --build
 ```
+
+See `airflow/README.md` for detailed Airflow documentation.
 
 ## Access Points
 
-| Service | URL | Description |
+| Service | URL | Credentials |
 |---------|-----|-------------|
-| Frontend | http://localhost:3000 | React UI |
-| Backend API | http://localhost:8000 | FastAPI |
+| Backend API | http://localhost:8000 | X-API-Key header required |
 | API Docs | http://localhost:8000/docs | Swagger UI |
-| Streamlit | http://localhost:8501 | Legacy UI |
-| Airflow | http://localhost:8080 | Orchestration |
-| PostgreSQL | localhost:5432 | Database |
+| Qdrant UI | http://localhost:6333/dashboard | Vector database |
+| PostgreSQL | localhost:5432 | greengovrag / greengovrag |
+| Redis | localhost:6379 | No auth (dev only) |
+
+**Airflow** (separate compose file):
+- Airflow UI: http://localhost:8080 (admin / admin)
+- See `airflow/README.md`
 
 ## Database Initialization
 
 ```bash
 # Run migrations
-docker-compose exec backend alembic upgrade head
+docker compose exec backend alembic upgrade head
 
 # Or manually
-docker-compose exec backend python -c "from green_gov_rag.models.base import init_db; init_db()"
+docker compose exec backend python -c "from green_gov_rag.models.base import init_db; init_db()"
 ```
+
+## Production Deployment
+
+**Docker Compose is NOT recommended for production.** Use cloud-native deployments:
+
+### AWS Deployment
+```bash
+cd deploy/aws
+cdk deploy
+```
+See `deploy/aws/README.md` for details.
+
+### Azure Deployment
+```bash
+cd deploy/azure
+az deployment group create --resource-group greengovrag-rg --template-file main.bicep
+```
+See `deploy/azure/README.md` for details.
 
 ## Troubleshooting
 
 ### Reset database
 ```bash
-docker-compose down -v
-docker-compose up -d postgres
-docker-compose exec backend alembic upgrade head
+docker compose down -v
+docker compose up -d postgres
+docker compose exec backend alembic upgrade head
 ```
 
 ### View logs
 ```bash
-docker-compose logs -f [service_name]
+docker compose logs -f [service_name]
 ```
 
 ### Rebuild specific service
 ```bash
-docker-compose up -d --build backend
+docker compose up -d --build backend
+```
+
+### Check vector store
+```bash
+# Qdrant collections
+curl http://localhost:6333/collections
+
+# Qdrant health
+curl http://localhost:6333/health
 ```

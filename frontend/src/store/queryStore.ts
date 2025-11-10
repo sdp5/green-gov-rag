@@ -7,6 +7,7 @@ interface QueryState {
     region?: string;
     jurisdiction?: string;
     topics?: string[];
+    lgas?: string[];
   };
   results: QueryResponse | null;
   isLoading: boolean;

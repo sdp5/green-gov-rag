@@ -47,24 +47,57 @@ class ChunkEmbedder:
             msg = "provider must be 'bedrock' or 'huggingface'"
             raise ValueError(msg)
 
-    def embed_chunks(self, chunks: list[dict]) -> list[dict]:
-        """Generate embeddings for a list of chunk dictionaries.
+    def embed_chunks(
+        self, chunks: list[dict], batch_size: int = 100, show_progress: bool = True
+    ) -> list[dict]:
+        """Generate embeddings for a list of chunk dictionaries using batching.
 
         :param chunks: List of dicts with at least {"content": str, "metadata": dict}
+        :param batch_size: Number of chunks to embed per batch (default: 100)
+        :param show_progress: Show progress information (default: True)
         :return: List of dicts with {"content", "metadata", "embedding"}
         """
         embedded_chunks = []
-        for chunk in chunks:
-            text = chunk.get("content")
-            metadata = chunk.get("metadata", {})
 
-            if not text or not text.strip():
-                continue
+        # Filter out empty chunks
+        valid_chunks = [
+            chunk
+            for chunk in chunks
+            if chunk.get("content") and str(chunk.get("content")).strip()
+        ]
 
-            vector = self.embedder.embed_query(text)
-            embedded_chunks.append(
-                {"content": text, "metadata": metadata, "embedding": vector},
+        if not valid_chunks:
+            return []
+
+        total_batches = (len(valid_chunks) + batch_size - 1) // batch_size
+
+        for i in range(0, len(valid_chunks), batch_size):
+            batch = valid_chunks[i : i + batch_size]
+            batch_num = i // batch_size + 1
+
+            # Extract texts and metadata
+            texts = [chunk["content"] for chunk in batch]
+            metadatas = [chunk.get("metadata", {}) for chunk in batch]
+
+            # Generate embeddings for entire batch at once
+            vectors = self.embedder.embed_documents(texts)
+
+            # Combine results
+            for text, metadata, vector in zip(texts, metadatas, vectors):
+                embedded_chunks.append(
+                    {"content": text, "metadata": metadata, "embedding": vector}
+                )
+
+            if show_progress and batch_num % 10 == 0:
+                print(
+                    f"   Processed batch {batch_num}/{total_batches} ({len(embedded_chunks)} chunks)"
+                )
+
+        if show_progress:
+            print(
+                f"   Completed: {len(embedded_chunks)} chunks embedded in {total_batches} batches"
             )
+
         return embedded_chunks
 
 

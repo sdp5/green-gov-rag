@@ -6,13 +6,43 @@ RAG operations, and metadata tagging for Australian ESG/NGER documents.
 
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import json
+import shutil
 from pathlib import Path
 from typing import Optional
 
 import typer
 from rich.console import Console
 from rich.table import Table
+from sqlmodel import Session, select
+
+# Import all required modules at the top
+from green_gov_rag.api.services.monitoring_service import MonitoringService
+from green_gov_rag.etl import ingest
+from green_gov_rag.etl.chunker import TextChunker
+from green_gov_rag.etl.db_writer import (
+    save_chunk,
+    save_document_file,
+    save_document_source,
+    save_document_version,
+    update_document_file_status,
+    update_document_source_status,
+)
+from green_gov_rag.etl.metadata_tagger import MetadataTagger
+from green_gov_rag.etl.parsers import parse_file
+from green_gov_rag.etl.parsers.layout_parser import HierarchicalPDFParser
+from green_gov_rag.etl.parsers.unstructured_parser import UnstructuredPDFParser
+from green_gov_rag.etl.pipeline import EnhancedETLPipeline
+from green_gov_rag.models.base import engine
+from green_gov_rag.models.document_version import DocumentVersion
+from green_gov_rag.rag.embeddings import ChunkEmbedder
+from green_gov_rag.rag.hybrid_search import HybridGeospatialSearch, SpatialQuery
+from green_gov_rag.rag.location_ner import LocationNER
+from green_gov_rag.rag.vector_store import VectorStore
+from green_gov_rag.rag.vector_store_factory import create_vector_store
+from green_gov_rag.types import PDFParserStrategy, get_lga_mappings
 
 app = typer.Typer(
     help="GreenGovRAG CLI: AI Assistant for Australian Environmental & Planning Regulations",
@@ -28,9 +58,14 @@ rag_app = typer.Typer(
     help="RAG Operations: Query, search, and retrieval",
     no_args_is_help=True,
 )
+db_app = typer.Typer(
+    help="Database Operations: Load and manage documents and chunks",
+    no_args_is_help=True,
+)
 
 app.add_typer(etl_app, name="etl")
 app.add_typer(rag_app, name="rag")
+app.add_typer(db_app, name="db")
 
 console = Console()
 
@@ -48,32 +83,27 @@ def etl_ingest(
         "-c",
         help="Path to documents configuration YAML file",
     ),
-    output_dir: str = typer.Option(
-        "data/raw",
-        "--output",
-        "-o",
-        help="Output directory for downloaded documents",
-    ),
 ) -> None:
     """Download documents listed in the configuration file.
 
     Fetches ESG/NGER documents from URLs specified in the config and saves
-    them to the output directory with appropriate metadata.
+    them to a hierarchical directory structure organized by jurisdiction,
+    category, and topic.
+
+    Documents are saved to: data/raw/{jurisdiction}/{category}/{topic}/
 
     Example:
     -------
-        green-gov-rag-cli etl ingest --config configs/my_docs.yml
+        greengovrag-cli etl ingest --config configs/my_docs.yml
 
     """
-    from green_gov_rag.etl import ingest, loader
-
     console.print(f"[bold blue]Loading config from {config_path}...[/bold blue]")
-    docs = loader.load_documents_config(config_path)
-    console.print(f"Found {len(docs)} documents to download")
 
-    ingest.download_documents(docs, output_dir)
+    # Use ingest_documents() which creates hierarchical structure
+    ingest.ingest_documents(use_cloud=False, config_path=config_path)
+
     console.print(
-        f"[bold green]✓ Downloaded {len(docs)} documents to {output_dir}[/bold green]",
+        "[bold green]✓ Ingestion complete. Processed documents saved to data/raw/[/bold green]",
     )
 
 
@@ -106,23 +136,27 @@ def etl_parse(
 
     Example:
     -------
-        green-gov-rag-cli etl parse --input data/raw --output data/processed
+        greengovrag-cli etl parse --input data/raw --output data/processed
 
     """
-    from green_gov_rag.etl.parsers import get_parser
-
     console.print(f"[bold blue]Parsing documents from {input_dir}...[/bold blue]")
 
     parsed_count = 0
     for doc_file in Path(input_dir).rglob("*"):
         if doc_file.is_file() and doc_file.suffix in [".pdf", ".html", ".htm"]:
             try:
-                parser = get_parser(str(doc_file))
-                text = parser(str(doc_file))
+                text = parse_file(str(doc_file))
 
                 out_file = Path(output_dir) / (doc_file.stem + ".txt")
                 out_file.parent.mkdir(parents=True, exist_ok=True)
                 out_file.write_text(text, encoding="utf-8")
+
+                # Copy metadata file if it exists
+                metadata_file = doc_file.with_suffix(doc_file.suffix + ".metadata.json")
+                if metadata_file.exists():
+                    out_metadata = out_file.with_suffix(".metadata.json")
+                    shutil.copy2(metadata_file, out_metadata)
+                    console.print(f"    → Copied metadata: {metadata_file.name}")
 
                 parsed_count += 1
                 console.print(f"  ✓ Parsed: {doc_file.name}")
@@ -156,34 +190,148 @@ def etl_chunk(
     ),
     chunk_overlap: int = typer.Option(
         100,
-        "--overlap",
+        "--chunk-overlap",
         help="Overlap between chunks in characters",
+    ),
+    raw_dir: str = typer.Option(
+        "data/raw",
+        "--raw-dir",
+        help="Directory containing original PDF files for citation extraction",
+    ),
+    mode: str = typer.Option(
+        "auto",
+        "--mode",
+        "-m",
+        help="Chunking mode: 'full' (process all), 'delta' (skip existing), 'auto' (use delta if output exists)",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Force re-chunking even if output exists (overrides delta mode)",
+    ),
+    use_fast_strategy: bool = typer.Option(
+        True,
+        "--fast/--accurate",
+        help="Use fast parsing strategy (10x faster, slightly lower accuracy) vs accurate (slower, higher accuracy)",
     ),
 ) -> None:
     """Chunk parsed documents into smaller text segments.
 
     Splits documents into manageable chunks for embedding and retrieval,
-    preserving context through overlapping windows.
+    preserving context through overlapping windows. For PDFs, extracts
+    citation metadata (page numbers, section hierarchy, clause references).
+
+    Modes:
+    - full: Process all files (ignores existing chunks)
+    - delta: Skip files with existing chunk output
+    - auto: Use delta mode by default (recommended)
 
     Example:
     -------
-        green-gov-rag-cli etl chunk --chunk-size 1000 --overlap 100
+        # Fast delta processing (default, recommended)
+        greengovrag-cli etl chunk
+
+        # Full re-processing with accurate mode
+        greengovrag-cli etl chunk --mode full --accurate
+
+        # Force re-chunk specific files
+        greengovrag-cli etl chunk --force
 
     """
-    from green_gov_rag.etl.chunker import TextChunker
+    # Validate mode
+    if mode not in ["full", "delta", "auto"]:
+        console.print(f"[red]Error: Invalid mode '{mode}'[/red]")
+        console.print("Valid modes: full, delta, auto")
+        raise typer.Exit(1)
+
+    # Determine effective mode
+    effective_mode = mode
+    if mode == "auto":
+        effective_mode = "delta"  # Default to delta for auto mode
+
+    if force:
+        effective_mode = "full"  # Force overrides mode
 
     console.print(f"[bold blue]Chunking documents from {input_dir}...[/bold blue]")
     console.print(f"Chunk size: {chunk_size}, Overlap: {chunk_overlap}")
+    console.print(
+        f"Mode: {effective_mode}, Strategy: {'fast' if use_fast_strategy else 'accurate'}"
+    )
 
     chunker = TextChunker(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+
+    # Initialize parser with strategy
+    hierarchical_parser = HierarchicalPDFParser()
+    if use_fast_strategy:
+        # Pre-initialize with fast strategy
+        fast_parser: UnstructuredPDFParser = UnstructuredPDFParser(
+            strategy=PDFParserStrategy.FAST.value
+        )
+        hierarchical_parser._unstructured_parser = fast_parser
+
     chunked_count = 0
+    skipped_count = 0
 
     for txt_file in Path(input_dir).rglob("*.txt"):
         try:
-            text = txt_file.read_text(encoding="utf-8")
-            chunks = chunker.chunk_text(text)
-
+            # Check if output already exists (delta mode)
             out_file = Path(output_dir) / (txt_file.stem + "_chunks.json")
+
+            if effective_mode == "delta" and out_file.exists():
+                skipped_count += 1
+                console.print(f"  ⊘ Skipped: {txt_file.name} (already chunked)")
+                continue
+
+            # Look for corresponding metadata file from ingestion
+            metadata_file = txt_file.parent / (txt_file.stem + ".metadata.json")
+            base_metadata = {}
+            if metadata_file.exists():
+                with open(metadata_file) as f:
+                    base_metadata = json.load(f)
+
+            # Try to find original PDF in raw directory for citation extraction
+            pdf_file = None
+            for pdf_path in Path(raw_dir).rglob(f"{txt_file.stem}.pdf"):
+                pdf_file = pdf_path
+                break
+
+            chunks = []
+
+            if pdf_file and pdf_file.exists() and hierarchical_parser:
+                # Use hierarchical parser for PDFs to extract citation metadata
+                try:
+                    hierarchical_chunks = hierarchical_parser.parse_with_structure(
+                        pdf_file, base_metadata=base_metadata
+                    )
+                    # Further chunk if needed (preserving citation metadata)
+                    chunks = chunker.chunk_with_hierarchy(hierarchical_chunks)
+                    console.print(
+                        f"  → Extracted citation metadata from PDF: {pdf_file.name}"
+                    )
+                except Exception as e:
+                    console.print(
+                        f"  [yellow]Warning: Failed to extract citations from PDF, "
+                        f"falling back to text chunking: {e}[/yellow]"
+                    )
+                    pdf_file = None  # Fall back to text chunking
+
+            # Fallback: simple text chunking without citation metadata
+            if not pdf_file or not chunks:
+                text = txt_file.read_text(encoding="utf-8")
+                text_chunks = chunker.chunk_text(text)
+
+                for i, chunk_text in enumerate(text_chunks):
+                    chunk_obj = {
+                        "content": chunk_text,
+                        "metadata": {
+                            **base_metadata,  # Include document-level metadata
+                            "chunk_index": i,  # Sequential index within document
+                            "source_file": txt_file.stem,
+                        },
+                    }
+                    chunks.append(chunk_obj)
+
             out_file.parent.mkdir(parents=True, exist_ok=True)
 
             with open(out_file, "w", encoding="utf-8") as f:
@@ -194,9 +342,14 @@ def etl_chunk(
         except Exception as e:
             console.print(f"  ✗ Failed to chunk {txt_file.name}: {e}", style="red")
 
+    # Summary
     console.print(
         f"[bold green]✓ Chunked {chunked_count} documents to {output_dir}[/bold green]",
     )
+    if skipped_count > 0:
+        console.print(
+            f"[dim]Delta mode: Skipped {skipped_count} already-chunked files[/dim]"
+        )
 
 
 @etl_app.command("tag-metadata")
@@ -214,7 +367,7 @@ def etl_tag_metadata(
         help="Output directory for tagged documents",
     ),
     model: str = typer.Option(
-        "gpt-4",
+        "gpt-5-mini",
         "--model",
         "-m",
         help="LLM model for metadata extraction",
@@ -227,11 +380,9 @@ def etl_tag_metadata(
 
     Example:
     -------
-        green-gov-rag-cli etl tag-metadata --model gpt-4
+        greengovrag-cli etl tag-metadata --model gpt-5-mini
 
     """
-    from green_gov_rag.etl.metadata_tagger import MetadataTagger
-
     console.print(f"[bold blue]Auto-tagging documents from {input_dir}...[/bold blue]")
     console.print(f"Using model: {model}")
 
@@ -294,10 +445,6 @@ def etl_monitor(
         greengovrag etl monitor --trigger-etl
 
     """
-    import asyncio
-
-    from green_gov_rag.api.services.monitoring_service import MonitoringService
-
     console.print("[bold blue]Monitoring document sources...[/bold blue]")
 
     # Run monitoring service
@@ -353,8 +500,6 @@ def etl_monitor(
 
         if trigger_etl:
             console.print("\n[bold blue]Triggering ETL pipeline...[/bold blue]")
-            # Import and run the pipeline command
-            from green_gov_rag.etl.pipeline import EnhancedETLPipeline
 
             pipeline = EnhancedETLPipeline(enable_auto_tagging=True)
             config_path = "configs/documents_config.yml"
@@ -401,11 +546,9 @@ def etl_pipeline(
 
     Example:
     -------
-        green-gov-rag-cli etl pipeline --config configs/etl_config.yml
+        greengovrag-cli etl pipeline --config configs/etl_config.yml
 
     """
-    from green_gov_rag.etl.pipeline import EnhancedETLPipeline
-
     console.print("[bold blue]Starting ETL pipeline...[/bold blue]")
 
     pipeline = EnhancedETLPipeline(enable_auto_tagging=enable_tagging)
@@ -431,19 +574,30 @@ def etl_pipeline(
 # ============================================================================
 
 
-@rag_app.command("build-index")
-def rag_build_index(
+@rag_app.command("index")
+def rag_index(
     chunks_dir: str = typer.Option(
         "data/chunks",
         "--chunks",
         "-c",
         help="Directory containing chunked documents",
     ),
-    index_path: str = typer.Option(
-        "data/vector_store/faiss.index",
+    vector_store: str = typer.Option(
+        "faiss",
+        "--vector-store",
+        "-v",
+        help="Vector store type: faiss or qdrant (chromadb coming soon)",
+    ),
+    collection: str = typer.Option(
+        "greengovrag",
+        "--collection",
+        help="Collection/index name (for qdrant/chromadb)",
+    ),
+    output_path: Optional[str] = typer.Option(
+        None,
         "--output",
         "-o",
-        help="Output path for vector store index",
+        help="Output path for index (FAISS only, default: data/vector_store/<store_type>)",
     ),
     embedding_model: str = typer.Option(
         "all-MiniLM-L6-v2",
@@ -451,48 +605,242 @@ def rag_build_index(
         "-m",
         help="Embedding model to use",
     ),
+    changed_files: Optional[str] = typer.Option(
+        None,
+        "--changed-files",
+        help="JSON file with list of changed document IDs (for delta/incremental indexing)",
+    ),
+    mode: str = typer.Option(
+        "auto",
+        "--mode",
+        help="Indexing mode: 'full' (rebuild entire index), 'delta' (update only changed), 'auto' (default, use delta if changed_files provided)",
+    ),
+    batch_size: int = typer.Option(
+        100,
+        "--batch-size",
+        "-b",
+        help="Number of chunks to process per batch (default: 100, recommended: 50-200)",
+    ),
 ) -> None:
     """Build vector search index from document chunks.
 
-    Creates a vector store (FAISS) from chunked documents with embeddings
-    for semantic similarity search.
+    Supports FAISS (local) and Qdrant (server-based). ChromaDB support coming soon.
 
-    Example:
-    -------
-        green-gov-rag-cli rag build-index --chunks data/chunks
+    Indexing modes:
+    - Full: Rebuild entire index from all chunks (default when no --changed-files)
+    - Delta: Update only changed documents (use with --changed-files)
+    - Auto: Automatically use delta if --changed-files provided, otherwise full
+
+    Examples:
+    --------
+        # Full indexing - FAISS (local, file-based - recommended for development)
+        greengovrag-cli rag index --chunks data/chunks --vector-store faiss
+
+        # Full indexing - Qdrant (server-based - recommended for production)
+        greengovrag-cli rag index --chunks data/chunks --vector-store qdrant --collection greengovrag
+
+        # Delta indexing - Only index changed documents (incremental update)
+        greengovrag-cli rag index --chunks data/chunks --vector-store qdrant \\
+            --collection greengovrag --changed-files changed_docs.json --mode delta
+
+    Changed files format (JSON):
+    --------
+        {
+            "changed_document_ids": ["doc_id_1", "doc_id_2", ...],
+            "total_changed": 5
+        }
 
     """
-    from green_gov_rag.rag.embeddings import ChunkEmbedder
-    from green_gov_rag.rag.vector_store import VectorStore
+    # Validate vector store type
+    valid_stores = ["faiss", "qdrant"]
+    available_stores = ["faiss", "qdrant", "chromadb (coming soon)"]
+    if vector_store.lower() not in valid_stores:
+        console.print(
+            f"[red]✗ Invalid vector store: {vector_store}[/red]",
+            style="bold",
+        )
+        console.print(f"Available options: {', '.join(available_stores)}")
+        raise typer.Exit(1)
+
+    # Determine indexing mode
+    if mode == "auto":
+        indexing_mode = "delta" if changed_files else "full"
+    else:
+        indexing_mode = mode
+
+    # Validate mode
+    if indexing_mode not in ["full", "delta"]:
+        console.print(
+            f"[red]✗ Invalid mode: {indexing_mode}[/red]",
+            style="bold",
+        )
+        console.print("Valid modes: full, delta, auto")
+        raise typer.Exit(1)
+
+    # Load changed document IDs if provided
+    changed_doc_ids = set()
+    if changed_files:
+        if not Path(changed_files).exists():
+            console.print(
+                f"[red]✗ Changed files JSON not found: {changed_files}[/red]",
+                style="bold",
+            )
+            raise typer.Exit(1)
+
+        with open(changed_files, encoding="utf-8") as f:
+            changed_data = json.load(f)
+            changed_doc_ids = set(changed_data.get("changed_document_ids", []))
+
+        console.print(
+            f"[dim]Loaded {len(changed_doc_ids)} changed document IDs from {changed_files}[/dim]"
+        )
 
     console.print("[bold blue]Building vector search index...[/bold blue]")
+    console.print(f"Vector store: {vector_store}")
     console.print(f"Embedding model: {embedding_model}")
+    console.print(f"Indexing mode: {indexing_mode}")
+    console.print(f"Batch size: {batch_size}")
 
     # Load chunks
     all_chunks = []
+    skipped_files = 0
+    processed_files = 0
+
     for chunk_file in Path(chunks_dir).rglob("*_chunks.json"):
+        # In delta mode, check if we should skip this file
+        if indexing_mode == "delta" and changed_doc_ids:
+            # Try to get file_id from chunk metadata to check if it's in changed set
+            with open(chunk_file, encoding="utf-8") as f:
+                temp_chunks = json.load(f)
+                if temp_chunks and isinstance(temp_chunks[0], dict):
+                    file_id_in_chunks = (
+                        temp_chunks[0].get("metadata", {}).get("file_id")
+                    )
+                    if file_id_in_chunks and file_id_in_chunks not in changed_doc_ids:
+                        skipped_files += 1
+                        continue
+
         with open(chunk_file, encoding="utf-8") as f:
             chunks = json.load(f)
-            all_chunks.extend(chunks)
+
+            # Normalize chunks to dict format
+            # file_id, source_id, and source_pdf_url should already be in metadata
+            # from the load-chunks command
+            normalized_chunks = []
+            for i, chunk in enumerate(chunks):
+                if isinstance(chunk, str):
+                    # Legacy format - convert string chunks to dict format
+                    chunk_metadata = {
+                        "source": str(chunk_file.stem),
+                        "chunk_index": i,
+                    }
+                    normalized_chunks.append(
+                        {
+                            "content": chunk,
+                            "metadata": chunk_metadata,
+                        }
+                    )
+                elif isinstance(chunk, dict):
+                    # Modern format - metadata should already contain file_id, source_id, etc.
+                    # Just pass through as-is
+                    normalized_chunks.append(chunk)
+                else:
+                    console.print(
+                        f"[yellow]⚠ Skipping invalid chunk type: {type(chunk)}[/yellow]"
+                    )
+
+            all_chunks.extend(normalized_chunks)
+            processed_files += 1
+
+    if indexing_mode == "delta":
+        console.print(
+            f"[dim]Delta mode: Processed {processed_files} changed files, skipped {skipped_files} unchanged files[/dim]"
+        )
+
+    if not all_chunks:
+        console.print(f"[red]✗ No chunks found in {chunks_dir}[/red]")
+        raise typer.Exit(1)
 
     console.print(f"Loaded {len(all_chunks)} chunks")
 
     # Create embeddings
     console.print("Generating embeddings...")
+    console.print(
+        f"[dim]Note: This may take 20-60 minutes for {len(all_chunks)} chunks on CPU[/dim]"
+    )
     embedder = ChunkEmbedder(provider="huggingface", model_name=embedding_model)
 
     # Build vector store
-    console.print("Building vector store...")
-    vector_store = VectorStore(embeddings=embedder.embedder)
-    vector_store.build_store(all_chunks)
-
-    # Save index
-    Path(index_path).parent.mkdir(parents=True, exist_ok=True)
-    vector_store.persist(index_path)
-
+    console.print(f"Building {vector_store} vector store...")
     console.print(
-        f"[bold green]✓ Vector index built and saved to {index_path}[/bold green]",
+        "[dim]Embedding and indexing in progress (no progress bar available yet)...[/dim]"
     )
+
+    # Determine output path
+    if output_path is None:
+        output_path = f"data/vector_store/{vector_store}"
+        if vector_store == "faiss":
+            output_path += ".index"
+
+    store_kwargs = {}
+    if vector_store == "qdrant":
+        store_kwargs["collection_name"] = collection
+    elif vector_store == "chromadb":
+        store_kwargs["collection_name"] = collection
+        store_kwargs["persist_directory"] = output_path
+    elif vector_store == "faiss":
+        store_kwargs["index_path"] = output_path
+
+    try:
+        vs = create_vector_store(
+            embeddings=embedder.embedder,
+            store_type=vector_store,
+            **store_kwargs,
+        )
+
+        # Handle delta vs full indexing
+        if indexing_mode == "delta" and changed_doc_ids:
+            # Delta mode: Delete old versions of changed docs, then add new versions
+            console.print(
+                "[dim]Delta mode: Deleting old versions of changed documents...[/dim]"
+            )
+
+            total_deleted = 0
+            for doc_id in changed_doc_ids:
+                try:
+                    deleted = vs.delete_by_metadata({"document_id": doc_id})
+                    total_deleted += deleted
+                except Exception as e:
+                    console.print(
+                        f"[yellow]⚠ Failed to delete old version of {doc_id}: {e}[/yellow]"
+                    )
+
+            console.print(f"[dim]Deleted {total_deleted} old chunks[/dim]")
+
+            # Add new chunks (only for changed documents)
+            console.print("[dim]Adding updated chunks...[/dim]")
+            vs.add_chunks(all_chunks)
+
+        else:
+            # Full mode: Rebuild entire index
+            vs.build_store(all_chunks)
+
+        # Persist for file-based stores
+        if vector_store in ["faiss", "chromadb"]:
+            Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+            vs.persist(output_path)
+            console.print(
+                f"[bold green]✓ Vector index built and saved to {output_path}[/bold green]",
+            )
+        else:
+            mode_str = f" ({indexing_mode} mode)" if indexing_mode == "delta" else ""
+            console.print(
+                f"[bold green]✓ Vector index built in {vector_store} collection: {collection}{mode_str}[/bold green]",
+            )
+
+    except Exception as e:
+        console.print(f"[red]✗ Failed to build vector store: {e}[/red]")
+        raise typer.Exit(1)
 
 
 @rag_app.command("query")
@@ -531,16 +879,10 @@ def rag_query(
 
     Example:
     -------
-        green-gov-rag-cli rag query "What are NGER reporting requirements?" --region SA
+        greengovrag-cli rag query "What are NGER reporting requirements?" --region SA
 
     """
-    from green_gov_rag.rag.hybrid_search import HybridGeospatialSearch
-    from green_gov_rag.rag.vector_store import VectorStore
-
     console.print(f"[bold blue]Searching for:[/bold blue] {query}")
-
-    # Initialize embeddings and load vector store
-    from green_gov_rag.rag.embeddings import ChunkEmbedder
 
     embedder = ChunkEmbedder(provider="huggingface")
     vector_store = VectorStore(embeddings=embedder.embedder, index_path=index_path)
@@ -596,13 +938,9 @@ def rag_geospatial_search(
 
     Example:
     -------
-        green-gov-rag-cli rag geospatial-search "tree preservation rules" --location Adelaide
+        greengovrag-cli rag geospatial-search "tree preservation rules" --location Adelaide
 
     """
-    from green_gov_rag.rag.hybrid_search import HybridGeospatialSearch, SpatialQuery
-    from green_gov_rag.rag.location_ner import LocationNER
-    from green_gov_rag.rag.vector_store import VectorStore
-
     console.print(f"[bold blue]Geospatial search:[/bold blue] {query}")
     console.print(f"[bold blue]Location:[/bold blue] {location}")
 
@@ -627,8 +965,6 @@ def rag_geospatial_search(
         spatial_query = None
 
     # Load vector store and search
-    from green_gov_rag.rag.embeddings import ChunkEmbedder
-
     embedder = ChunkEmbedder(provider="huggingface")
     vector_store = VectorStore(embeddings=embedder.embedder, index_path=index_path)
 
@@ -659,11 +995,9 @@ def rag_list_locations() -> None:
 
     Example:
     -------
-        green-gov-rag-cli rag list-locations
+        greengovrag-cli rag list-locations
 
     """
-    from green_gov_rag.types import get_lga_mappings
-
     lga_mappings = get_lga_mappings()
 
     console.print("[bold blue]Known LGA Locations:[/bold blue]\n")
@@ -691,6 +1025,312 @@ def rag_list_locations() -> None:
 # ============================================================================
 
 
+# ============================================================================
+# Database Commands
+# ============================================================================
+
+
+def _build_citation(title: str, metadata: dict) -> str:
+    """Build formatted citation string from chunk metadata.
+
+    Format: "{Title} {clause_ref}, pp.{page_range}"
+    Example: "NGER Act 2007 (Cth) s.10.2, pp.42-45"
+
+    Args:
+    ----
+        title: Document title
+        metadata: Chunk metadata dict
+
+    Returns:
+    -------
+        Formatted citation string
+
+    """
+    parts = [title]
+
+    # Add clause reference if available (e.g., "s.3.2.1")
+    clause_ref = metadata.get("clause_reference")
+    if clause_ref:
+        parts.append(clause_ref)
+
+    # Add page information
+    page_range = metadata.get("page_range")
+    page_number = metadata.get("page_number")
+
+    if page_range and len(page_range) == 2:
+        start, end = page_range
+        if start == end:
+            parts.append(f"p.{start}")
+        else:
+            parts.append(f"pp.{start}-{end}")
+    elif page_number:
+        parts.append(f"p.{page_number}")
+
+    return " ".join(parts)
+
+
+@db_app.command("load-chunks")
+def load_chunks(
+    chunks_dir: Path = typer.Option(
+        Path("data/chunks"),
+        "--chunks-dir",
+        "-c",
+        help="Directory containing chunk JSON files",
+    ),
+    batch_size: int = typer.Option(
+        100,
+        "--batch-size",
+        "-b",
+        help="Number of chunks to insert per batch",
+    ),
+) -> None:
+    """Load chunk files into PostgreSQL database with metadata.
+
+    This command loads processed chunks from JSON files into the database,
+    populating the document_sources, document_files, and document_chunks tables
+    with all metadata including jurisdiction, category, topic, region, etc.
+
+    Example:
+        greengovrag-cli db load-chunks --chunks-dir data/chunks
+    """
+    console.print(f"[bold]Loading chunks from {chunks_dir}...[/bold]")
+
+    if not chunks_dir.exists():
+        console.print(f"[red]Error: Chunks directory not found: {chunks_dir}[/red]")
+        raise typer.Exit(1)
+
+    # Get all chunk JSON files
+    chunk_files = list(chunks_dir.glob("*_chunks.json"))
+
+    if not chunk_files:
+        console.print(f"[red]No chunk files found in {chunks_dir}[/red]")
+        raise typer.Exit(1)
+
+    console.print(f"[dim]Found {len(chunk_files)} chunk files[/dim]")
+
+    total_documents = 0
+    total_chunks = 0
+
+    for chunk_file in chunk_files:
+        try:
+            with open(chunk_file) as f:
+                data = json.load(f)
+
+            # Extract document metadata from first chunk
+            if not data:
+                console.print(
+                    f"[yellow]Skipping empty file: {chunk_file.name}[/yellow]"
+                )
+                continue
+
+            # Validate chunk format
+            first_chunk = data[0]
+            if isinstance(first_chunk, str):
+                console.print(
+                    f"[yellow]Warning: {chunk_file.name} contains legacy string format. "
+                    f"Please re-run chunking to generate proper metadata.[/yellow]"
+                )
+                continue
+
+            # Extract document-level metadata from first chunk
+            metadata = first_chunk.get("metadata", {})
+            title = metadata.get("title", chunk_file.stem.replace("_chunks", ""))
+
+            # Save document source record
+            source = save_document_source(
+                title=title,
+                source_url=metadata.get("source_url", ""),
+                jurisdiction=metadata.get("jurisdiction", "unknown"),
+                topic=metadata.get("topic", "general"),
+                region=metadata.get("region"),
+                category=metadata.get("category"),
+                esg_metadata=metadata.get("esg_metadata"),
+                spatial_metadata=metadata.get("spatial_metadata"),
+                metadata=metadata,
+                status="completed",
+            )
+
+            # Create a document file entry
+            # Note: chunk metadata may contain filename if available
+            filename = metadata.get("filename", f"{chunk_file.stem}.pdf")
+            source_pdf_url = metadata.get("source_pdf_url", "")
+
+            # Calculate content hash from chunk data (simplified approach)
+            content_for_hash = "".join([c.get("content", "") for c in data])
+            content_hash = hashlib.sha256(content_for_hash.encode()).hexdigest()
+
+            doc_file = save_document_file(
+                source_id=source.id,
+                filename=filename,
+                file_url=source_pdf_url,
+                content_hash=content_hash,
+                status="completed",
+            )
+
+            # Create document version record for citation verification
+            # Only create version if content has changed or no version exists
+            try:
+                with Session(engine) as session:
+                    # Check if a version with this content_hash already exists
+                    latest_version = session.exec(
+                        select(DocumentVersion)
+                        .where(DocumentVersion.file_id == doc_file.id)
+                        .order_by(DocumentVersion.version_number.desc())  # type: ignore[attr-defined]
+                    ).first()
+
+                    # Create version only if no existing version OR content has changed
+                    if (
+                        not latest_version
+                        or latest_version.content_hash != content_hash
+                    ):
+                        change_type = "new" if not latest_version else "updated"
+                        save_document_version(
+                            file_id=doc_file.id,
+                            source_id=source.id,
+                            content_hash=content_hash,
+                            source_url=source_pdf_url,
+                            file_size_bytes=None,  # Not available from chunk data
+                            change_type=change_type,
+                            metadata={
+                                "note": "Version from load-chunks command",
+                                "filename": filename,
+                            },
+                        )
+                        console.print(
+                            f"[dim]  Created document version ({change_type}) for {filename}[/dim]"
+                        )
+                    else:
+                        console.print(
+                            f"[dim]  Skipped version creation for {filename} (content unchanged)[/dim]"
+                        )
+            except Exception as e:
+                console.print(
+                    f"[yellow]Warning: Failed to create document version: {e}[/yellow]"
+                )
+
+            total_documents += 1
+
+            # Update chunk JSON with file_id and source_id metadata
+            # This makes future indexing operations independent of database
+            chunks_updated = False
+            for chunk in data:
+                if isinstance(chunk, dict):
+                    if "metadata" not in chunk:
+                        chunk["metadata"] = {}
+                    # Add file_id and source_id if not already present
+                    if "file_id" not in chunk["metadata"]:
+                        chunk["metadata"]["file_id"] = doc_file.id
+                        chunks_updated = True
+                    if "source_id" not in chunk["metadata"]:
+                        chunk["metadata"]["source_id"] = source.id
+                        chunks_updated = True
+                    if "source_pdf_url" not in chunk["metadata"] and source_pdf_url:
+                        chunk["metadata"]["source_pdf_url"] = source_pdf_url
+                        chunks_updated = True
+
+            # Write back updated chunks to JSON file
+            if chunks_updated:
+                try:
+                    with open(chunk_file, "w") as f:
+                        json.dump(data, f, indent=2)
+                    console.print(
+                        f"[dim]  Updated {chunk_file.name} with file_id metadata[/dim]"
+                    )
+                except Exception as e:
+                    console.print(
+                        f"[yellow]Warning: Failed to update chunk file: {e}[/yellow]"
+                    )
+
+            # Save chunks in batches
+            chunk_count_for_doc = 0
+            for i in range(0, len(data), batch_size):
+                batch = data[i : i + batch_size]
+
+                for chunk in batch:
+                    chunk_metadata = chunk.get("metadata", {})
+
+                    # Use chunk_index from metadata (set during chunking)
+                    # Try chunk_id first (new format), fallback to chunk_index (legacy)
+                    chunk_idx = chunk_metadata.get("chunk_id") or chunk_metadata.get(
+                        "chunk_index", 0
+                    )
+
+                    # Build citation string if not already present
+                    citation = chunk_metadata.get("citation")
+                    if not citation:
+                        citation = _build_citation(title, chunk_metadata)
+
+                    # Build deep link to PDF page if page number is available
+                    deep_link = chunk_metadata.get("deep_link")
+                    if not deep_link and chunk_metadata.get("page_number"):
+                        page_num = chunk_metadata.get("page_number")
+
+                        # Try to build deep link from available metadata
+                        # Priority: 1) Direct PDF URL, 2) Source URL + filename, 3) Filename only
+                        source_url = chunk_metadata.get("source_url", "")
+                        filename = chunk_metadata.get("filename", "")
+
+                        if source_url and source_url.lower().endswith(".pdf"):
+                            # Direct PDF URL (external)
+                            deep_link = f"{source_url}#page={page_num}"
+                        elif filename and filename.lower().endswith(".pdf"):
+                            # Use API endpoint to serve PDF with page anchor
+                            # Format: /api/documents/files/{filename}#page={page_num}
+                            deep_link = (
+                                f"/api/documents/files/{filename}#page={page_num}"
+                            )
+
+                    save_chunk(
+                        source_id=source.id,
+                        file_id=doc_file.id,
+                        chunk_index=chunk_idx,
+                        text=chunk.get("content", ""),
+                        page_number=chunk_metadata.get("page_number"),
+                        page_range=chunk_metadata.get("page_range"),
+                        section_title=chunk_metadata.get("section_title"),
+                        section_hierarchy=chunk_metadata.get("section_hierarchy"),
+                        clause_reference=chunk_metadata.get("clause_reference"),
+                        source_pdf_url=source_pdf_url,
+                        deep_link=deep_link,
+                        citation=citation,
+                        metadata=chunk_metadata,
+                    )
+
+                total_chunks += len(batch)
+                chunk_count_for_doc += len(batch)
+                console.print(
+                    f"[dim]  Loaded batch {i//batch_size + 1}: "
+                    f"{len(batch)} chunks from {chunk_file.name}[/dim]"
+                )
+
+            # Update document source and file with chunk count
+            update_document_source_status(
+                source_id=source.id,
+                status="completed",
+                chunk_count=chunk_count_for_doc,
+            )
+
+            update_document_file_status(
+                file_id=doc_file.id,
+                status="completed",
+                chunk_count=chunk_count_for_doc,
+            )
+
+        except Exception as e:
+            console.print(f"[red]Error loading {chunk_file.name}: {e}[/red]")
+            continue
+
+    console.print(
+        f"\n[bold green]✓ Loaded {total_chunks} chunks from "
+        f"{total_documents} documents[/bold green]"
+    )
+
+
+# ============================================================================
+# General Commands
+# ============================================================================
+
+
 @app.command("version")
 def show_version() -> None:
     """Display GreenGovRAG version information."""
@@ -712,13 +1352,16 @@ def show_info() -> None:
 
     console.print("[bold]Available command groups:[/bold]")
     console.print("  • [cyan]etl[/cyan]  - ETL Pipeline operations")
-    console.print("  • [cyan]rag[/cyan]  - RAG query and search operations\n")
+    console.print("  • [cyan]rag[/cyan]  - RAG query and search operations")
+    console.print("  • [cyan]db[/cyan]   - Database load and management\n")
 
     console.print("[bold]Quick start:[/bold]")
-    console.print("  1. green-gov-rag-cli etl ingest")
-    console.print("  2. green-gov-rag-cli etl parse")
-    console.print("  3. green-gov-rag-cli rag build-index")
-    console.print("  4. green-gov-rag-cli rag query 'your question here'\n")
+    console.print("  1. greengovrag-cli etl ingest")
+    console.print("  2. greengovrag-cli etl parse")
+    console.print("  3. greengovrag-cli etl chunk")
+    console.print("  4. greengovrag-cli db load-chunks")
+    console.print("  5. greengovrag-cli rag index")
+    console.print("  6. greengovrag-cli rag query 'your question here'\n")
 
     console.print("Use --help with any command for more details")
 

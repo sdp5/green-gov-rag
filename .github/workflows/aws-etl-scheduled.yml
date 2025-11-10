@@ -2,7 +2,7 @@ name: ETL Pipeline - Scheduled
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+    - cron: '30 15 */2 * *'  # Every two days at 2 AM ACDT
   workflow_dispatch:
     inputs:
       config_path:
@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     # Disabled - change to true to enable ETL pipeline
     if: false
-    timeout-minutes: 120
+    timeout-minutes: 360
     permissions:
       id-token: write
       contents: read
@@ -63,23 +63,37 @@ jobs:
             --query 'SecurityGroups[0].GroupId' \
             --output text)
 
-          # Run ETL task
+          # Get S3 bucket for environment
+          BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`DocumentsBucket`].OutputValue' \
+            --output text)
+
+          # Run ETL task (ingest to S3, parse, chunk, index to Qdrant)
+          # Note: Documents stored in S3, vectors in Qdrant
           TASK_ARN=$(aws ecs run-task \
             --cluster $CLUSTER \
             --task-definition $TASK_FAMILY \
             --launch-type FARGATE \
             --platform-version LATEST \
             --network-configuration "awsvpcConfiguration={subnets=[$SUBNET],securityGroups=[$SG],assignPublicIp=ENABLED}" \
-            --overrides '{
-              "containerOverrides": [{
-                "name": "backend",
-                "command": [
-                  "python", "-m", "green_gov_rag.cli",
-                  "etl", "run-pipeline",
-                  "--config", "/app/data/configs/documents_config.yml"
+            --overrides "{
+              \"containerOverrides\": [{
+                \"name\": \"backend\",
+                \"environment\": [
+                  {\"name\": \"CLOUD_PROVIDER\", \"value\": \"aws\"},
+                  {\"name\": \"AWS_REGION\", \"value\": \"$AWS_REGION\"},
+                  {\"name\": \"STORAGE_CONTAINER\", \"value\": \"$BUCKET\"},
+                  {\"name\": \"VECTOR_STORE_TYPE\", \"value\": \"qdrant\"},
+                  {\"name\": \"QDRANT_API_KEY\", \"value\": \"${{ secrets.QDRANT_API_KEY }}\"},
+                  {\"name\": \"EMBEDDING_MODEL\", \"value\": \"${EMBEDDING_MODEL:-BAAI/bge-large-en-v1.5}\"}
+                ],
+                \"command\": [
+                  \"sh\", \"-c\",
+                  \"greengovrag-cli etl ingest --config /app/data/configs/documents_config.yml && greengovrag-cli etl parse --input data/raw --output data/processed && greengovrag-cli etl chunk --input data/processed --output data/chunks --chunk-size 500 --chunk-overlap 100 --mode delta --accurate --raw-dir data/raw && greengovrag-cli db load-chunks --chunks-dir data/chunks --batch-size 100 && greengovrag-cli rag index --chunks data/chunks --vector-store qdrant --collection greengovrag --model \\$EMBEDDING_MODEL\"
                 ]
               }]
-            }' \
+            }" \
             --query 'tasks[0].taskArn' \
             --output text)
 

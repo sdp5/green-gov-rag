@@ -10,7 +10,7 @@ from green_gov_rag.api.schemas.document import (
     DocumentListResponse,
     DocumentResponse,
 )
-from green_gov_rag.models import Document
+from green_gov_rag.models import DocumentSource
 from green_gov_rag.models.base import engine
 
 
@@ -41,17 +41,17 @@ class DocumentService:
         """
         with Session(engine) as session:
             # Build query
-            statement = select(Document)
+            statement = select(DocumentSource)
 
             # Apply filters
             if jurisdiction:
-                statement = statement.where(Document.jurisdiction == jurisdiction)
+                statement = statement.where(DocumentSource.jurisdiction == jurisdiction)
             if topic:
-                statement = statement.where(Document.topic == topic)
+                statement = statement.where(DocumentSource.topic == topic)
             if region:
-                statement = statement.where(Document.region == region)
+                statement = statement.where(DocumentSource.region == region)
             if status:
-                statement = statement.where(Document.status == status)
+                statement = statement.where(DocumentSource.status == status)
 
             # Get total count
             count_statement = select(func.count()).select_from(statement.subquery())
@@ -98,7 +98,7 @@ class DocumentService:
             DocumentResponse or None
         """
         with Session(engine) as session:
-            statement = select(Document).where(Document.id == document_id)
+            statement = select(DocumentSource).where(DocumentSource.id == document_id)
             doc = session.exec(statement).first()
 
             if not doc:

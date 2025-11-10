@@ -19,6 +19,7 @@ from green_gov_rag.config import settings
 from green_gov_rag.models import QueryHistory
 from green_gov_rag.models.base import engine
 from green_gov_rag.rag.agent_tools import RAGAgent
+from green_gov_rag.types import TOPIC_MAPPING, AustralianState
 
 logger = logging.getLogger(__name__)
 
@@ -67,36 +68,140 @@ class QueryService:
         self,
         query: str,
         region: Optional[str] = None,
+        lgas: Optional[list[str]] = None,
         jurisdiction: Optional[str] = None,
         topics: Optional[list[str]] = None,
         max_sources: int = 5,
+        session_id: Optional[str] = None,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        referer: Optional[str] = None,
     ) -> QueryResponse:
         """Execute RAG query with caching.
 
         Args:
             query: User query
-            region: Region filter
+            region: Region filter (state/territory or LGA name)
+            lgas: LGA names list (takes priority over region)
             jurisdiction: Jurisdiction filter
             topics: Topic filters
             max_sources: Maximum source documents
+            session_id: Browser session ID for user-specific query history
 
         Returns:
             QueryResponse: Query response with answer and sources
         """
         start_time = time.time()
 
+        # Normalize region abbreviation to full name using AustralianState enum
+        normalized_region = None
+        if region:
+            try:
+                # Try to parse as state abbreviation (e.g., 'SA' -> 'South Australia')
+                state = AustralianState.from_name(region)
+                normalized_region = state.full_name
+            except ValueError:
+                # If not a valid state, use the region as-is (could be LGA name)
+                normalized_region = region
+
+        # Normalize jurisdiction to lowercase (data stores: federal, state, local)
+        normalized_jurisdiction = None
+        if jurisdiction:
+            normalized_jurisdiction = jurisdiction.lower()
+
+        # Normalize topics - map user-friendly names to internal topic codes
+        normalized_topics = None
+        if topics:
+            # Collect all mapped topics
+            mapped_topics = []
+            for user_topic in topics:
+                topic_key = user_topic.lower()
+                if topic_key in TOPIC_MAPPING:
+                    # Use the mapping
+                    mapped_topics.extend(TOPIC_MAPPING[topic_key])
+                else:
+                    # If no mapping, use as-is with underscores (might be exact match)
+                    mapped_topics.append(topic_key.replace(" ", "_"))
+            # Remove duplicates
+            normalized_topics = list(set(mapped_topics)) if mapped_topics else None
+
+        # Normalize LGAs - handle conflicts with region filter (Option B: Use LGAs, log warning)
+        normalized_lgas = None
+        if lgas:
+            # Normalize LGA names - try both with and without common prefixes
+            # Data in Qdrant may have "City of Adelaide" while user selects "Adelaide"
+            normalized_lgas = []
+            for lga in lgas:
+                lga_clean = lga.strip()
+                # Add both the original name and variants with common prefixes
+                variants = [lga_clean]
+
+                # If the name doesn't have a prefix, add variants with prefixes
+                has_prefix = any(
+                    lga_clean.startswith(p)
+                    for p in ["City of ", "Shire of ", "Town of ", "District of "]
+                )
+                if not has_prefix:
+                    variants.extend(
+                        [
+                            f"City of {lga_clean}",
+                            f"Shire of {lga_clean}",
+                            f"Town of {lga_clean}",
+                            f"District of {lga_clean}",
+                        ]
+                    )
+
+                # Add all variants for OR matching
+                normalized_lgas.extend(variants)
+
+            # Check for conflict between region and lgas
+            if normalized_region:
+                # Log warning if user specified both region and LGAs
+                logger.warning(
+                    f"Both region='{normalized_region}' and lgas={lgas} specified. "
+                    f"Using LGA filter (takes priority). Both will be returned in filters_applied."
+                )
+
+        # Determine if we should use auto-location extraction
+        # DISABLED for now: auto-location can be too narrow and filter out results
+        # when document coverage is limited. Re-enable once we have better coverage.
+        # TODO: Make this configurable via settings.enable_auto_location
+        # Use auto-location when:
+        # 1. No explicit LGAs provided, AND
+        # 2. No explicit region provided, AND
+        # 3. Query might contain location information
+        use_auto_location = (
+            False  # Disabled: was: not normalized_lgas and not normalized_region
+        )
+
         # Build metadata filters
         metadata_filters: dict[str, str | list[str]] = {}
-        if region:
-            metadata_filters["region"] = region
-        if jurisdiction:
-            metadata_filters["jurisdiction"] = jurisdiction
-        if topics:
-            metadata_filters["topic"] = topics[0] if len(topics) == 1 else topics
+        # LGAs take priority over region for filtering
+        if normalized_lgas:
+            metadata_filters["lga_names"] = normalized_lgas
+            # Also include region in filters_applied for transparency
+            if normalized_region:
+                metadata_filters["region_specified"] = normalized_region
+        elif normalized_region:
+            # No LGAs specified, use region filter
+            metadata_filters["region"] = normalized_region
+
+        if normalized_jurisdiction:
+            metadata_filters["jurisdiction"] = normalized_jurisdiction
+        if normalized_topics:
+            metadata_filters["topic"] = (
+                normalized_topics[0]
+                if len(normalized_topics) == 1
+                else normalized_topics
+            )
 
         # Phase 1: Retrieve documents (always happens)
+        # Use auto-location if no explicit location filters provided
         context, sources = self.rag_agent.retrieve(
-            query=query, metadata_filters=metadata_filters or None, k=max_sources
+            query=query,
+            metadata_filters=metadata_filters or None,
+            k=max_sources,
+            use_auto_location=use_auto_location,
         )
 
         # Phase 2: Check cache before expensive LLM generation
@@ -142,12 +247,16 @@ class QueryService:
                 page_content = src.page_content
                 title = metadata.get("title", "Unknown")
                 source_url = metadata.get("source_url", "")
+                source_pdf_url = metadata.get("source_pdf_url")
+                file_id = metadata.get("file_id")
                 excerpt = page_content[:500] if page_content else None
             else:
                 # Dict format (legacy)
                 metadata = src.get("metadata", {})
                 title = src.get("title", metadata.get("title", "Unknown"))
                 source_url = src.get("source_url", metadata.get("source_url", ""))
+                source_pdf_url = metadata.get("source_pdf_url")
+                file_id = metadata.get("file_id")
                 excerpt = src.get("excerpt", src.get("content", ""))
 
             # Extract metadata
@@ -170,12 +279,13 @@ class QueryService:
                 regulator=regulator,
             )
 
-            # Build deep link
+            # Build deep link using source_pdf_url (actual PDF) if available, fallback to source_url
             section_id = CitationFormatter.extract_section_id(
                 section_hierarchy, clause_reference
             )
             deep_link = CitationFormatter.build_deep_link(
-                source_url=source_url,
+                source_url=source_pdf_url
+                or source_url,  # Prefer source_pdf_url for direct PDF links
                 page_number=page_number,
                 section_id=section_id,
             )
@@ -193,6 +303,7 @@ class QueryService:
                 source_url=source_url,
                 excerpt=excerpt,
                 relevance_score=metadata.get("score"),
+                file_id=file_id,
                 # Citation metadata
                 page_number=page_number,
                 page_range=page_range,
@@ -250,6 +361,8 @@ class QueryService:
                 logger.error(f"Citation verification failed: {e}", exc_info=True)
 
         # Detect regulatory conflicts
+        conflicts = None
+        source_dicts = []
         try:
             source_dicts = [doc.model_dump() for doc in source_docs]
             conflicts = await self.hierarchy_service.detect_conflicts(source_dicts)
@@ -272,10 +385,12 @@ class QueryService:
 
         except Exception as e:
             logger.error(f"Conflict detection failed: {e}", exc_info=True)
+            # Re-build source_dicts if it failed
+            if not source_dicts:
+                source_dicts = [doc.model_dump() for doc in source_docs]
 
         # Calculate trust score
         try:
-            # Already have source_dicts from above
             # Calculate authority scores for each source
             authority_scores = {}
             for i, source_dict in enumerate(source_dicts):
@@ -314,6 +429,10 @@ class QueryService:
             metadata_filters=metadata_filters,
             sources=sources[:max_sources],
             response_time_ms=response_time,
+            session_id=session_id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            referer=referer,
         )
 
         # Calculate coverage info if region filter is provided
@@ -363,7 +482,9 @@ class QueryService:
                 lga_codes = doc.spatial_metadata.get("lga_codes", [])
                 lga_names = doc.spatial_metadata.get("lga_names", [])
                 if lga_codes and lga_names:
-                    return lga_codes[0], lga_names[0]
+                    # Ensure lga_code is string (might be int in data)
+                    lga_code = str(lga_codes[0]) if lga_codes[0] is not None else None
+                    return lga_code, lga_names[0]
 
         # Fallback: use region as LGA name
         return None, region
@@ -396,23 +517,58 @@ class QueryService:
         metadata_filters: dict,
         sources: list,
         response_time_ms: float,
+        session_id: Optional[str] = None,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        referer: Optional[str] = None,
     ) -> Optional[int]:
         """Save query to history.
+
+        Args:
+            session_id: Browser session ID for user-specific query history
+            ip_address: Client IP address (anonymized)
+            user_agent: Client user agent string
+            referer: HTTP referer header
 
         Returns:
             Query ID if successful, None otherwise
         """
         try:
+            # Convert Document objects to serializable dicts
+            sources_serializable = []
+            for src in sources:
+                if hasattr(src, "metadata") and hasattr(src, "page_content"):
+                    # LangChain Document object - convert to dict
+                    sources_serializable.append(
+                        {
+                            "content": src.page_content,
+                            "metadata": src.metadata,
+                        }
+                    )
+                elif isinstance(src, dict):
+                    # Already a dict
+                    sources_serializable.append(src)
+                else:
+                    # Unknown type - convert to string
+                    logger.warning(
+                        f"Unknown source type: {type(src)}, converting to string"
+                    )
+                    sources_serializable.append({"content": str(src)})
+
             with Session(engine) as session:
                 history = QueryHistory(
+                    session_id=session_id,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    referer=referer,
                     query_text=query,
                     answer=answer,
                     region_filter=region_filter,
                     jurisdiction_filter=jurisdiction_filter,
                     topic_filter=topic_filter,
                     metadata_filters=metadata_filters,
-                    source_documents=sources,
-                    source_count=len(sources),
+                    source_documents=sources_serializable,
+                    source_count=len(sources_serializable),
                     response_time_ms=response_time_ms,
                 )
                 session.add(history)

@@ -68,6 +68,7 @@ class MonitoringService:
             "total_discovered": 0,
             "total_updated": 0,
             "total_unchanged": 0,
+            "changed_document_ids": [],  # NEW: aggregated changed doc IDs
             "source_results": [],
         }
 
@@ -88,6 +89,9 @@ class MonitoringService:
                 results["total_discovered"] += source_result["documents_discovered"]
                 results["total_updated"] += source_result["documents_updated"]
                 results["total_unchanged"] += source_result["documents_unchanged"]
+                results["changed_document_ids"].extend(
+                    source_result.get("changed_document_ids", [])
+                )
                 results["source_results"].append(source_result)
 
             except Exception as e:
@@ -150,6 +154,7 @@ class MonitoringService:
             documents_new = 0
             documents_updated = 0
             documents_unchanged = 0
+            changed_document_ids = []  # Track changed document IDs
 
             # Check each discovered document
             for doc in discovered:
@@ -157,10 +162,15 @@ class MonitoringService:
                     source, source_type, doc
                 )
 
+                # Generate document ID using source plugin (consistent with ingestion)
+                doc_id = self._generate_document_id(source, doc.url)
+
                 if change_result.change_type == "new":
                     documents_new += 1
+                    changed_document_ids.append(doc_id)
                 elif change_result.change_type == "updated":
                     documents_updated += 1
+                    changed_document_ids.append(doc_id)
                 elif change_result.change_type == "unchanged":
                     documents_unchanged += 1
 
@@ -191,6 +201,7 @@ class MonitoringService:
                 "documents_discovered": documents_new,
                 "documents_updated": documents_updated,
                 "documents_unchanged": documents_unchanged,
+                "changed_document_ids": changed_document_ids,  # NEW: for delta indexing
             }
 
             logger.info(f"Completed monitoring run {run_id}: {result}")
@@ -227,8 +238,8 @@ class MonitoringService:
             ChangeDetectionResult indicating change status
         """
         with Session(engine) as session:
-            # Generate document ID from URL
-            doc_id = self._generate_document_id(source_type, discovered.url)
+            # Generate document ID using source plugin (consistent with ingestion)
+            doc_id = self._generate_document_id(source, discovered.url)
 
             # Check if we have any versions of this document
             # Use col() to get the SQLAlchemy column for ordering
@@ -236,7 +247,7 @@ class MonitoringService:
 
             statement = (
                 select(DocumentVersion)
-                .where(DocumentVersion.document_id == doc_id)
+                .where(DocumentVersion.source_id == doc_id)
                 .order_by(desc(col(DocumentVersion.version_number)))
             )
             latest_version = session.exec(statement).first()
@@ -351,20 +362,28 @@ class MonitoringService:
 
         return version
 
-    def _generate_document_id(self, source_type: str, url: str) -> str:
-        """Generate unique document ID from source type and URL.
+    def _generate_document_id(self, source: Any, url: str) -> str:
+        """Generate unique document ID using source plugin (single source of truth).
+
+        Uses the source plugin's get_document_id() method to ensure consistency
+        between monitoring and ingestion. This is critical for delta indexing.
 
         Args:
-            source_type: Source type identifier
+            source: DocumentSource instance (with get_document_id method)
             url: Document URL
 
         Returns:
             Unique document identifier
         """
-        # Use hash of source_type + URL for stable IDs
-        content = f"{source_type}:{url}".encode("utf-8")
+        # Use plugin's document ID generation (same as ingestion)
+        if hasattr(source, "get_document_id"):
+            return source.get_document_id(url)
+
+        # Fallback for non-plugin sources (shouldn't happen in production)
+        logger.warning(f"Source {source} doesn't have get_document_id, using fallback")
+        content = f"{source.get_source_type()}:{url}".encode("utf-8")
         hash_hex = hashlib.sha256(content).hexdigest()[:16]
-        return f"{source_type}_{hash_hex}"
+        return f"{source.get_source_type()}_{hash_hex}"
 
     def _hash_url(self, url: str) -> str:
         """Generate SHA256 hash of URL as fallback content hash.
@@ -423,7 +442,7 @@ class MonitoringService:
         with Session(engine) as session:
             statement = (
                 select(DocumentVersion)
-                .where(DocumentVersion.document_id == document_id)
+                .where(DocumentVersion.source_id == document_id)
                 .order_by(desc(col(DocumentVersion.version_number)))
             )
 

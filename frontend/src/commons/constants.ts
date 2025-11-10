@@ -6,15 +6,16 @@ export const REGIONS = ['NSW', 'VIC', 'QLD', 'SA', 'WA', 'TAS', 'NT', 'ACT'] as 
 
 export const JURISDICTIONS = ['Local', 'State', 'Federal'] as const;
 
+// User-friendly topic names that map to backend TOPIC_MAPPING
 export const TOPICS = [
-  'Climate Action',
-  'Energy',
-  'Transport',
-  'Waste',
-  'Buildings',
-  'Land Use',
-  'Water',
+  'Climate',
+  'Emissions',
   'Biodiversity',
+  'Planning',
+  'Water',
+  'Heritage',
+  'Vegetation',
+  'Development',
 ] as const;
 
 export const STATUS_OPTIONS = ['pending', 'processed', 'failed'] as const;

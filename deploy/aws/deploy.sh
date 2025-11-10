@@ -109,13 +109,24 @@ deploy_stack() {
     # Install Python dependencies for CDK
     pip install -q -r requirements.txt 2>/dev/null || true
 
+    # Get API access key from environment or prompt
+    if [ -z "$API_ACCESS_KEY" ]; then
+        log_warn "API_ACCESS_KEY not set in environment"
+        read -p "Enter API access key for production (or press Enter to use default): " -s API_ACCESS_KEY
+        echo
+        if [ -z "$API_ACCESS_KEY" ]; then
+            API_ACCESS_KEY="REPLACE_ME"
+            log_warn "Using placeholder API key. Update via GitHub Secrets before production use."
+        fi
+    fi
+
     # Synthesize stack
     log_info "Synthesizing CloudFormation template..."
-    cdk synth
+    cdk synth --context api_access_key="$API_ACCESS_KEY"
 
     # Deploy
     log_info "Deploying to AWS (this may take 15-20 minutes)..."
-    cdk deploy --require-approval never
+    cdk deploy --require-approval never --context api_access_key="$API_ACCESS_KEY"
 
     log_info "Stack deployed successfully ✓"
 }

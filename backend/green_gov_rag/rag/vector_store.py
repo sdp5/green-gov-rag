@@ -38,8 +38,9 @@ class VectorStore:
         :param embeddings: LangChain Embeddings instance (OpenAI/HuggingFace/Bedrock)
         :param index_path: Optional path to persisted FAISS index.
         """
-        logger.warning(
-            "VectorStore is deprecated. Use VectorStoreFactory.create_vector_store() instead. "
+        logger.debug(
+            "Using legacy VectorStore class (FAISS only). "
+            "For multi-store support, use VectorStoreFactory.create_vector_store(). "
             "See docs/VECTOR_STORE_MIGRATION.md for details."
         )
 

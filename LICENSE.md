@@ -34,11 +34,11 @@ This license permits:
 
 | Source | Provider | License | Attribution Required | Last Verified |
 |--------|----------|---------|---------------------|---------------|
-| EPBC Act Documents | Department of Climate Change, Energy, the Environment and Water | CC BY 3.0 AU | Yes | 2025-01-XX |
-| South Australian Legislation | South Australian Government | CC BY 3.0 AU | Yes | 2025-01-XX |
-| NSW Planning Portal | NSW Department of Planning and Environment | CC BY 3.0 AU | Yes | 2025-01-XX |
-| National Greenhouse and Energy Reporting (NGER) | Clean Energy Regulator | CC BY 3.0 AU | Yes | 2025-01-XX |
-| Local Government Planning Schemes | Various SA/NSW Councils | CC BY 3.0 AU* | Yes | 2025-01-XX |
+| EPBC Act Documents | Department of Climate Change, Energy, the Environment and Water | CC BY 3.0 AU | Yes | 2025-11-21     |
+| South Australian Legislation | South Australian Government | CC BY 3.0 AU | Yes | 2025-11-21    |
+| NSW Planning Portal | NSW Department of Planning and Environment | CC BY 3.0 AU | Yes | 2025-11-21    |
+| National Greenhouse and Energy Reporting (NGER) | Clean Energy Regulator | CC BY 3.0 AU | Yes | 2025-11-21    |
+| Local Government Planning Schemes | Various SA/NSW Councils | CC BY 3.0 AU* | Yes | 2025-11-21    |
 
 *Note: Individual council documents may have specific terms. Verify before use.
 
@@ -156,10 +156,6 @@ This license document should be reviewed and updated:
 - When source licenses change
 - Annually (minimum)
 - Before major version releases
-
-**Last Updated**: 2025-11-21  
-**Document Version**: 1.0  
-**Contact**: contact@sundeep.id.au
 
 ---
 

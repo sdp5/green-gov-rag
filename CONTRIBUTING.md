@@ -653,7 +653,7 @@ sources:
 
 ### High Priority
 
-#### 1. Scalable Document Source Management 🔥
+#### 1. Scalable Document Source Management
 **Problem**: Currently requires manual YAML editing (`documents_config.yml`) for each new document source - not scalable for growth.
 
 **Current Limitations**:
@@ -929,9 +929,3 @@ Contributors are recognized in:
 - Release notes for significant contributions
 
 Thank you for contributing to GreenGovRAG! 🌱
-
----
-
-**Last Updated**: 2025-11-21
-**Maintainer**: Sundeep Anand (contact@sundeep.id.au)  
-**License**: MIT (code), CC BY 3.0 AU (data)

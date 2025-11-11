@@ -41,6 +41,7 @@ class APIKeyAuthMiddleware(BaseHTTPMiddleware):
             "/docs",
             "/redoc",
             "/openapi.json",
+            "/",  # Root endpoint in development
         ]:
             return await call_next(request)
 

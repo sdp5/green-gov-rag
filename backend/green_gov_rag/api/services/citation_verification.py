@@ -36,6 +36,7 @@ class CitationVerificationResult:
     superseded_at: datetime | None
     quote_match: bool | None = None
     quote_match_score: float | None = None
+    relevance_score: float | None = None  # 0-1, source relevance to answer
     warning: str | None = None
     details: str | None = None
 
@@ -69,34 +70,54 @@ class CitationVerificationService:
         self.staleness_threshold_days = staleness_threshold_days
 
     async def verify_query_response(
-        self, query_response: dict[str, Any]
+        self,
+        query_response: dict[str, Any],
+        query: str | None = None,
+        answer: str | None = None,
+        max_sources: int = 3,
+        skip_relevance: bool = False,
     ) -> list[CitationVerificationResult]:
         """Verify all citations in a query response.
 
         Args:
             query_response: QueryResponse dict with sources
+            query: Original user query (for relevance checking)
+            answer: Generated answer (for relevance checking)
+            max_sources: Maximum number of sources to verify (default 3, saves LLM calls)
+            skip_relevance: Skip expensive LLM-based relevance verification (default False)
 
         Returns:
             List of verification results for each citation
         """
-        results = []
+        import asyncio
 
         sources = query_response.get("sources", [])
-        for source in sources:
+
+        # Limit to top N sources to reduce LLM costs
+        sources_to_verify = sources[:max_sources]
+
+        # Build list of verification tasks
+        tasks = []
+        for source in sources_to_verify:
             # Extract file identifier from chunk metadata
             file_id = self._extract_file_id(source)
             if not file_id:
                 logger.warning(f"Could not extract file_id from source: {source}")
                 continue
 
-            # Verify this citation
-            result = await self.verify_citation(
+            # Create verification task
+            task = self.verify_citation(
                 file_id=file_id,
                 excerpt=source.get("excerpt"),
                 metadata=source,
+                query=query,
+                answer=answer,
+                skip_relevance=skip_relevance,
             )
+            tasks.append(task)
 
-            results.append(result)
+        # Run all verifications in parallel
+        results = await asyncio.gather(*tasks)
 
         return results
 
@@ -105,6 +126,9 @@ class CitationVerificationService:
         file_id: str,
         excerpt: str | None = None,
         metadata: dict[str, Any] | None = None,
+        query: str | None = None,
+        answer: str | None = None,
+        skip_relevance: bool = False,
     ) -> CitationVerificationResult:
         """Verify a single citation references the current document version.
 
@@ -112,6 +136,9 @@ class CitationVerificationService:
             file_id: Document file identifier
             excerpt: Quoted text from the document
             metadata: Additional citation metadata
+            query: Original user query (for relevance checking)
+            answer: Generated answer (for relevance checking)
+            skip_relevance: Skip expensive LLM-based relevance verification
 
         Returns:
             CitationVerificationResult with verification status
@@ -155,6 +182,16 @@ class CitationVerificationService:
                 quote_match = quote_result.exact_match
                 quote_match_score = quote_result.similarity_score
 
+            # Verify relevance if answer is provided (skip if not needed to save LLM calls)
+            relevance_score = None
+            if excerpt and answer and not skip_relevance:
+                relevance_score = await self._verify_relevance(
+                    excerpt=excerpt,
+                    query=query,
+                    answer=answer,
+                    metadata=metadata,
+                )
+
             # Check if current version is the one being cited
             if cited_version_num:
                 is_current = cited_version_num == current_version.version_number
@@ -175,6 +212,7 @@ class CitationVerificationService:
                         superseded_at=cited_version_obj.superseded_at,
                         quote_match=quote_match,
                         quote_match_score=quote_match_score,
+                        relevance_score=relevance_score,
                         warning=f"Citing outdated version {cited_version_num}. "
                         f"Current version is {current_version.version_number}.",
                     )
@@ -203,6 +241,7 @@ class CitationVerificationService:
                 superseded_at=None,
                 quote_match=quote_match,
                 quote_match_score=quote_match_score,
+                relevance_score=relevance_score,
                 warning=warning,
             )
 
@@ -443,3 +482,96 @@ class CitationVerificationService:
                 found_in_version=None,
                 warning="Quote not found in document chunks",
             )
+
+    async def _verify_relevance(
+        self,
+        excerpt: str,
+        query: str | None,
+        answer: str,
+        metadata: dict[str, Any] | None,
+    ) -> float:
+        """Verify if the excerpt is relevant to the answer using LLM.
+
+        Args:
+            excerpt: Quoted text from the document
+            query: User's original query
+            answer: Generated answer
+            metadata: Source metadata for context
+
+        Returns:
+            Relevance score (0-1)
+        """
+        try:
+            from green_gov_rag.rag.llm_factory import get_llm
+
+            # Use configured LLM provider and model for relevance scoring
+            # Use async invoke for parallel processing
+            llm = get_llm(temperature=0, max_tokens=10)
+
+            # Build context from metadata
+            doc_title = (
+                metadata.get("title", "Unknown document")
+                if metadata
+                else "Unknown document"
+            )
+
+            # Create prompt to evaluate relevance
+            prompt = f"""You are evaluating whether a source excerpt supports an answer about Australian environmental/regulatory compliance.
+
+QUERY: {query if query else "Not provided"}
+
+ANSWER: {answer}
+
+SOURCE EXCERPT:
+{excerpt}
+
+SOURCE DOCUMENT: {doc_title}
+
+IMPORTANT: Evaluate METHODOLOGICAL relevance, not just industry/topic match.
+
+Consider HIGHLY RELEVANT (0.8-1.0) if the source provides:
+- Calculation formulas, measurement methods, or quantification approaches that apply to the query topic
+- Regulatory frameworks (NGER, GHG Protocol, EPBC) that cover the query domain
+- Standards, methodologies, or emission factors applicable across related industries
+  Example: Coal mine fugitive emissions methods ARE directly applicable to gas pipeline fugitive emissions
+  Example: NGER reporting requirements for one extractive industry apply to all extractive industries
+- Legal/procedural requirements that transfer to the query context
+- Federal legislation/standards as baseline for state/local queries (NCC for building, EPBC for environment)
+- Planning scheme EIA requirements for environmental assessment queries (planning-environment overlap)
+
+Consider SOMEWHAT RELEVANT (0.4-0.7) if:
+- Same regulatory domain but different specific application (e.g., planning rules for different land types)
+- General principles that require significant adaptation
+- Framework documents that mention the topic tangentially
+- Federal guidance when query is state-specific (provides context but not direct answer)
+- Same-state but different Local Government Area (LGA) policies that may be transferable
+
+Consider NOT RELEVANT (0.0-0.3) if:
+- Completely different regulatory domain (building codes vs emissions, biodiversity vs construction)
+- Different state/territory regulations addressing non-transferable local issues (NSW zoning vs VIC zoning)
+- Different LGA-specific policies that are location-dependent (tree management in City A vs City B)
+- Different country's regulations (unless explicitly about international standards)
+- No methodological, legal, or procedural overlap
+
+CRITICAL RULES:
+1. If the source discusses calculation methods, emission factors, measurement approaches, or regulatory obligations in the same domain (e.g., any fugitive emissions from extractive industries), it IS highly relevant even if the specific industry differs.
+2. For spatial queries (LGA/council-specific): Only sources for the SAME LGA or higher jurisdiction (state/federal) are highly relevant. Different LGA sources score ≤0.3 unless explicitly transferable.
+3. For state-specific queries: Federal frameworks score 0.7-0.9 (baseline), same-state sources score 0.8-1.0, different-state sources score ≤0.3 unless methodologically identical.
+
+Rate 0.0-1.0 (return ONLY the number):"""
+
+            # Use ainvoke for async parallel execution
+            response = await llm.ainvoke(prompt)
+            score_text = response.content.strip()
+
+            # Parse the score
+            try:
+                score = float(score_text)
+                return max(0.0, min(1.0, score))  # Clamp to [0, 1]
+            except ValueError:
+                logger.warning(f"Could not parse relevance score: {score_text}")
+                return 0.5  # Default to moderate relevance if parsing fails
+
+        except Exception as e:
+            logger.warning(f"Relevance verification failed: {e}")
+            return 0.5  # Default to moderate relevance on error

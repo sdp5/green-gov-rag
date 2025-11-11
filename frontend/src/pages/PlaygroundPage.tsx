@@ -30,6 +30,7 @@ export default function PlaygroundPage() {
   // Query state
   const { query, setQuery, filters, setFilters, results, isLoading, setResults, setLoading } = useQueryStore();
   const [queryError, setQueryError] = useState<string | null>(null);
+  const [trustScoreLoading, setTrustScoreLoading] = useState<boolean>(false);
 
   // Feedback state
   const [feedbackRating, setFeedbackRating] = useState<number>(0);
@@ -178,8 +179,40 @@ export default function PlaygroundPage() {
         ...filters,
         ...(selectedLGAs.length > 0 && { lgas: selectedLGAs }),
       };
-      const result = await queryAPI.execute(query, queryFilters);
+
+      // Step 1: Fast query without trust score (answer + sources only)
+      const result = await queryAPI.execute(query, {
+        ...queryFilters,
+        include_trust_score: false,
+      });
       setResults(result);
+      setLoading(false);  // Show answer immediately
+
+      // Step 2: Background query with trust score
+      // Note: Only "Relevance" component requires expensive LLM calls
+      // The other 4 components (Current, Authority, Conflicts, Accuracy) are fast
+      setTrustScoreLoading(true);
+      try {
+        const resultWithTrust = await queryAPI.execute(query, {
+          ...queryFilters,
+          include_trust_score: true,
+        });
+        // Update trust score fields
+        setResults({
+          ...result,
+          trust_score: resultWithTrust.trust_score,
+          trust_confidence: resultWithTrust.trust_confidence,
+          trust_breakdown: resultWithTrust.trust_breakdown,
+          conflicts_detected: resultWithTrust.conflicts_detected,
+          hierarchy_explanation: resultWithTrust.hierarchy_explanation,
+          citation_warnings: resultWithTrust.citation_warnings,
+        });
+      } catch (trustErr) {
+        console.error('Failed to calculate trust score:', trustErr);
+        // Don't fail the query if trust score calculation fails
+      } finally {
+        setTrustScoreLoading(false);
+      }
 
       // Refresh analytics stats after query completes
       try {
@@ -356,10 +389,11 @@ export default function PlaygroundPage() {
       trust_score: 0.75,
       trust_confidence: 'medium',
       trust_breakdown: {
-        citation_score: 0.7,
-        authority_score: 0.85,
-        conflict_score: 1.0,
-        accuracy_score: 0.7,
+        source_relevance: 0.85,
+        document_currency: 0.7,
+        source_authority: 0.85,
+        conflict_check: 1.0,
+        quote_accuracy: 0.7,
         warnings: [
           'Citations based on current NSW EPA guidelines (2025)',
           'Always verify with the latest version of state and federal requirements'
@@ -1061,7 +1095,7 @@ export default function PlaygroundPage() {
               </Card>
 
               {/* 2. Trust Score - Credibility Check */}
-              {results.trust_score !== undefined && (
+              {(trustScoreLoading || results.trust_score !== undefined) && (
                 <Card className="border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 via-green-50 to-white shadow-lg transition-all hover:shadow-xl">
                   <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleSection('trustScore')}>
                     <div className="flex items-center justify-between">
@@ -1078,7 +1112,7 @@ export default function PlaygroundPage() {
                           {results.trust_confidence?.toUpperCase()}
                         </Badge>
                         <Badge variant="outline" className="ml-auto font-mono font-bold text-lg border-emerald-300">
-                          {(results.trust_score * 100).toFixed(0)}%
+                          {((results.trust_score ?? 0) * 100).toFixed(0)}%
                         </Badge>
                       </CardTitle>
                       <Button variant="ghost" size="sm" className="p-1">
@@ -1096,27 +1130,108 @@ export default function PlaygroundPage() {
                               results.trust_confidence === 'medium' ? 'bg-gradient-to-r from-amber-400 to-yellow-500' :
                               'bg-gradient-to-r from-red-400 to-rose-500'
                             }`}
-                            style={{ width: `${results.trust_score * 100}%` }}
+                            style={{ width: `${(results.trust_score ?? 0) * 100}%` }}
                           />
                         </div>
                       </div>
-                      {results.trust_breakdown && (
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pt-4 border-t">
-                          <div className="text-center p-4 bg-white/60 rounded-lg border-2 border-blue-100">
-                            <p className="text-xs font-semibold text-blue-600 uppercase mb-1">Citation</p>
-                            <p className="text-2xl font-bold text-blue-900">{(results.trust_breakdown.citation_score * 100).toFixed(0)}%</p>
+
+                      {/* Metric Descriptions */}
+                      <details className="group">
+                        <summary className="flex items-center gap-2 text-xs text-emerald-700 hover:text-emerald-900 cursor-pointer font-semibold list-none">
+                          <Info className="h-3.5 w-3.5" />
+                          What do these metrics mean?
+                          <ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180" />
+                        </summary>
+                        <div className="mt-3 space-y-2 text-xs bg-white/60 p-4 rounded-lg border border-emerald-200">
+                          <div className="flex gap-2">
+                            <span className="font-bold text-indigo-700 w-24 flex-shrink-0">Relevance:</span>
+                            <span className="text-slate-700">Does the source actually answer your question? (40% weight)</span>
                           </div>
+                          <div className="flex gap-2">
+                            <span className="font-bold text-blue-700 w-24 flex-shrink-0">Current:</span>
+                            <span className="text-slate-700">Is the document up-to-date and not superseded? (25% weight)</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <span className="font-bold text-purple-700 w-24 flex-shrink-0">Authority:</span>
+                            <span className="text-slate-700">Is the source from a credible regulator or official body? (15% weight)</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <span className="font-bold text-orange-700 w-24 flex-shrink-0">Conflicts:</span>
+                            <span className="text-slate-700">Are there contradictions between different regulations? (10% weight)</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <span className="font-bold text-green-700 w-24 flex-shrink-0">Accuracy:</span>
+                            <span className="text-slate-700">Are the quotes correctly extracted from the source? (10% weight)</span>
+                          </div>
+                        </div>
+                      </details>
+
+                      {(results.trust_breakdown || trustScoreLoading) && (
+                        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 pt-4 border-t">
+                          {/* Source Relevance - MOST IMPORTANT (40% weight) - LLM calculation required */}
+                          <div className="text-center p-4 bg-indigo-50 rounded-lg border-2 border-indigo-300 col-span-2 lg:col-span-1">
+                            <p className="text-xs font-bold text-indigo-700 uppercase mb-1">Relevance</p>
+                            {trustScoreLoading && !results.trust_breakdown?.source_relevance ? (
+                              <div className="flex items-center justify-center py-2">
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                              </div>
+                            ) : (
+                              <p className="text-2xl font-bold text-indigo-900">
+                                {results.trust_breakdown?.source_relevance ? (results.trust_breakdown.source_relevance * 100).toFixed(0) : '0'}%
+                              </p>
+                            )}
+                          </div>
+                          {/* Document Currency (25% weight) - Background calculation */}
+                          <div className="text-center p-4 bg-white/60 rounded-lg border-2 border-blue-100">
+                            <p className="text-xs font-semibold text-blue-600 uppercase mb-1">Current</p>
+                            {trustScoreLoading && !results.trust_breakdown?.document_currency ? (
+                              <div className="flex items-center justify-center py-2">
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                              </div>
+                            ) : (
+                              <p className="text-2xl font-bold text-blue-900">
+                                {results.trust_breakdown?.document_currency ? (results.trust_breakdown.document_currency * 100).toFixed(0) : '0'}%
+                              </p>
+                            )}
+                          </div>
+                          {/* Source Authority (15% weight) - Background calculation */}
                           <div className="text-center p-4 bg-white/60 rounded-lg border-2 border-purple-100">
                             <p className="text-xs font-semibold text-purple-600 uppercase mb-1">Authority</p>
-                            <p className="text-2xl font-bold text-purple-900">{(results.trust_breakdown.authority_score * 100).toFixed(0)}%</p>
+                            {trustScoreLoading && !results.trust_breakdown?.source_authority ? (
+                              <div className="flex items-center justify-center py-2">
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+                              </div>
+                            ) : (
+                              <p className="text-2xl font-bold text-purple-900">
+                                {results.trust_breakdown?.source_authority ? (results.trust_breakdown.source_authority * 100).toFixed(0) : '0'}%
+                              </p>
+                            )}
                           </div>
+                          {/* Conflict Check (10% weight) - Background calculation */}
                           <div className="text-center p-4 bg-white/60 rounded-lg border-2 border-orange-100">
                             <p className="text-xs font-semibold text-orange-600 uppercase mb-1">Conflicts</p>
-                            <p className="text-2xl font-bold text-orange-900">{(100 - results.trust_breakdown.conflict_score * 100).toFixed(0)}%</p>
+                            {trustScoreLoading && results.trust_breakdown?.conflict_check === undefined ? (
+                              <div className="flex items-center justify-center py-2">
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600"></div>
+                              </div>
+                            ) : (
+                              <p className="text-2xl font-bold text-orange-900">
+                                {results.trust_breakdown?.conflict_check !== undefined ? (100 - results.trust_breakdown.conflict_check * 100).toFixed(0) : '0'}%
+                              </p>
+                            )}
                           </div>
+                          {/* Quote Accuracy (10% weight) - Background calculation */}
                           <div className="text-center p-4 bg-white/60 rounded-lg border-2 border-green-100">
                             <p className="text-xs font-semibold text-green-600 uppercase mb-1">Accuracy</p>
-                            <p className="text-2xl font-bold text-green-900">{(results.trust_breakdown.accuracy_score * 100).toFixed(0)}%</p>
+                            {trustScoreLoading && !results.trust_breakdown?.quote_accuracy ? (
+                              <div className="flex items-center justify-center py-2">
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+                              </div>
+                            ) : (
+                              <p className="text-2xl font-bold text-green-900">
+                                {results.trust_breakdown?.quote_accuracy ? (results.trust_breakdown.quote_accuracy * 100).toFixed(0) : '0'}%
+                              </p>
+                            )}
                           </div>
                         </div>
                       )}

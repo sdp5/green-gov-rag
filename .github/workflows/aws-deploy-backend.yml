@@ -61,6 +61,7 @@ jobs:
           API_ACCESS_KEY: ${{ secrets.API_ACCESS_KEY }}
           AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
           AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
         run: |
           cd deploy/aws
 
@@ -69,6 +70,7 @@ jobs:
             --context api_access_key="${API_ACCESS_KEY}" \
             --context azure_openai_api_key="${AZURE_OPENAI_API_KEY}" \
             --context azure_openai_endpoint="${AZURE_OPENAI_ENDPOINT}" \
+            --context qdrant_api_key="${QDRANT_API_KEY}" \
             --context llm_provider="${LLM_PROVIDER:-azure}" \
             --context llm_model="${LLM_MODEL:-gpt-5-mini}" \
             --context azure_openai_deployment="${AZURE_OPENAI_DEPLOYMENT:-gpt-5-mini}" \

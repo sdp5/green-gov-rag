@@ -4,6 +4,7 @@ export interface QueryRequest {
   jurisdiction?: string;
   topics?: string[];
   max_sources?: number;
+  include_trust_score?: boolean;
 }
 
 export interface SourceDocument {
@@ -48,10 +49,20 @@ export interface SourceDocument {
 }
 
 export interface TrustBreakdown {
-  citation_score: number;
-  authority_score: number;
-  conflict_score: number;
-  accuracy_score: number;
+  // New field names (ordered by importance)
+  source_relevance: number;    // 40% weight - Do sources support the answer?
+  document_currency: number;   // 25% weight - Are documents current/not superseded?
+  source_authority: number;    // 15% weight - How authoritative are sources?
+  conflict_check: number;      // 10% weight - Any regulatory conflicts?
+  quote_accuracy: number;      // 10% weight - Do quotes match sources?
+
+  // Legacy field names (backwards compatibility)
+  relevance_score?: number;
+  citation_score?: number;
+  authority_score?: number;
+  conflict_score?: number;
+  accuracy_score?: number;
+
   warnings: string[];
 }
 

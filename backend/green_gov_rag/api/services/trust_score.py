@@ -25,6 +25,7 @@ class TrustScoreBreakdown:
     authority_score: float  # 0-1, source authority level
     conflict_score: float  # 0-1, lack of conflicts (1.0 = no conflicts)
     accuracy_score: float  # 0-1, quote/content accuracy
+    relevance_score: float  # 0-1, source relevance to answer
     confidence_level: str  # "high", "medium", "low"
     warnings: list[str]  # List of trust warnings
     details: dict[str, Any]  # Additional scoring details
@@ -43,10 +44,11 @@ class TrustScoreService:
 
     # Weight configuration for score components
     WEIGHTS = {
-        "citation": 0.35,  # Is source current and properly cited?
-        "authority": 0.30,  # How authoritative is the source?
-        "conflict": 0.20,  # Are there conflicting sources?
-        "accuracy": 0.15,  # Does quoted text match source?
+        "relevance": 0.40,  # Do sources actually support the answer? (MOST CRITICAL)
+        "citation": 0.25,  # Is source current and properly cited?
+        "authority": 0.15,  # How authoritative is the source?
+        "conflict": 0.10,  # Are there conflicting sources?
+        "accuracy": 0.10,  # Does quoted text match source?
     }
 
     # Thresholds for confidence levels
@@ -78,6 +80,7 @@ class TrustScoreService:
         warnings: list[str] = []
 
         # Calculate individual component scores
+        relevance_score = self._calculate_relevance_score(citation_results, warnings)
         citation_score = self._calculate_citation_score(citation_results, warnings)
         authority_score = self._calculate_authority_score(
             sources, authority_scores, warnings
@@ -87,7 +90,8 @@ class TrustScoreService:
 
         # Calculate weighted composite score
         overall_score = (
-            citation_score * self.WEIGHTS["citation"]
+            relevance_score * self.WEIGHTS["relevance"]
+            + citation_score * self.WEIGHTS["citation"]
             + authority_score * self.WEIGHTS["authority"]
             + conflict_score * self.WEIGHTS["conflict"]
             + accuracy_score * self.WEIGHTS["accuracy"]
@@ -108,6 +112,7 @@ class TrustScoreService:
             authority_score=authority_score,
             conflict_score=conflict_score,
             accuracy_score=accuracy_score,
+            relevance_score=relevance_score,
             confidence_level=confidence_level,
             warnings=warnings,
             details={
@@ -320,6 +325,62 @@ class TrustScoreService:
 
         return accuracy
 
+    def _calculate_relevance_score(
+        self, citation_results: list[Any] | None, warnings: list[str]
+    ) -> float:
+        """Calculate source relevance score.
+
+        Args:
+            citation_results: Citation verification results with relevance info
+            warnings: List to append warnings to
+
+        Returns:
+            Relevance score (0-1)
+        """
+        if not citation_results:
+            warnings.append("No relevance verification performed")
+            return 0.0  # No verification = no confidence
+
+        total_relevance = 0.0
+        irrelevant_count = 0
+        low_relevance_count = 0
+
+        for result in citation_results:
+            # Check if relevance score exists
+            relevance = getattr(result, "relevance_score", None)
+
+            if relevance is None:
+                # No relevance check performed - assume moderate relevance
+                relevance = 0.5
+            else:
+                # Track irrelevant sources
+                if relevance < 0.3:
+                    irrelevant_count += 1
+                elif relevance < 0.6:
+                    low_relevance_count += 1
+
+            total_relevance += relevance
+
+        avg_relevance = total_relevance / len(citation_results)
+
+        # Add warnings for low relevance
+        if irrelevant_count > 0:
+            warnings.append(
+                f"{irrelevant_count}/{len(citation_results)} source(s) appear irrelevant to the answer"
+            )
+
+        if irrelevant_count >= len(citation_results) / 2:
+            warnings.append(
+                "CRITICAL: Most sources don't support the answer - likely hallucination"
+            )
+
+        if low_relevance_count > len(citation_results) / 2:
+            warnings.append(
+                "More than half of sources have low relevance to the answer"
+            )
+
+        return avg_relevance
+
     def get_trust_level_description(self, score: float) -> str:
         """Get human-readable description of trust level.
 
@@ -353,7 +414,8 @@ class TrustScoreService:
         """
         lines = [
             f"Trust Score: {breakdown.overall_score:.1%} ({breakdown.confidence_level})",
-            f"  • Citation Quality: {breakdown.citation_score:.1%}",
+            f"  • Source Relevance: {breakdown.relevance_score:.1%} (MOST IMPORTANT)",
+            f"  • Document Currency: {breakdown.citation_score:.1%}",
             f"  • Source Authority: {breakdown.authority_score:.1%}",
             f"  • Conflict Check: {breakdown.conflict_score:.1%}",
             f"  • Quote Accuracy: {breakdown.accuracy_score:.1%}",

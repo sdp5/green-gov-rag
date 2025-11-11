@@ -340,10 +340,10 @@ class GreenGovRAGStack(Stack):
                 "QDRANT_API_KEY": qdrant_api_key,
                 "VECTOR_STORE_TYPE": vector_store_type,
                 "EMBEDDING_MODEL": embedding_model,
-                "S3_BUCKET": docs_bucket.bucket_name,
+                "STORAGE_CONTAINER": docs_bucket.bucket_name,
                 "DYNAMODB_CACHE_TABLE": cache_table.table_name,
                 "CLOUD_PROVIDER": "aws",
-                "STORAGE_CONTAINER": docs_bucket.bucket_name,
+                "CLOUD_REGION": self.region,
                 # LLM Configuration - Supports Azure OpenAI, AWS Bedrock, or OpenAI
                 # Azure: AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT
                 # AWS Bedrock: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY (use IAM role instead)

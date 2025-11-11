@@ -128,6 +128,7 @@ async def query_rag(request: Request, query_request: QueryRequest) -> QueryRespo
             jurisdiction=query_request.jurisdiction,
             topics=query_request.topics,
             max_sources=query_request.max_sources,
+            include_trust_score=query_request.include_trust_score,
             session_id=query_request.session_id,
             ip_address=ip_address,
             user_agent=user_agent,

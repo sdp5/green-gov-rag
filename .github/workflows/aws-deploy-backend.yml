@@ -48,6 +48,14 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
@@ -59,16 +67,14 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           # Build Docker image for ARM64 (matches ECS Fargate ARM)
-          docker build \
+          docker buildx build \
+            --platform linux/arm64 \
             --build-arg VERSION=${{ steps.version.outputs.VERSION }} \
             -t $ECR_REGISTRY/${{ vars.ECR_REPOSITORY }}:$IMAGE_TAG \
             -t $ECR_REGISTRY/${{ vars.ECR_REPOSITORY }}:latest \
             -f deploy/docker/backend.Dockerfile \
+            --push \
             .
-
-          # Push image to ECR
-          docker push $ECR_REGISTRY/${{ vars.ECR_REPOSITORY }}:$IMAGE_TAG
-          docker push $ECR_REGISTRY/${{ vars.ECR_REPOSITORY }}:latest
 
           echo "image=$ECR_REGISTRY/${{ vars.ECR_REPOSITORY }}:$IMAGE_TAG" >> $GITHUB_OUTPUT
 

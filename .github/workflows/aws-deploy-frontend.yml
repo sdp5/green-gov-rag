@@ -64,6 +64,7 @@ jobs:
     name: Deploy to AWS S3 + CloudFront
     needs: build
     runs-on: ubuntu-latest
+    environment: aws-prod
     # NOTE: This job only runs if backend deployment succeeded (workflow_run trigger)
     if: true
     permissions:

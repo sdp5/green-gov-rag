@@ -65,8 +65,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment: aws-prod
-    # NOTE: This job only runs if backend deployment succeeded (workflow_run trigger)
-    if: true
+    # NOTE: This job only runs if backend deployment succeeded
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     permissions:
       id-token: write
       contents: read

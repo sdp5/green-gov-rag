@@ -18,7 +18,7 @@ COPY backend/alembic.ini ./
 
 # Copy data and configs
 COPY data ./data
-COPY configs ./configs
+COPY backend/configs ./configs
 
 # Copy startup script
 COPY deploy/docker/start.sh /app/start.sh

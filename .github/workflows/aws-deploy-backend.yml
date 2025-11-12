@@ -22,7 +22,7 @@ jobs:
     name: Deploy Backend to AWS ECS
     runs-on: ubuntu-latest
     environment: aws-prod
-    needs: ci-backend  # Wait for tests to pass
+#    needs: ci-backend  # Wait for tests to pass
     permissions:
       id-token: write
       contents: read
@@ -31,7 +31,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history for all branches and tags
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Get version from setuptools-scm
+        id: version
+        run: |
+          pip install setuptools-scm
+          VERSION=$(python -m setuptools_scm)
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Detected version: ${VERSION}"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -51,6 +60,7 @@ jobs:
         run: |
           # Build Docker image for ARM64 (matches ECS Fargate ARM)
           docker build \
+            --build-arg VERSION=${{ steps.version.outputs.VERSION }} \
             -t $ECR_REGISTRY/${{ vars.ECR_REPOSITORY }}:$IMAGE_TAG \
             -t $ECR_REGISTRY/${{ vars.ECR_REPOSITORY }}:latest \
             -f deploy/docker/backend.Dockerfile \

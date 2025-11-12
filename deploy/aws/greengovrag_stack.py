@@ -67,21 +67,28 @@ class GreenGovRAGStack(Stack):
 
         # Get context values with defaults
         project_name = self.node.try_get_context("project_name") or "GreenGovRAG"
-        environment = self.node.try_get_context("environment") or "prod"
+        app_env = self.node.try_get_context("app_env") or "production"
 
         # Secrets - Retrieved from context (passed via GitHub Actions or CLI)
         api_access_key = self.node.try_get_context("api_access_key") or "REPLACE_VIA_GITHUB_SECRETS"
         azure_openai_api_key = self.node.try_get_context("azure_openai_api_key") or "REPLACE_VIA_GITHUB_SECRETS"
         azure_openai_endpoint = self.node.try_get_context("azure_openai_endpoint") or "REPLACE_VIA_GITHUB_SECRETS"
         qdrant_api_key = self.node.try_get_context("qdrant_api_key") or "REPLACE_VIA_GITHUB_SECRETS"
+        sql_db_password = self.node.try_get_context("sql_db_password") or "REPLACE_VIA_GITHUB_SECRETS"
 
         # Configurable settings - Retrieved from context with sensible defaults
+        cloud_provider = self.node.try_get_context("cloud_provider") or "aws"
         llm_provider = self.node.try_get_context("llm_provider") or "azure"
         llm_model = self.node.try_get_context("llm_model") or "gpt-5-mini"
         azure_openai_deployment = self.node.try_get_context("azure_openai_deployment") or llm_model
         azure_openai_api_version = self.node.try_get_context("azure_openai_api_version") or "2024-12-01-preview"
+        bedrock_model_id = self.node.try_get_context("bedrock_model_id") or "amazon.nova-pro-v1:0"
         embedding_model = self.node.try_get_context("embedding_model") or "BAAI/bge-large-en-v1.5"
         vector_store_type = self.node.try_get_context("vector_store_type") or "qdrant"
+        enable_cache = self.node.try_get_context("enable_cache") or "true"
+        enable_redis_cache = self.node.try_get_context("enable_redis_cache") or "false"
+        cache_ttl = self.node.try_get_context("cache_ttl") or 3600
+        enable_semantic_cache = self.node.try_get_context("enable_semantic_cache") or "true"
 
         # =====================================================================
         # VPC - Public Subnets Only (No NAT Gateway)
@@ -90,7 +97,7 @@ class GreenGovRAGStack(Stack):
             self,
             f"{project_name}Vpc",
             max_azs=2,
-            nat_gateways=0,  # Cost savings: $32-45/month
+            nat_gateways=0,  # Cost savings: $40-45/month
             subnet_configuration=[
                 ec2.SubnetConfiguration(
                     name="Public",
@@ -236,7 +243,10 @@ class GreenGovRAGStack(Stack):
             deletion_protection=False,
             removal_policy=RemovalPolicy.SNAPSHOT,
             database_name="greengovrag",
-            credentials=rds.Credentials.from_generated_secret("postgres"),
+            credentials=rds.Credentials.from_password(
+                username="postgres",
+                password=cdk.SecretValue.unsafe_plain_text(sql_db_password),  # From GitHub Secrets
+            ),
         )
 
         # =====================================================================
@@ -335,18 +345,18 @@ class GreenGovRAGStack(Stack):
                 log_retention=logs.RetentionDays.ONE_WEEK,
             ),
             environment={
-                "DATABASE_URL": f"postgresql://postgres:PASSWORD@{db_instance.db_instance_endpoint_address}:5432/greengovrag",
+                "DATABASE_URL": f"postgresql://postgres:{sql_db_password}@{db_instance.db_instance_endpoint_address}:5432/greengovrag",
                 "QDRANT_URL": "http://qdrant.greengovrag.local:6333",
                 "QDRANT_API_KEY": qdrant_api_key,
                 "VECTOR_STORE_TYPE": vector_store_type,
                 "EMBEDDING_MODEL": embedding_model,
                 "STORAGE_CONTAINER": docs_bucket.bucket_name,
                 "DYNAMODB_CACHE_TABLE": cache_table.table_name,
-                "CLOUD_PROVIDER": "aws",
+                "CLOUD_PROVIDER": cloud_provider,
                 "CLOUD_REGION": self.region,
                 # LLM Configuration - Supports Azure OpenAI, AWS Bedrock, or OpenAI
                 # Azure: AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT
-                # AWS Bedrock: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY (use IAM role instead)
+                # AWS Bedrock: BEDROCK_MODEL_ID
                 # OpenAI: OPENAI_API_KEY
                 "LLM_PROVIDER": llm_provider,
                 "LLM_MODEL": llm_model,
@@ -354,17 +364,15 @@ class GreenGovRAGStack(Stack):
                 "AZURE_OPENAI_API_KEY": azure_openai_api_key,
                 "AZURE_OPENAI_ENDPOINT": azure_openai_endpoint,
                 "AZURE_OPENAI_DEPLOYMENT": azure_openai_deployment,
+                "BEDROCK_MODEL_ID": bedrock_model_id,
                 # Cache Settings
-                "ENABLE_CACHE": "true",
-                "ENABLE_REDIS_CACHE": "false",  # Using DynamoDB instead
-                "CACHE_TTL": "3600",
-                "ENABLE_SEMANTIC_CACHE": "true",
+                "ENABLE_CACHE": enable_cache,
+                "ENABLE_REDIS_CACHE": enable_redis_cache,  # Using DynamoDB instead
+                "CACHE_TTL": cache_ttl,
+                "ENABLE_SEMANTIC_CACHE": enable_semantic_cache,
                 # API Security - Access key for all API endpoints
                 "API_ACCESS_KEY": api_access_key,
-            },
-            secrets={
-                # Database password still uses Secrets Manager (auto-generated by RDS, no extra cost)
-                "DATABASE_PASSWORD": ecs.Secret.from_secrets_manager(db_instance.secret, "password"),
+                "APP_ENV": app_env,
             },
             health_check=ecs.HealthCheck(
                 command=["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"],
@@ -665,12 +673,6 @@ function handler(event) {{
             description="RDS PostgreSQL endpoint",
         )
 
-        CfnOutput(
-            self,
-            "DatabaseSecretArn",
-            value=db_instance.secret.secret_arn,
-            description="RDS credentials secret ARN",
-        )
 
         CfnOutput(
             self,

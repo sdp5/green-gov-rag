@@ -441,8 +441,8 @@ def etl_monitor(
 
     Example:
     -------
-        greengovrag etl monitor --format table
-        greengovrag etl monitor --trigger-etl
+        greengovrag-cli etl monitor --format table
+        greengovrag-cli etl monitor --trigger-etl
 
     """
     console.print("[bold blue]Monitoring document sources...[/bold blue]")

@@ -7,16 +7,26 @@ on:
       - 'frontend/**'
       - '.github/workflows/aws-deploy-frontend.yml'
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Deploy Backend"]
+    types: [completed]
+    branches: [main]
 
 env:
   AWS_REGION: ap-southeast-2
 
 jobs:
+  # Ensure CI tests pass before deploying
+  ci-frontend:
+    uses: ./.github/workflows/ci-frontend.yml
+
   build:
     # Disabled - change to true to enable deployment
     if: false
     name: Build Frontend
     runs-on: ubuntu-latest
+    environment: aws-prod
+    needs: ci-frontend  # Wait for tests to pass
 
     steps:
       - name: Checkout code
@@ -38,8 +48,8 @@ jobs:
         run: npm run build
         env:
           # These will be replaced at runtime via config.js
-          VITE_API_URL: PLACEHOLDER
-          VITE_MAPBOX_TOKEN: PLACEHOLDER
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
 
       - name: Generate runtime config template
         working-directory: frontend
@@ -59,6 +69,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     # Disabled - change to true to enable deployment
+    # NOTE: This job only runs if backend deployment succeeded (workflow_run trigger)
     if: false
     permissions:
       id-token: write
@@ -75,7 +86,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Get CloudFormation outputs
         id: cf-outputs

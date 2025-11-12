@@ -18,6 +18,7 @@ jobs:
   etl-aws:
     name: Run ETL on AWS
     runs-on: ubuntu-latest
+    environment: aws-prod
     # Disabled - change to true to enable ETL pipeline
     if: false
     timeout-minutes: 360

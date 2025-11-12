@@ -30,8 +30,8 @@ param projectName string = 'greengovrag'
 @description('Azure region for resources')
 param location string = resourceGroup().location
 
-@description('Environment (dev, staging, prod)')
-param environment string = 'prod'
+@description('Environment (dev, staging, production)')
+param environment string = 'production'
 
 @description('PostgreSQL administrator password')
 @secure()

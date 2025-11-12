@@ -16,9 +16,9 @@ NC='\033[0m'
 echo -e "${BLUE}=== GreenGovRAG Azure Deployment ===${NC}"
 
 # Configuration
-RESOURCE_GROUP="${RESOURCE_GROUP:-greengovrag-prod-rg}"
+RESOURCE_GROUP="${RESOURCE_GROUP:-greengovrag-production-rg}"
 LOCATION="${LOCATION:-eastus}"
-ENVIRONMENT="${ENVIRONMENT:-prod}"
+ENVIRONMENT="${ENVIRONMENT:-production}"
 
 # Check Azure CLI
 if ! command -v az &> /dev/null; then

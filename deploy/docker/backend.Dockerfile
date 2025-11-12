@@ -6,6 +6,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
+    curl \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy backend code
@@ -18,11 +20,15 @@ COPY backend/alembic.ini ./
 COPY data ./data
 COPY configs ./configs
 
+# Copy startup script
+COPY deploy/docker/start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
 # Install Python dependencies
 RUN pip install --no-cache-dir -e .
 
 # Expose FastAPI port
 EXPOSE 8000
 
-# Run FastAPI server
-CMD ["uvicorn", "green_gov_rag.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run startup script (handles health checks, migrations, then uvicorn)
+CMD ["/app/start.sh"]

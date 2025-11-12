@@ -64,9 +64,8 @@ jobs:
     name: Deploy to AWS S3 + CloudFront
     needs: build
     runs-on: ubuntu-latest
-    # Disabled - change to true to enable deployment
     # NOTE: This job only runs if backend deployment succeeded (workflow_run trigger)
-    if: false
+    if: true
     permissions:
       id-token: write
       contents: read

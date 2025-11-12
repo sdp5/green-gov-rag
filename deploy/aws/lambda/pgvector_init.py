@@ -2,15 +2,15 @@
 
 This function is triggered after RDS instance creation and ensures the pgvector
 extension is installed without requiring manual intervention.
+
+Database credentials are passed via environment variables (not Secrets Manager)
+to avoid additional costs.
 """
 
 import json
 import logging
 import os
-import sys
 from typing import Any
-
-import boto3
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -23,25 +23,18 @@ except ImportError:
     psycopg2 = None
 
 
-def get_db_credentials(secret_arn: str) -> dict[str, str]:
-    """Retrieve database credentials from Secrets Manager.
-
-    Args:
-        secret_arn: ARN of the secret containing DB credentials
+def get_db_credentials_from_env() -> dict[str, str]:
+    """Retrieve database credentials from environment variables.
 
     Returns:
         Dictionary with username, password, host, port, dbname
     """
-    client = boto3.client("secretsmanager")
-    response = client.get_secret_value(SecretId=secret_arn)
-    secret = json.loads(response["SecretString"])
-
     return {
-        "username": secret["username"],
-        "password": secret["password"],
-        "host": secret["host"],
-        "port": secret.get("port", 5432),
-        "dbname": secret.get("dbname", "postgres"),
+        "username": os.environ.get("DB_USER", "postgres"),
+        "password": os.environ["DB_PASSWORD"],
+        "host": os.environ["DB_HOST"],
+        "port": int(os.environ.get("DB_PORT", "5432")),
+        "dbname": os.environ.get("DB_NAME", "greengovrag"),
     }
 
 
@@ -140,23 +133,21 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """
     logger.info(f"Event: {json.dumps(event)}")
 
-    # Get secret ARN from environment or event
-    secret_arn = os.environ.get("DB_SECRET_ARN")
-
-    if not secret_arn and "ResourceProperties" in event:
-        # CloudFormation custom resource
-        secret_arn = event["ResourceProperties"].get("SecretArn")
-
-    if not secret_arn:
-        logger.error("DB_SECRET_ARN not provided")
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"error": "DB_SECRET_ARN not provided"}),
-        }
-
     try:
-        # Get database credentials
-        credentials = get_db_credentials(secret_arn)
+        # Get database credentials from environment variables
+        credentials = get_db_credentials_from_env()
+
+        # Verify required environment variables are set
+        required_vars = ["DB_HOST", "DB_PASSWORD"]
+        missing_vars = [var for var in required_vars if not os.environ.get(var)]
+
+        if missing_vars:
+            error_msg = f"Missing required environment variables: {', '.join(missing_vars)}"
+            logger.error(error_msg)
+            return {
+                "statusCode": 400,
+                "body": json.dumps({"error": error_msg}),
+            }
 
         # Initialize pgvector
         result = initialize_pgvector(credentials)
@@ -168,6 +159,13 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             "body": json.dumps(result),
         }
 
+    except KeyError as e:
+        error_msg = f"Missing environment variable: {e}"
+        logger.error(error_msg)
+        return {
+            "statusCode": 400,
+            "body": json.dumps({"error": error_msg}),
+        }
     except Exception as e:
         logger.error(f"Handler error: {e}")
         return {

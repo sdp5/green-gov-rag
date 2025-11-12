@@ -61,6 +61,11 @@ setup_aws_env() {
 
     log_info "AWS Account: $CDK_DEFAULT_ACCOUNT"
     log_info "AWS Region: $CDK_DEFAULT_REGION"
+
+    # Install Python dependencies for CDK
+    log_info "Installing Python dependencies for CDK..."
+    pip install -q -r requirements.txt 2>/dev/null || true
+    log_info "Python dependencies installed."
 }
 
 # Bootstrap CDK (first time only)
@@ -73,9 +78,6 @@ bootstrap_cdk() {
 deploy_stack() {
     log_info "Deploying CDK stack..."
     cd "$SCRIPT_DIR"
-
-    # Install Python dependencies for CDK
-    pip install -q -r requirements.txt 2>/dev/null || true
 
     # Get API access key from environment or prompt
     if [ -z "$API_ACCESS_KEY" ]; then
@@ -105,12 +107,18 @@ deploy_stack() {
     # Synthesize stack
     log_info "Synthesizing CloudFormation template..."
     cdk synth --context api_access_key="$API_ACCESS_KEY" \
+              --context azure_openai_api_key="$AZURE_OPENAI_API_KEY" \
+              --context azure_openai_endpoint="$AZURE_OPENAI_ENDPOINT" \
+              --context qdrant_api_key="$QDRANT_API_KEY" \
               --context sql_db_password="$SQL_DB_PASSWORD"
 
     # Deploy
     log_info "Deploying to AWS (this may take 15-20 minutes)..."
     cdk deploy --require-approval never \
         --context api_access_key="$API_ACCESS_KEY" \
+        --context azure_openai_api_key="$AZURE_OPENAI_API_KEY" \
+        --context azure_openai_endpoint="$AZURE_OPENAI_ENDPOINT" \
+        --context qdrant_api_key="$QDRANT_API_KEY" \
         --context sql_db_password="$SQL_DB_PASSWORD"
 
     log_info "Stack deployed successfully ✓"

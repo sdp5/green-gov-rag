@@ -243,3 +243,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# AWS Deployment
+cdk.out/
+cdk.context.json

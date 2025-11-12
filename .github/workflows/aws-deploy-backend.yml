@@ -18,7 +18,7 @@ jobs:
     secrets: inherit
 
   deploy:
-    if: false  # Change to true to enable deployment
+    if: true  # Change to true to enable deployment
     name: Deploy Backend to AWS ECS
     runs-on: ubuntu-latest
     environment: aws-prod
@@ -47,11 +47,12 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          # Build Docker image
+          # Build Docker image for ARM64 (matches ECS Fargate ARM)
           docker build \
             -t $ECR_REGISTRY/${{ vars.ECR_REPOSITORY }}:$IMAGE_TAG \
             -t $ECR_REGISTRY/${{ vars.ECR_REPOSITORY }}:latest \
             -f deploy/docker/backend.Dockerfile \
+            --platform linux/arm64 \
             .
 
           # Push image to ECR
@@ -66,9 +67,7 @@ jobs:
           API_ACCESS_KEY: ${{ secrets.API_ACCESS_KEY }}
           AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
           AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-          CLOUD_PROVIDER: ${{ secrets.CLOUD_PROVIDER }}
-          CLOUD_REGION: ${{ secrets.CLOUD_REGION }}
-          STORAGE_CONTAINER: ${{ secrets.STORAGE_CONTAINER }}
+          CLOUD_PROVIDER: ${{ vars.CLOUD_PROVIDER }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
           SQL_DB_PASSWORD: ${{ secrets.SQL_DB_PASSWORD }}
           LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
@@ -92,8 +91,6 @@ jobs:
             --context azure_openai_api_key="${AZURE_OPENAI_API_KEY}" \
             --context azure_openai_endpoint="${AZURE_OPENAI_ENDPOINT}" \
             --context cloud_provider="${CLOUD_PROVIDER}" \
-            --context cloud_region="${CLOUD_REGION}" \
-            --context storage_container="${STORAGE_CONTAINER}" \
             --context bedrock_model_id="${BEDROCK_MODEL_ID}" \
             --context qdrant_api_key="${QDRANT_API_KEY}" \
             --context sql_db_password="${SQL_DB_PASSWORD}" \
@@ -110,40 +107,61 @@ jobs:
 
       - name: Force new ECS deployment
         run: |
+          # Get service name from CloudFormation stack outputs
+          SERVICE_NAME=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`BackendServiceName`].OutputValue' \
+            --output text \
+            --region ${{ vars.AWS_REGION }})
+
           aws ecs update-service \
             --cluster GreenGovRAG-Cluster \
-            --service GreenGovRAG-BackendService \
+            --service "$SERVICE_NAME" \
             --force-new-deployment \
             --region ${{ vars.AWS_REGION }}
 
       - name: Wait for ECS service stability
         run: |
+          # Get service name from CloudFormation stack outputs
+          SERVICE_NAME=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`BackendServiceName`].OutputValue' \
+            --output text \
+            --region ${{ vars.AWS_REGION }})
+
           aws ecs wait services-stable \
             --cluster GreenGovRAG-Cluster \
-            --services GreenGovRAG-BackendService \
+            --services "$SERVICE_NAME" \
             --region ${{ vars.AWS_REGION }}
 
       - name: Get deployment status
         run: |
+          # Get service name from CloudFormation stack outputs
+          SERVICE_NAME=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`BackendServiceName`].OutputValue' \
+            --output text \
+            --region ${{ vars.AWS_REGION }})
+
           aws ecs describe-services \
             --cluster GreenGovRAG-Cluster \
-            --services GreenGovRAG-BackendService \
+            --services "$SERVICE_NAME" \
             --region ${{ vars.AWS_REGION }} \
             --query 'services[0].deployments' \
             --output table
 
       - name: Run post-deployment health check
         run: |
-          # Get API Gateway URL from CloudFormation outputs
-          API_URL=$(aws cloudformation describe-stacks \
+          # Get ALB URL from CloudFormation outputs
+          ALB_URL=$(aws cloudformation describe-stacks \
             --stack-name GreenGovRAGStack \
-            --query 'Stacks[0].Outputs[?OutputKey==`ApiGatewayURL`].OutputValue' \
+            --query 'Stacks[0].Outputs[?OutputKey==`LoadBalancerDNS`].OutputValue' \
             --output text \
             --region ${{ vars.AWS_REGION }})
 
           # Health check
-          echo "Checking health at: ${API_URL}/api/health"
-          curl -f "${API_URL}/api/health" || exit 1
+          echo "Checking health at: ${ALB_URL}/api/health"
+          curl -f "${ALB_URL}/api/health" || exit 1
           echo "✓ Deployment successful!"
 
       - name: Notify on failure

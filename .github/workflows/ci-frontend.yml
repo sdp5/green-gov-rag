@@ -10,6 +10,7 @@ on:
     branches: [ main, dev ]
     paths:
       - 'frontend/**'
+  workflow_call:  # Allow this workflow to be called by other workflows
 
 jobs:
   test:

@@ -30,6 +30,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for all branches and tags
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -52,7 +54,6 @@ jobs:
             -t $ECR_REGISTRY/${{ vars.ECR_REPOSITORY }}:$IMAGE_TAG \
             -t $ECR_REGISTRY/${{ vars.ECR_REPOSITORY }}:latest \
             -f deploy/docker/backend.Dockerfile \
-            --platform linux/arm64 \
             .
 
           # Push image to ECR

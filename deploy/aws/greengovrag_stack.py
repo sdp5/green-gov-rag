@@ -2,7 +2,7 @@
 
 Cost-optimized deployment with:
 - VPC with public subnets only (no NAT Gateway)
-- ECS Fargate backend (1 vCPU, 3GB ARM64)
+- ECS Fargate Spot backend with fallback (1-3 tasks, auto-scaling)
 - RDS PostgreSQL t4g.micro with pgvector
 - DynamoDB for caching (replaces ElastiCache)
 - EC2 on-demand t4g.micro for Qdrant vector database
@@ -12,15 +12,17 @@ Cost-optimized deployment with:
 - S3 Gateway Endpoint (free)
 
 Architecture flow:
-CloudFront → ALB → ECS Fargate → RDS PostgreSQL + Qdrant
+CloudFront → ALB → ECS Fargate Spot → RDS PostgreSQL + Qdrant
 
-Architecture optimizations:
+Cost optimizations:
 - No NAT Gateway (saves $40-50/mo)
 - No VPC Link (saves $20/mo)
 - No SSM endpoint (saves $10/mo)
 - ARM64/Graviton processors (20% cost reduction)
+- Fargate Spot with on-demand fallback (70% discount)
+- ECS auto-scaling (saves when idle, scales 1-3 tasks)
 - Pay-per-request DynamoDB (vs provisioned ElastiCache)
-- On-demand EC2 for critical services (Qdrant) for reliability
+- On-demand EC2 for stateful Qdrant (reliability over savings)
 """
 
 from aws_cdk import (
@@ -210,9 +212,7 @@ class GreenGovRAGStack(Stack):
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             time_to_live_attribute="ttl",
             removal_policy=RemovalPolicy.DESTROY,
-            point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(
-                point_in_time_recovery=False  # Cost optimization
-            ),
+            point_in_time_recovery=False,  # Cost optimization
         )
 
         # =====================================================================
@@ -311,97 +311,13 @@ class GreenGovRAGStack(Stack):
         )
 
         # =====================================================================
-        # ECS Backend Task Definition - ARM64
-        # =====================================================================
-        # CPU: 1 vCPU for better performance
-        # Memory: 3GB to support BGE-large embeddings with headroom
-        # BGE-large (1.5GB) + FastAPI/LangChain (500MB) + buffer (1GB) = 3GB
-        backend_task = ecs.FargateTaskDefinition(
-            self,
-            f"{project_name}BackendTask",
-            cpu=1024,  # 1 vCPU for better performance
-            memory_limit_mib=3072,  # 3 GB (safe for BAAI/bge-large-en-v1.5 + app stack)
-            ephemeral_storage_gib=30,  # 30 GB for model cache and temporary files
-            runtime_platform=ecs.RuntimePlatform(
-                cpu_architecture=ecs.CpuArchitecture.ARM64,
-                operating_system_family=ecs.OperatingSystemFamily.LINUX,
-            ),
-        )
-
-        # Grant task access to S3 and DynamoDB
-        docs_bucket.grant_read_write(backend_task.task_role)
-        cache_table.grant_read_write_data(backend_task.task_role)
-
-        # Backend container
-        backend_container = backend_task.add_container(
-            "backend",
-            image=ecs.ContainerImage.from_ecr_repository(backend_repo, "latest"),
-            logging=ecs.LogDrivers.aws_logs(
-                stream_prefix="backend",
-                log_retention=logs.RetentionDays.ONE_WEEK,
-            ),
-            environment={
-                "DATABASE_URL": f"postgresql://postgres:{sql_db_password}@{db_instance.db_instance_endpoint_address}:5432/greengovrag",
-                "QDRANT_URL": "http://qdrant.greengovrag.local:6333",
-                "QDRANT_API_KEY": qdrant_api_key,
-                "VECTOR_STORE_TYPE": vector_store_type,
-                "EMBEDDING_MODEL": embedding_model,
-                "STORAGE_CONTAINER": docs_bucket.bucket_name,
-                "DYNAMODB_CACHE_TABLE": cache_table.table_name,
-                "CLOUD_PROVIDER": cloud_provider,
-                "CLOUD_REGION": self.region,
-                # LLM Configuration - Supports Azure OpenAI, AWS Bedrock, or OpenAI
-                # Azure: AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT
-                # AWS Bedrock: BEDROCK_MODEL_ID
-                # OpenAI: OPENAI_API_KEY
-                "LLM_PROVIDER": llm_provider,
-                "LLM_MODEL": llm_model,
-                "AZURE_OPENAI_API_VERSION": azure_openai_api_version,
-                "AZURE_OPENAI_API_KEY": azure_openai_api_key,
-                "AZURE_OPENAI_ENDPOINT": azure_openai_endpoint,
-                "AZURE_OPENAI_DEPLOYMENT": azure_openai_deployment,
-                "BEDROCK_MODEL_ID": bedrock_model_id,
-                # Cache Settings
-                "ENABLE_CACHE": enable_cache,
-                "ENABLE_REDIS_CACHE": enable_redis_cache,  # Using DynamoDB instead
-                "CACHE_TTL": cache_ttl,
-                "ENABLE_SEMANTIC_CACHE": enable_semantic_cache,
-                # API Security - Access key for all API endpoints
-                "API_ACCESS_KEY": api_access_key,
-                "APP_ENV": app_env,
-            },
-            health_check=ecs.HealthCheck(
-                command=["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"],
-                interval=Duration.seconds(30),
-                timeout=Duration.seconds(5),
-                retries=3,
-            ),
-        )
-
-        backend_container.add_port_mappings(ecs.PortMapping(container_port=8000))
-
-        # =====================================================================
-        # ECS Backend Service with Service Discovery
-        # =====================================================================
-        backend_service = ecs.FargateService(
-            self,
-            f"{project_name}BackendService",
-            cluster=cluster,
-            task_definition=backend_task,
-            desired_count=1,
-            assign_public_ip=True,
-            security_groups=[ecs_sg],
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
-            cloud_map_options=ecs.CloudMapOptions(
-                cloud_map_namespace=namespace,
-                name="backend",
-                dns_record_type=servicediscovery.DnsRecordType.A,
-            ),
-        )
-
-        # =====================================================================
         # EC2 On-Demand Instance for Qdrant
         # =====================================================================
+        # NOTE: Keeping Qdrant on-demand (not Spot) because:
+        # - Stateful service storing vector embeddings
+        # - Spot interruptions would cause data loss and service disruption
+        # - EBS volume reattachment complexity with ASG across AZs
+
         # IAM role for Qdrant EC2 instance
         qdrant_role = iam.Role(
             self,
@@ -484,6 +400,115 @@ class GreenGovRAGStack(Stack):
         qdrant_service.register_ip_instance(
             f"{project_name}QdrantInstanceRegistration",
             ipv4=qdrant_instance.instance_private_ip,
+        )
+
+        # =====================================================================
+        # ECS Backend Task Definition - ARM64
+        # =====================================================================
+        # CPU: 1 vCPU for better performance
+        # Memory: 3GB to support BGE-large embeddings with headroom
+        # BGE-large (1.5GB) + FastAPI/LangChain (500MB) + buffer (1GB) = 3GB
+        backend_task = ecs.FargateTaskDefinition(
+            self,
+            f"{project_name}BackendTask",
+            cpu=1024,  # 1 vCPU for better performance
+            memory_limit_mib=3072,  # 3 GB (safe for BAAI/bge-large-en-v1.5 + app stack)
+            ephemeral_storage_gib=30,  # 30 GB for model cache and temporary files
+            runtime_platform=ecs.RuntimePlatform(
+                cpu_architecture=ecs.CpuArchitecture.ARM64,
+                operating_system_family=ecs.OperatingSystemFamily.LINUX,
+            ),
+        )
+
+        # Grant task access to S3 and DynamoDB
+        docs_bucket.grant_read_write(backend_task.task_role)
+        cache_table.grant_read_write_data(backend_task.task_role)
+
+        # Backend container
+        backend_container = backend_task.add_container(
+            "backend",
+            image=ecs.ContainerImage.from_ecr_repository(backend_repo, "latest"),
+            logging=ecs.LogDrivers.aws_logs(
+                stream_prefix="backend",
+                log_retention=logs.RetentionDays.ONE_WEEK,
+            ),
+            environment={
+                "DATABASE_URL": f"postgresql://postgres:{sql_db_password}@{db_instance.db_instance_endpoint_address}:5432/greengovrag",
+                "QDRANT_URL": f"http://{qdrant_instance.instance_private_ip}:6333",
+                "QDRANT_API_KEY": qdrant_api_key,
+                "VECTOR_STORE_TYPE": vector_store_type,
+                "EMBEDDING_MODEL": embedding_model,
+                "STORAGE_CONTAINER": docs_bucket.bucket_name,
+                "DYNAMODB_CACHE_TABLE": cache_table.table_name,
+                "CLOUD_PROVIDER": cloud_provider,
+                "CLOUD_REGION": self.region,
+                # LLM Configuration - Supports Azure OpenAI, AWS Bedrock, or OpenAI
+                # Azure: AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT
+                # AWS Bedrock: BEDROCK_MODEL_ID
+                # OpenAI: OPENAI_API_KEY
+                "LLM_PROVIDER": llm_provider,
+                "LLM_MODEL": llm_model,
+                "AZURE_OPENAI_API_VERSION": azure_openai_api_version,
+                "AZURE_OPENAI_API_KEY": azure_openai_api_key,
+                "AZURE_OPENAI_ENDPOINT": azure_openai_endpoint,
+                "AZURE_OPENAI_DEPLOYMENT": azure_openai_deployment,
+                "BEDROCK_MODEL_ID": bedrock_model_id,
+                # Cache Settings
+                "ENABLE_CACHE": enable_cache,
+                "ENABLE_REDIS_CACHE": enable_redis_cache,  # Using DynamoDB instead
+                "CACHE_TTL": cache_ttl,
+                "ENABLE_SEMANTIC_CACHE": enable_semantic_cache,
+                # API Security - Access key for all API endpoints
+                "API_ACCESS_KEY": api_access_key,
+                "APP_ENV": app_env,
+            },
+            health_check=ecs.HealthCheck(
+                command=["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"],
+                interval=Duration.seconds(30),
+                timeout=Duration.seconds(5),
+                retries=3,
+            ),
+        )
+
+        backend_container.add_port_mappings(ecs.PortMapping(container_port=8000))
+
+        # =====================================================================
+        # ECS Backend Service with Service Discovery
+        # =====================================================================
+        backend_service = ecs.FargateService(
+            self,
+            f"{project_name}BackendService",
+            cluster=cluster,
+            task_definition=backend_task,
+            desired_count=1,
+            assign_public_ip=True,
+            security_groups=[ecs_sg],
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
+            cloud_map_options=ecs.CloudMapOptions(
+                cloud_map_namespace=namespace,
+                name="backend",
+                dns_record_type=servicediscovery.DnsRecordType.A,
+            ),
+            capacity_provider_strategies=[
+                ecs.CapacityProviderStrategy(
+                    capacity_provider="FARGATE_SPOT",
+                    weight=2,  # Prefer Spot (70% cheaper)
+                    base=0,
+                ),
+                ecs.CapacityProviderStrategy(
+                    capacity_provider="FARGATE",
+                    weight=1,  # Fallback to on-demand if Spot unavailable
+                ),
+            ],
+        )
+
+        # Auto-scaling for cost efficiency
+        scaling = backend_service.auto_scale_task_count(min_capacity=1, max_capacity=3)
+        scaling.scale_on_cpu_utilization(
+            "CpuScaling",
+            target_utilization_percent=70,
+            scale_in_cooldown=Duration.seconds(180),
+            scale_out_cooldown=Duration.seconds(60),
         )
 
         # =====================================================================
@@ -578,7 +603,7 @@ function handler(event) {{
             self,
             f"{project_name}Distribution",
             default_behavior=cloudfront.BehaviorOptions(
-                origin=origins.S3BucketOrigin(frontend_bucket, origin_access_identity=oai),
+                origin=origins.S3Origin(frontend_bucket, origin_access_identity=oai),
                 viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
                 cache_policy=cloudfront.CachePolicy.CACHING_OPTIMIZED,
                 compress=True,
@@ -692,6 +717,13 @@ function handler(event) {{
             "QdrantInstanceId",
             value=qdrant_instance.instance_id,
             description="Qdrant EC2 instance ID (on-demand)",
+        )
+
+        CfnOutput(
+            self,
+            "QdrantPrivateIP",
+            value=qdrant_instance.instance_private_ip,
+            description="Qdrant private IP for backend connection",
         )
 
         CfnOutput(

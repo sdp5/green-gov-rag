@@ -83,6 +83,49 @@ jobs:
           npm install -g aws-cdk
           pip install -r deploy/aws/requirements.txt
 
+      - name: Preview CDK changes
+        env:
+          APP_ENV: ${{ vars.APP_ENV }}
+          API_ACCESS_KEY: ${{ secrets.API_ACCESS_KEY }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          CLOUD_PROVIDER: ${{ vars.CLOUD_PROVIDER }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          SQL_DB_PASSWORD: ${{ secrets.SQL_DB_PASSWORD }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
+          LLM_MODEL: ${{ vars.LLM_MODEL }}
+          AZURE_OPENAI_DEPLOYMENT: ${{ vars.AZURE_OPENAI_DEPLOYMENT }}
+          AZURE_OPENAI_API_VERSION: ${{ vars.AZURE_OPENAI_API_VERSION }}
+          EMBEDDING_MODEL: ${{ vars.EMBEDDING_MODEL }}
+          VECTOR_STORE_TYPE: ${{ vars.VECTOR_STORE_TYPE }}
+          ENABLE_CACHE: ${{ vars.ENABLE_CACHE }}
+          ENABLE_REDIS_CACHE: ${{ vars.ENABLE_REDIS_CACHE }}
+          CACHE_TTL: ${{ vars.CACHE_TTL }}
+          ENABLE_SEMANTIC_CACHE: ${{ vars.ENABLE_SEMANTIC_CACHE }}
+          BEDROCK_MODEL_ID: ${{ vars.BEDROCK_MODEL_ID }}
+        run: |
+          cd deploy/aws
+          echo "=== Preview of changes that will be deployed ==="
+          cdk diff \
+            --context app_env="${APP_ENV}" \
+            --context api_access_key="${API_ACCESS_KEY}" \
+            --context azure_openai_api_key="${AZURE_OPENAI_API_KEY}" \
+            --context azure_openai_endpoint="${AZURE_OPENAI_ENDPOINT}" \
+            --context cloud_provider="${CLOUD_PROVIDER}" \
+            --context bedrock_model_id="${BEDROCK_MODEL_ID}" \
+            --context qdrant_api_key="${QDRANT_API_KEY}" \
+            --context sql_db_password="${SQL_DB_PASSWORD}" \
+            --context llm_provider="${LLM_PROVIDER}" \
+            --context llm_model="${LLM_MODEL}" \
+            --context azure_openai_deployment="${AZURE_OPENAI_DEPLOYMENT}" \
+            --context azure_openai_api_version="${AZURE_OPENAI_API_VERSION}" \
+            --context embedding_model="${EMBEDDING_MODEL}" \
+            --context vector_store_type="${VECTOR_STORE_TYPE}" \
+            --context enable_cache="${ENABLE_CACHE}" \
+            --context enable_redis_cache="${ENABLE_REDIS_CACHE}" \
+            --context cache_ttl="${CACHE_TTL}" \
+            --context enable_semantic_cache="${ENABLE_SEMANTIC_CACHE}" || true
+
       - name: Deploy CDK Stack with Secrets
         env:
           APP_ENV: ${{ vars.APP_ENV }}

@@ -6,19 +6,23 @@ on:
     paths:
       - 'backend/**'
       - 'deploy/docker/backend.Dockerfile'
+      - 'deploy/docker/start.sh'
       - 'deploy/aws/**'
       - '.github/workflows/aws-deploy-backend.yml'
   workflow_dispatch:
 
-env:
-  AWS_REGION: ap-southeast-2
-  ECR_REPOSITORY: greengovrag-backend
-
 jobs:
+  # Ensure CI tests pass before deploying
+  ci-backend:
+    uses: ./.github/workflows/ci-backend.yml
+    secrets: inherit
+
   deploy:
-    if: false  # Change to true to enable deployment
+    if: true  # Change to true to enable deployment
     name: Deploy Backend to AWS ECS
     runs-on: ubuntu-latest
+    environment: aws-prod
+    needs: ci-backend  # Wait for tests to pass
     permissions:
       id-token: write
       contents: read
@@ -31,7 +35,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -43,73 +47,121 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          # Build Docker image
+          # Build Docker image for ARM64 (matches ECS Fargate ARM)
           docker build \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            -t $ECR_REGISTRY/${{ vars.ECR_REPOSITORY }}:$IMAGE_TAG \
+            -t $ECR_REGISTRY/${{ vars.ECR_REPOSITORY }}:latest \
             -f deploy/docker/backend.Dockerfile \
+            --platform linux/arm64 \
             .
 
           # Push image to ECR
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/${{ vars.ECR_REPOSITORY }}:$IMAGE_TAG
+          docker push $ECR_REGISTRY/${{ vars.ECR_REPOSITORY }}:latest
 
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "image=$ECR_REGISTRY/${{ vars.ECR_REPOSITORY }}:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Deploy CDK Stack with Secrets
         env:
+          APP_ENV: ${{ vars.APP_ENV }}
           API_ACCESS_KEY: ${{ secrets.API_ACCESS_KEY }}
           AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
           AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          CLOUD_PROVIDER: ${{ vars.CLOUD_PROVIDER }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          SQL_DB_PASSWORD: ${{ secrets.SQL_DB_PASSWORD }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
+          LLM_MODEL: ${{ vars.LLM_MODEL }}
+          AZURE_OPENAI_DEPLOYMENT: ${{ vars.AZURE_OPENAI_DEPLOYMENT }}
+          AZURE_OPENAI_API_VERSION: ${{ vars.AZURE_OPENAI_API_VERSION }}
+          EMBEDDING_MODEL: ${{ vars.EMBEDDING_MODEL }}
+          VECTOR_STORE_TYPE: ${{ vars.VECTOR_STORE_TYPE }}
+          ENABLE_CACHE: ${{ vars.ENABLE_CACHE }}
+          ENABLE_REDIS_CACHE: ${{ vars.ENABLE_REDIS_CACHE }}
+          CACHE_TTL: ${{ vars.CACHE_TTL }}
+          ENABLE_SEMANTIC_CACHE: ${{ vars.ENABLE_SEMANTIC_CACHE }}
+          BEDROCK_MODEL_ID: ${{ vars.BEDROCK_MODEL_ID }}
         run: |
           cd deploy/aws
 
           # Deploy stack with secrets passed as context
           cdk deploy --require-approval never \
+            --context app_env="${APP_ENV}" \
             --context api_access_key="${API_ACCESS_KEY}" \
             --context azure_openai_api_key="${AZURE_OPENAI_API_KEY}" \
             --context azure_openai_endpoint="${AZURE_OPENAI_ENDPOINT}" \
-            --context llm_provider="${LLM_PROVIDER:-azure}" \
-            --context llm_model="${LLM_MODEL:-gpt-5-mini}" \
-            --context azure_openai_deployment="${AZURE_OPENAI_DEPLOYMENT:-gpt-5-mini}" \
-            --context embedding_model="${EMBEDDING_MODEL:-BAAI/bge-large-en-v1.5}"
+            --context cloud_provider="${CLOUD_PROVIDER}" \
+            --context bedrock_model_id="${BEDROCK_MODEL_ID}" \
+            --context qdrant_api_key="${QDRANT_API_KEY}" \
+            --context sql_db_password="${SQL_DB_PASSWORD}" \
+            --context llm_provider="${LLM_PROVIDER}" \
+            --context llm_model="${LLM_MODEL}" \
+            --context azure_openai_deployment="${AZURE_OPENAI_DEPLOYMENT}" \
+            --context azure_openai_api_version="${AZURE_OPENAI_API_VERSION}" \
+            --context embedding_model="${EMBEDDING_MODEL}" \
+            --context vector_store_type="${VECTOR_STORE_TYPE}" \
+            --context enable_cache="${ENABLE_CACHE}" \
+            --context enable_redis_cache="${ENABLE_REDIS_CACHE}" \
+            --context cache_ttl="${CACHE_TTL}" \
+            --context enable_semantic_cache="${ENABLE_SEMANTIC_CACHE}"
 
       - name: Force new ECS deployment
         run: |
+          # Get service name from CloudFormation stack outputs
+          SERVICE_NAME=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`BackendServiceName`].OutputValue' \
+            --output text \
+            --region ${{ vars.AWS_REGION }})
+
           aws ecs update-service \
             --cluster GreenGovRAG-Cluster \
-            --service GreenGovRAG-BackendService \
+            --service "$SERVICE_NAME" \
             --force-new-deployment \
-            --region ${{ env.AWS_REGION }}
+            --region ${{ vars.AWS_REGION }}
 
       - name: Wait for ECS service stability
         run: |
+          # Get service name from CloudFormation stack outputs
+          SERVICE_NAME=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`BackendServiceName`].OutputValue' \
+            --output text \
+            --region ${{ vars.AWS_REGION }})
+
           aws ecs wait services-stable \
             --cluster GreenGovRAG-Cluster \
-            --services GreenGovRAG-BackendService \
-            --region ${{ env.AWS_REGION }}
+            --services "$SERVICE_NAME" \
+            --region ${{ vars.AWS_REGION }}
 
       - name: Get deployment status
         run: |
+          # Get service name from CloudFormation stack outputs
+          SERVICE_NAME=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`BackendServiceName`].OutputValue' \
+            --output text \
+            --region ${{ vars.AWS_REGION }})
+
           aws ecs describe-services \
             --cluster GreenGovRAG-Cluster \
-            --services GreenGovRAG-BackendService \
-            --region ${{ env.AWS_REGION }} \
+            --services "$SERVICE_NAME" \
+            --region ${{ vars.AWS_REGION }} \
             --query 'services[0].deployments' \
             --output table
 
       - name: Run post-deployment health check
         run: |
-          # Get API Gateway URL from CloudFormation outputs
-          API_URL=$(aws cloudformation describe-stacks \
+          # Get ALB URL from CloudFormation outputs
+          ALB_URL=$(aws cloudformation describe-stacks \
             --stack-name GreenGovRAGStack \
-            --query 'Stacks[0].Outputs[?OutputKey==`ApiGatewayURL`].OutputValue' \
+            --query 'Stacks[0].Outputs[?OutputKey==`LoadBalancerDNS`].OutputValue' \
             --output text \
-            --region ${{ env.AWS_REGION }})
+            --region ${{ vars.AWS_REGION }})
 
           # Health check
-          echo "Checking health at: ${API_URL}/api/health"
-          curl -f "${API_URL}/api/health" || exit 1
+          echo "Checking health at: ${ALB_URL}/api/health"
+          curl -f "${ALB_URL}/api/health" || exit 1
           echo "✓ Deployment successful!"
 
       - name: Notify on failure

@@ -72,6 +72,7 @@ class QueryService:
         jurisdiction: Optional[str] = None,
         topics: Optional[list[str]] = None,
         max_sources: int = 5,
+        include_trust_score: bool = False,
         session_id: Optional[str] = None,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
@@ -344,8 +345,16 @@ class QueryService:
                     "answer": answer,
                     "sources": [doc.model_dump() for doc in source_docs],
                 }
+                # Only verify top 3 sources for relevance (expensive LLM calls)
+                # Skip relevance if not calculating trust score (saves LLM calls in first query)
                 verification_results = (
-                    await self.citation_service.verify_query_response(response_dict)
+                    await self.citation_service.verify_query_response(
+                        response_dict,
+                        query=query,
+                        answer=answer,
+                        max_sources=3,
+                        skip_relevance=not include_trust_score,
+                    )
                 )
 
                 # Collect warnings
@@ -360,64 +369,70 @@ class QueryService:
             except Exception as e:
                 logger.error(f"Citation verification failed: {e}", exc_info=True)
 
-        # Detect regulatory conflicts
+        # Detect regulatory conflicts (only if calculating trust score)
         conflicts = None
         source_dicts = []
-        try:
-            source_dicts = [doc.model_dump() for doc in source_docs]
-            conflicts = await self.hierarchy_service.detect_conflicts(source_dicts)
-
-            if conflicts:
-                conflicts_detected = [
-                    {
-                        "type": c.conflict_type,
-                        "severity": c.severity,
-                        "resolution": c.resolution,
-                        "details": c.details,
-                    }
-                    for c in conflicts
-                ]
-
-            # Generate hierarchy explanation
-            hierarchy_explanation = (
-                self.hierarchy_service.generate_hierarchy_explanation(source_dicts)
-            )
-
-        except Exception as e:
-            logger.error(f"Conflict detection failed: {e}", exc_info=True)
-            # Re-build source_dicts if it failed
-            if not source_dicts:
+        if include_trust_score:
+            try:
                 source_dicts = [doc.model_dump() for doc in source_docs]
+                conflicts = await self.hierarchy_service.detect_conflicts(source_dicts)
 
-        # Calculate trust score
-        try:
-            # Calculate authority scores for each source
-            authority_scores = {}
-            for i, source_dict in enumerate(source_dicts):
-                authority_scores[
-                    f"source_{i}"
-                ] = self.hierarchy_service.calculate_source_authority_score(source_dict)
+                if conflicts:
+                    conflicts_detected = [
+                        {
+                            "type": c.conflict_type,
+                            "severity": c.severity,
+                            "resolution": c.resolution,
+                            "details": c.details,
+                        }
+                        for c in conflicts
+                    ]
 
-            # Calculate composite trust score
-            trust_breakdown_obj = self.trust_service.calculate_trust_score(
-                citation_results=verification_results,
-                sources=source_dicts,
-                conflicts=conflicts if conflicts else None,
-                authority_scores=authority_scores,
-            )
+                # Generate hierarchy explanation
+                hierarchy_explanation = (
+                    self.hierarchy_service.generate_hierarchy_explanation(source_dicts)
+                )
 
-            trust_score = trust_breakdown_obj.overall_score
-            trust_confidence = trust_breakdown_obj.confidence_level
-            trust_breakdown = {
-                "citation_score": trust_breakdown_obj.citation_score,
-                "authority_score": trust_breakdown_obj.authority_score,
-                "conflict_score": trust_breakdown_obj.conflict_score,
-                "accuracy_score": trust_breakdown_obj.accuracy_score,
-                "warnings": trust_breakdown_obj.warnings,
-            }
+            except Exception as e:
+                logger.error(f"Conflict detection failed: {e}", exc_info=True)
+                # Re-build source_dicts if it failed
+                if not source_dicts:
+                    source_dicts = [doc.model_dump() for doc in source_docs]
 
-        except Exception as e:
-            logger.error(f"Trust score calculation failed: {e}", exc_info=True)
+        # Calculate trust score (only if requested - expensive!)
+        if include_trust_score:
+            try:
+                # Calculate authority scores for each source
+                authority_scores = {}
+                for i, source_dict in enumerate(source_dicts):
+                    authority_scores[
+                        f"source_{i}"
+                    ] = self.hierarchy_service.calculate_source_authority_score(
+                        source_dict
+                    )
+
+                # Calculate composite trust score
+                trust_breakdown_obj = self.trust_service.calculate_trust_score(
+                    citation_results=verification_results,
+                    sources=source_dicts,
+                    conflicts=conflicts if conflicts else None,
+                    authority_scores=authority_scores,
+                )
+
+                trust_score = trust_breakdown_obj.overall_score
+                trust_confidence = trust_breakdown_obj.confidence_level
+                # Order by importance (weight) and use clear names for UI display
+                trust_breakdown = {
+                    "source_relevance": trust_breakdown_obj.relevance_score,  # 40% weight - MOST IMPORTANT
+                    "document_currency": trust_breakdown_obj.citation_score,  # 25% - renamed from "citation"
+                    "source_authority": trust_breakdown_obj.authority_score,  # 15%
+                    "conflict_check": trust_breakdown_obj.conflict_score,  # 10%
+                    "quote_accuracy": trust_breakdown_obj.accuracy_score,  # 10%
+                    "warnings": trust_breakdown_obj.warnings,
+                }
+
+            except Exception as e:
+                logger.error(f"Trust score calculation failed: {e}", exc_info=True)
 
         # Save to query history and get query_id
         query_id = self._save_query_history(

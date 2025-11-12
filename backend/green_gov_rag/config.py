@@ -223,7 +223,7 @@ class Settings(BaseSettings):
         description="CORS allowed origins (comma-separated)",
     )
     api_access_key: str = Field(
-        default="dev-insecure-key-change-in-prod",
+        default="dev-insecure-key-change-in-production",
         description="API access key required for all API endpoints (set via environment variable in production)",
     )
     admin_api_key: str | None = Field(

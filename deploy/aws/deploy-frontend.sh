@@ -1,8 +1,9 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Script to build and deploy frontend to AWS CloudFront
-# This script should be run before CDK deployment
+# Script to build and deploy frontend to AWS CloudFront/S3
+# For production deployments, use GitHub Actions workflow (aws-deploy-frontend.yml)
+# This script is for manual/testing purposes only
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"

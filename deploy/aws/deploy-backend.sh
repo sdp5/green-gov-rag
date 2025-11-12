@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Green Gov RAG - AWS Deployment Script
-# This script deploys the application to AWS using CDK
+# GreenGovRAG - AWS Backend Deployment Script
+# This script performs initial deployment of the backend to AWS using CDK
+# For subsequent deployments, use GitHub Actions workflow (aws-deploy-backend.yml)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
@@ -60,39 +61,11 @@ setup_aws_env() {
 
     log_info "AWS Account: $CDK_DEFAULT_ACCOUNT"
     log_info "AWS Region: $CDK_DEFAULT_REGION"
-}
 
-# Create required secrets in AWS Secrets Manager
-create_secrets() {
-    log_info "Checking required secrets..."
-
-    # Check OpenAI API Key
-    if ! aws secretsmanager describe-secret --secret-id greengovrag/openai-api-key --region $CDK_DEFAULT_REGION &>/dev/null; then
-        log_warn "Secret 'greengovrag/openai-api-key' not found"
-        read -p "Enter your OpenAI API key: " -s OPENAI_KEY
-        echo
-        aws secretsmanager create-secret \
-            --name greengovrag/openai-api-key \
-            --secret-string "$OPENAI_KEY" \
-            --region $CDK_DEFAULT_REGION
-        log_info "Created OpenAI API key secret ✓"
-    else
-        log_info "OpenAI API key secret exists ✓"
-    fi
-
-    # Check MapBox Token
-    if ! aws secretsmanager describe-secret --secret-id greengovrag/mapbox-token --region $CDK_DEFAULT_REGION &>/dev/null; then
-        log_warn "Secret 'greengovrag/mapbox-token' not found"
-        read -p "Enter your MapBox access token: " -s MAPBOX_TOKEN
-        echo
-        aws secretsmanager create-secret \
-            --name greengovrag/mapbox-token \
-            --secret-string "$MAPBOX_TOKEN" \
-            --region $CDK_DEFAULT_REGION
-        log_info "Created MapBox token secret ✓"
-    else
-        log_info "MapBox token secret exists ✓"
-    fi
+    # Install Python dependencies for CDK
+    log_info "Installing Python dependencies for CDK..."
+    pip install -q -r requirements.txt 2>/dev/null || true
+    log_info "Python dependencies installed."
 }
 
 # Bootstrap CDK (first time only)
@@ -106,9 +79,6 @@ deploy_stack() {
     log_info "Deploying CDK stack..."
     cd "$SCRIPT_DIR"
 
-    # Install Python dependencies for CDK
-    pip install -q -r requirements.txt 2>/dev/null || true
-
     # Get API access key from environment or prompt
     if [ -z "$API_ACCESS_KEY" ]; then
         log_warn "API_ACCESS_KEY not set in environment"
@@ -120,13 +90,36 @@ deploy_stack() {
         fi
     fi
 
+    # Get database password from environment or prompt
+    if [ -z "${SQL_DB_PASSWORD:-}" ]; then
+        log_warn "SQL_DB_PASSWORD not set in environment"
+        read -p "Enter database password (or press Enter to auto-generate): " -s SQL_DB_PASSWORD
+        echo
+        if [ -z "$SQL_DB_PASSWORD" ]; then
+            SQL_DB_PASSWORD=$(openssl rand -base64 32)
+            log_info "Generated random database password"
+        fi
+    fi
+
+    # Export for use by initialize_database and run_migrations
+    export SQL_DB_PASSWORD
+
     # Synthesize stack
     log_info "Synthesizing CloudFormation template..."
-    cdk synth --context api_access_key="$API_ACCESS_KEY"
+    cdk synth --context api_access_key="$API_ACCESS_KEY" \
+              --context azure_openai_api_key="$AZURE_OPENAI_API_KEY" \
+              --context azure_openai_endpoint="$AZURE_OPENAI_ENDPOINT" \
+              --context qdrant_api_key="$QDRANT_API_KEY" \
+              --context sql_db_password="$SQL_DB_PASSWORD"
 
     # Deploy
     log_info "Deploying to AWS (this may take 15-20 minutes)..."
-    cdk deploy --require-approval never --context api_access_key="$API_ACCESS_KEY"
+    cdk deploy --require-approval never \
+        --context api_access_key="$API_ACCESS_KEY" \
+        --context azure_openai_api_key="$AZURE_OPENAI_API_KEY" \
+        --context azure_openai_endpoint="$AZURE_OPENAI_ENDPOINT" \
+        --context qdrant_api_key="$QDRANT_API_KEY" \
+        --context sql_db_password="$SQL_DB_PASSWORD"
 
     log_info "Stack deployed successfully ✓"
 }
@@ -135,36 +128,24 @@ deploy_stack() {
 initialize_database() {
     log_info "Initializing database extensions..."
 
-    # Get database details from CDK outputs
-    DB_SECRET_ARN=$(aws cloudformation describe-stacks \
-        --stack-name GreenGovRAGStack \
-        --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue" \
-        --output text \
-        --region $CDK_DEFAULT_REGION)
-
+    # Get database endpoint from CDK outputs
     DB_HOST=$(aws cloudformation describe-stacks \
         --stack-name GreenGovRAGStack \
-        --query "Stacks[0].Outputs[?OutputKey=='DatabaseHost'].OutputValue" \
+        --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" \
         --output text \
         --region $CDK_DEFAULT_REGION)
 
-    if [ -z "$DB_SECRET_ARN" ] || [ -z "$DB_HOST" ]; then
-        log_warn "Could not retrieve database details. Skipping database initialization."
+    if [ -z "$DB_HOST" ]; then
+        log_warn "Could not retrieve database endpoint. Skipping database initialization."
         log_warn "You may need to manually run database migrations."
         return
     fi
 
     log_info "Database host: $DB_HOST"
 
-    # Get database credentials
-    DB_CREDENTIALS=$(aws secretsmanager get-secret-value \
-        --secret-id "$DB_SECRET_ARN" \
-        --region $CDK_DEFAULT_REGION \
-        --query SecretString \
-        --output text)
-
-    DB_PASSWORD=$(echo $DB_CREDENTIALS | python3 -c "import sys, json; print(json.load(sys.stdin)['password'])")
-    DB_USER=$(echo $DB_CREDENTIALS | python3 -c "import sys, json; print(json.load(sys.stdin)['username'])")
+    # Use credentials from deploy_stack
+    DB_USER="postgres"
+    DB_PASSWORD="$SQL_DB_PASSWORD"
     DB_NAME="greengovrag"
 
     # Install psql if not available
@@ -189,27 +170,21 @@ EOF
 run_migrations() {
     log_info "Running database migrations..."
 
-    # Get database connection string from secrets
-    DB_SECRET_ARN=$(aws cloudformation describe-stacks \
+    # Get database endpoint from CDK outputs
+    DB_HOST=$(aws cloudformation describe-stacks \
         --stack-name GreenGovRAGStack \
-        --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue" \
+        --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" \
         --output text \
         --region $CDK_DEFAULT_REGION)
 
-    if [ -z "$DB_SECRET_ARN" ]; then
-        log_warn "Could not retrieve database secret. Skipping migrations."
+    if [ -z "$DB_HOST" ]; then
+        log_warn "Could not retrieve database endpoint. Skipping migrations."
         return
     fi
 
-    DB_CREDENTIALS=$(aws secretsmanager get-secret-value \
-        --secret-id "$DB_SECRET_ARN" \
-        --region $CDK_DEFAULT_REGION \
-        --query SecretString \
-        --output text)
-
-    DB_HOST=$(echo $DB_CREDENTIALS | python3 -c "import sys, json; print(json.load(sys.stdin)['host'])")
-    DB_PASSWORD=$(echo $DB_CREDENTIALS | python3 -c "import sys, json; print(json.load(sys.stdin)['password'])")
-    DB_USER=$(echo $DB_CREDENTIALS | python3 -c "import sys, json; print(json.load(sys.stdin)['username'])")
+    # Use credentials from deploy_stack
+    DB_USER="postgres"
+    DB_PASSWORD="$SQL_DB_PASSWORD"
 
     export DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:5432/greengovrag"
 
@@ -273,7 +248,6 @@ main() {
 
     check_prerequisites
     setup_aws_env
-    create_secrets
     bootstrap_cdk
     deploy_stack
 

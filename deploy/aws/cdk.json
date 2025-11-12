@@ -3,7 +3,7 @@
   "context": {
     "project_name": "GreenGovRAG",
     "region": "ap-southeast-2",
-    "docker_image_path": "../",     // Root with Dockerfile
+    "docker_image_path": "../",
     "container_port": 8000
   }
 }

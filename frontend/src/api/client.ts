@@ -52,7 +52,11 @@ export const documentsAPI = {
 
 export const analyticsAPI = {
   getStats: async () => {
-    const response = await apiClient.get('/analytics/stats');
+    // Include session_id for user-specific query count
+    const session_id = getOrCreateSessionId();
+    const response = await apiClient.get('/analytics/stats', {
+      params: { session_id }
+    });
     return response.data;
   },
 };

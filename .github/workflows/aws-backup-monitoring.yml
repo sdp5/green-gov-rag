@@ -12,6 +12,7 @@ jobs:
   backup-aws:
     name: Backup AWS Resources
     runs-on: ubuntu-latest
+    environment: aws-prod
     # Disabled - change to true to enable backup
     if: false
     permissions:

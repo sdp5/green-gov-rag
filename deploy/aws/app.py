@@ -10,7 +10,7 @@ Usage:
     cdk deploy
 
     # Or specify via context
-    cdk deploy --context project_name=GreenGovRAG --context environment=prod
+    cdk deploy --context project_name=GreenGovRAG --context environment=production
 """
 
 import os

@@ -132,6 +132,10 @@ class QueryRequest(BaseModel):
     jurisdiction: Optional[str] = Field(None, description="Jurisdiction filter")
     topics: Optional[list[str]] = Field(None, description="Topic filters")
     max_sources: int = Field(5, ge=1, le=20, description="Max source documents")
+    include_trust_score: bool = Field(
+        False,
+        description="Calculate trust score (expensive - requires multiple LLM calls)",
+    )
     session_id: Optional[str] = Field(
         None, description="Browser session ID for user-specific query history"
     )
@@ -264,7 +268,7 @@ class QueryResponse(BaseModel):
     )
     trust_breakdown: Optional[dict[str, Any]] = Field(
         None,
-        description="Detailed trust score breakdown (citation, authority, conflict, accuracy)",
+        description="Detailed trust score breakdown: source_relevance (40%), document_currency (25%), source_authority (15%), conflict_check (10%), quote_accuracy (10%)",
     )
     conflicts_detected: Optional[list[dict[str, Any]]] = Field(
         None,

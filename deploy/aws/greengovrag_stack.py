@@ -3,24 +3,24 @@
 Cost-optimized deployment with:
 - VPC with public subnets only (no NAT Gateway)
 - ECS Fargate backend (1 vCPU, 3GB ARM64)
-- RDS PostgreSQL t4g.micro with pgvector (30% utilization for 8 hrs/day)
+- RDS PostgreSQL t4g.micro with pgvector
 - DynamoDB for caching (replaces ElastiCache)
-- EC2 Spot instance (t4g.micro) for Qdrant with auto-recovery
+- EC2 on-demand t4g.micro for Qdrant vector database
+- Application Load Balancer ($16/mo)
 - CloudFront + S3 for frontend (global CDN)
-- API Gateway HTTP API (direct integration, no VPC Link)
 - GitHub Secrets for LLM API keys (no SSM endpoint needed)
 - S3 Gateway Endpoint (free)
+
+Architecture flow:
+CloudFront → ALB → ECS Fargate → RDS PostgreSQL + Qdrant
 
 Architecture optimizations:
 - No NAT Gateway (saves $40-50/mo)
 - No VPC Link (saves $20/mo)
 - No SSM endpoint (saves $10/mo)
-- Spot instances for non-critical workloads (84% discount)
 - ARM64/Graviton processors (20% cost reduction)
 - Pay-per-request DynamoDB (vs provisioned ElastiCache)
-- Direct API Gateway → ECS integration via Cloud Map DNS
-
-Estimated usage: 8 hrs/day for cost optimization
+- On-demand EC2 for critical services (Qdrant) for reliability
 """
 
 from aws_cdk import (
@@ -28,18 +28,13 @@ from aws_cdk import (
     Duration,
     RemovalPolicy,
     Stack,
-    Size,
-    Tags,
-    aws_apigatewayv2 as apigw,
-    aws_apigatewayv2_integrations as apigw_integrations,
     aws_cloudfront as cloudfront,
     aws_cloudfront_origins as origins,
     aws_dynamodb as dynamodb,
     aws_ec2 as ec2,
     aws_ecr as ecr,
     aws_ecs as ecs,
-    aws_events as events,
-    aws_events_targets as targets,
+    aws_elasticloadbalancingv2 as elbv2,
     aws_iam as iam,
     aws_lambda as lambda_,
     aws_logs as logs,
@@ -47,13 +42,13 @@ from aws_cdk import (
     aws_s3 as s3,
     aws_s3_deployment as s3deploy,
     aws_servicediscovery as servicediscovery,
-    aws_ssm as ssm,
+    SecretValue,
 )
 from constructs import Construct
 
 
 class GreenGovRAGStack(Stack):
-    """Hybrid architecture stack with managed services and spot instances."""
+    """Hybrid architecture stack with managed services and on-demand EC2."""
 
     def __init__(self, scope: Construct, id: str, **kwargs):
         """Initialize the GreenGovRAG hybrid stack.
@@ -67,21 +62,28 @@ class GreenGovRAGStack(Stack):
 
         # Get context values with defaults
         project_name = self.node.try_get_context("project_name") or "GreenGovRAG"
-        environment = self.node.try_get_context("environment") or "prod"
+        app_env = self.node.try_get_context("app_env") or "production"
 
         # Secrets - Retrieved from context (passed via GitHub Actions or CLI)
         api_access_key = self.node.try_get_context("api_access_key") or "REPLACE_VIA_GITHUB_SECRETS"
         azure_openai_api_key = self.node.try_get_context("azure_openai_api_key") or "REPLACE_VIA_GITHUB_SECRETS"
         azure_openai_endpoint = self.node.try_get_context("azure_openai_endpoint") or "REPLACE_VIA_GITHUB_SECRETS"
         qdrant_api_key = self.node.try_get_context("qdrant_api_key") or "REPLACE_VIA_GITHUB_SECRETS"
+        sql_db_password = self.node.try_get_context("sql_db_password") or "REPLACE_VIA_GITHUB_SECRETS"
 
         # Configurable settings - Retrieved from context with sensible defaults
+        cloud_provider = self.node.try_get_context("cloud_provider") or "aws"
         llm_provider = self.node.try_get_context("llm_provider") or "azure"
         llm_model = self.node.try_get_context("llm_model") or "gpt-5-mini"
         azure_openai_deployment = self.node.try_get_context("azure_openai_deployment") or llm_model
         azure_openai_api_version = self.node.try_get_context("azure_openai_api_version") or "2024-12-01-preview"
+        bedrock_model_id = self.node.try_get_context("bedrock_model_id") or "amazon.nova-pro-v1:0"
         embedding_model = self.node.try_get_context("embedding_model") or "BAAI/bge-large-en-v1.5"
         vector_store_type = self.node.try_get_context("vector_store_type") or "qdrant"
+        enable_cache = self.node.try_get_context("enable_cache") or "true"
+        enable_redis_cache = self.node.try_get_context("enable_redis_cache") or "false"
+        cache_ttl = self.node.try_get_context("cache_ttl") or "3600"
+        enable_semantic_cache = self.node.try_get_context("enable_semantic_cache") or "true"
 
         # =====================================================================
         # VPC - Public Subnets Only (No NAT Gateway)
@@ -90,7 +92,7 @@ class GreenGovRAGStack(Stack):
             self,
             f"{project_name}Vpc",
             max_azs=2,
-            nat_gateways=0,  # Cost savings: $32-45/month
+            nat_gateways=0,  # Cost savings: $40-45/month
             subnet_configuration=[
                 ec2.SubnetConfiguration(
                     name="Public",
@@ -236,7 +238,10 @@ class GreenGovRAGStack(Stack):
             deletion_protection=False,
             removal_policy=RemovalPolicy.SNAPSHOT,
             database_name="greengovrag",
-            credentials=rds.Credentials.from_generated_secret("postgres"),
+            credentials=rds.Credentials.from_password(
+                username="postgres",
+                password=SecretValue.unsafe_plain_text(sql_db_password),  # From GitHub Secrets
+            ),
         )
 
         # =====================================================================
@@ -251,6 +256,7 @@ class GreenGovRAGStack(Stack):
             timeout=Duration.minutes(5),
             vpc=vpc,
             vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
+            allow_public_subnet=True,  # Lambda in public subnet (no NAT Gateway for cost savings)
             security_groups=[ec2.SecurityGroup(
                 self,
                 f"{project_name}LambdaInitSG",
@@ -258,13 +264,12 @@ class GreenGovRAGStack(Stack):
                 allow_all_outbound=True,
             )],
             environment={
-                "DB_SECRET_ARN": db_instance.secret.secret_arn,
                 "DB_HOST": db_instance.db_instance_endpoint_address,
+                "DB_USER": "postgres",
+                "DB_PASSWORD": sql_db_password,
+                "DB_NAME": "greengovrag",
             },
         )
-
-        # Grant Lambda access to DB secret
-        db_instance.secret.grant_read(pgvector_init_lambda)
 
         # Allow Lambda to connect to RDS
         rds_sg.add_ingress_rule(
@@ -335,18 +340,18 @@ class GreenGovRAGStack(Stack):
                 log_retention=logs.RetentionDays.ONE_WEEK,
             ),
             environment={
-                "DATABASE_URL": f"postgresql://postgres:PASSWORD@{db_instance.db_instance_endpoint_address}:5432/greengovrag",
+                "DATABASE_URL": f"postgresql://postgres:{sql_db_password}@{db_instance.db_instance_endpoint_address}:5432/greengovrag",
                 "QDRANT_URL": "http://qdrant.greengovrag.local:6333",
                 "QDRANT_API_KEY": qdrant_api_key,
                 "VECTOR_STORE_TYPE": vector_store_type,
                 "EMBEDDING_MODEL": embedding_model,
-                "S3_BUCKET": docs_bucket.bucket_name,
-                "DYNAMODB_CACHE_TABLE": cache_table.table_name,
-                "CLOUD_PROVIDER": "aws",
                 "STORAGE_CONTAINER": docs_bucket.bucket_name,
+                "DYNAMODB_CACHE_TABLE": cache_table.table_name,
+                "CLOUD_PROVIDER": cloud_provider,
+                "CLOUD_REGION": self.region,
                 # LLM Configuration - Supports Azure OpenAI, AWS Bedrock, or OpenAI
                 # Azure: AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT
-                # AWS Bedrock: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY (use IAM role instead)
+                # AWS Bedrock: BEDROCK_MODEL_ID
                 # OpenAI: OPENAI_API_KEY
                 "LLM_PROVIDER": llm_provider,
                 "LLM_MODEL": llm_model,
@@ -354,17 +359,15 @@ class GreenGovRAGStack(Stack):
                 "AZURE_OPENAI_API_KEY": azure_openai_api_key,
                 "AZURE_OPENAI_ENDPOINT": azure_openai_endpoint,
                 "AZURE_OPENAI_DEPLOYMENT": azure_openai_deployment,
+                "BEDROCK_MODEL_ID": bedrock_model_id,
                 # Cache Settings
-                "ENABLE_CACHE": "true",
-                "ENABLE_REDIS_CACHE": "false",  # Using DynamoDB instead
-                "CACHE_TTL": "3600",
-                "ENABLE_SEMANTIC_CACHE": "true",
+                "ENABLE_CACHE": enable_cache,
+                "ENABLE_REDIS_CACHE": enable_redis_cache,  # Using DynamoDB instead
+                "CACHE_TTL": cache_ttl,
+                "ENABLE_SEMANTIC_CACHE": enable_semantic_cache,
                 # API Security - Access key for all API endpoints
                 "API_ACCESS_KEY": api_access_key,
-            },
-            secrets={
-                # Database password still uses Secrets Manager (auto-generated by RDS, no extra cost)
-                "DATABASE_PASSWORD": ecs.Secret.from_secrets_manager(db_instance.secret, "password"),
+                "APP_ENV": app_env,
             },
             health_check=ecs.HealthCheck(
                 command=["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"],
@@ -396,8 +399,18 @@ class GreenGovRAGStack(Stack):
         )
 
         # =====================================================================
-        # EC2 Spot Instance for Qdrant
+        # EC2 On-Demand Instance for Qdrant
         # =====================================================================
+        # IAM role for Qdrant EC2 instance
+        qdrant_role = iam.Role(
+            self,
+            f"{project_name}QdrantRole",
+            assumed_by=iam.ServicePrincipal("ec2.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonSSMManagedInstanceCore"),
+            ],
+        )
+
         # Qdrant user data script
         qdrant_user_data = ec2.UserData.for_linux()
         qdrant_user_data.add_commands(
@@ -407,7 +420,7 @@ class GreenGovRAGStack(Stack):
             "systemctl start docker",
             "systemctl enable docker",
             "",
-            "# Wait for EBS volume attachment (done by Lambda)",
+            "# Wait for EBS volume attachment",
             "while [ ! -e /dev/xvdf ]; do sleep 1; done",
             "",
             "# Format and mount EBS volume (if not formatted)",
@@ -431,135 +444,109 @@ class GreenGovRAGStack(Stack):
             "  qdrant/qdrant:latest",
         )
 
-        # Launch template for spot instance
-        qdrant_launch_template = ec2.LaunchTemplate(
+        # Qdrant EC2 instance (on-demand for reliability)
+        qdrant_instance = ec2.Instance(
             self,
-            f"{project_name}QdrantLaunchTemplate",
+            f"{project_name}QdrantInstance",
             instance_type=ec2.InstanceType("t4g.micro"),
             machine_image=ec2.MachineImage.latest_amazon_linux2023(
                 cpu_type=ec2.AmazonLinuxCpuType.ARM_64
             ),
+            vpc=vpc,
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
             security_group=qdrant_sg,
+            role=qdrant_role,
             user_data=qdrant_user_data,
-            role=iam.Role(
-                self,
-                f"{project_name}QdrantRole",
-                assumed_by=iam.ServicePrincipal("ec2.amazonaws.com"),
-                managed_policies=[
-                    iam.ManagedPolicy.from_aws_managed_policy_name("AmazonSSMManagedInstanceCore"),
-                ],
-            ),
             require_imdsv2=True,
+            block_devices=[
+                ec2.BlockDevice(
+                    device_name="/dev/xvdf",
+                    volume=ec2.BlockDeviceVolume.ebs(
+                        volume_size=10,
+                        volume_type=ec2.EbsDeviceVolumeType.GP3,
+                        encrypted=True,
+                        delete_on_termination=False,  # Persist data
+                    ),
+                )
+            ],
         )
 
-        # EBS volume for Qdrant persistence
-        qdrant_volume = ec2.Volume(
-            self,
-            f"{project_name}QdrantVolume",
-            availability_zone=vpc.availability_zones[0],
-            size=Size.gibibytes(10),
-            volume_type=ec2.EbsDeviceVolumeType.GP3,
-            encrypted=True,
-            removal_policy=RemovalPolicy.SNAPSHOT,
+        # Register Qdrant instance with service discovery
+        qdrant_service = namespace.create_service(
+            f"{project_name}QdrantService",
+            name="qdrant",
+            dns_record_type=servicediscovery.DnsRecordType.A,
+            dns_ttl=Duration.seconds(30),
         )
 
-        # Spot instance (created via CloudFormation, managed by auto-recovery Lambda)
-        # Note: CDK doesn't have native spot instance construct, using CfnInstance
-        qdrant_spot_instance = ec2.CfnInstance(
+        # Add instance to service discovery
+        qdrant_service.register_ip_instance(
+            f"{project_name}QdrantInstanceRegistration",
+            ipv4=qdrant_instance.instance_private_ip,
+        )
+
+        # =====================================================================
+        # Application Load Balancer
+        # =====================================================================
+        # ALB security group
+        alb_sg = ec2.SecurityGroup(
             self,
-            f"{project_name}QdrantSpot",
-            image_id=ec2.MachineImage.latest_amazon_linux2023(
-                cpu_type=ec2.AmazonLinuxCpuType.ARM_64
-            ).get_image(self).image_id,
-            instance_type="t4g.micro",
-            subnet_id=vpc.public_subnets[0].subnet_id,
-            security_group_ids=[qdrant_sg.security_group_id],
-            iam_instance_profile=qdrant_launch_template.role.role_name,
-            user_data=qdrant_user_data.render(),
-            instance_market_options=ec2.CfnInstance.InstanceMarketOptionsProperty(
-                market_type="spot",
-                spot_options=ec2.CfnInstance.SpotOptionsProperty(
-                    spot_instance_type="persistent",
-                    instance_interruption_behavior="stop",
-                ),
+            f"{project_name}AlbSG",
+            vpc=vpc,
+            description="Security group for Application Load Balancer",
+            allow_all_outbound=True,
+        )
+        alb_sg.add_ingress_rule(
+            peer=ec2.Peer.any_ipv4(),
+            connection=ec2.Port.tcp(80),
+            description="Allow HTTP from anywhere",
+        )
+
+        # Allow ALB to reach ECS tasks
+        ecs_sg.add_ingress_rule(
+            peer=alb_sg,
+            connection=ec2.Port.tcp(8000),
+            description="Allow ALB to access ECS tasks",
+        )
+
+        # Application Load Balancer
+        alb = elbv2.ApplicationLoadBalancer(
+            self,
+            f"{project_name}ALB",
+            vpc=vpc,
+            internet_facing=True,
+            security_group=alb_sg,
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
+        )
+
+        # Target group for ECS service
+        target_group = elbv2.ApplicationTargetGroup(
+            self,
+            f"{project_name}TargetGroup",
+            vpc=vpc,
+            port=8000,
+            protocol=elbv2.ApplicationProtocol.HTTP,
+            target_type=elbv2.TargetType.IP,
+            health_check=elbv2.HealthCheck(
+                path="/api/health",
+                interval=Duration.seconds(30),
+                timeout=Duration.seconds(5),
+                healthy_threshold_count=2,
+                unhealthy_threshold_count=3,
             ),
-            tags=[{"key": "Name", "value": f"{project_name}-Qdrant"}],
+            deregistration_delay=Duration.seconds(30),
         )
 
-        # =====================================================================
-        # Lambda - Qdrant Spot Instance Recovery
-        # =====================================================================
-        qdrant_recovery_lambda = lambda_.Function(
-            self,
-            f"{project_name}QdrantRecovery",
-            runtime=lambda_.Runtime.PYTHON_3_12,
-            handler="qdrant_spot_recovery.handler",
-            code=lambda_.Code.from_asset("lambda"),
-            timeout=Duration.minutes(5),
-            environment={
-                "INSTANCE_ID": qdrant_spot_instance.ref,
-                "VOLUME_ID": qdrant_volume.volume_id,
-                "SUBNET_ID": vpc.public_subnets[0].subnet_id,
-                "SECURITY_GROUP_ID": qdrant_sg.security_group_id,
-            },
+        # HTTP listener
+        listener = alb.add_listener(
+            f"{project_name}Listener",
+            port=80,
+            protocol=elbv2.ApplicationProtocol.HTTP,
+            default_target_groups=[target_group],
         )
 
-        # Grant permissions to manage EC2 instances and volumes
-        qdrant_recovery_lambda.add_to_role_policy(
-            iam.PolicyStatement(
-                actions=[
-                    "ec2:DescribeInstances",
-                    "ec2:RunInstances",
-                    "ec2:TerminateInstances",
-                    "ec2:AttachVolume",
-                    "ec2:DetachVolume",
-                    "ec2:CreateSnapshot",
-                    "ec2:DescribeVolumes",
-                    "ec2:DescribeSnapshots",
-                ],
-                resources=["*"],
-            )
-        )
-
-        # EventBridge rule for spot interruption warning
-        events.Rule(
-            self,
-            f"{project_name}SpotInterruptionRule",
-            event_pattern=events.EventPattern(
-                source=["aws.ec2"],
-                detail_type=["EC2 Spot Instance Interruption Warning"],
-            ),
-            targets=[targets.LambdaFunction(qdrant_recovery_lambda)],
-        )
-
-        # =====================================================================
-        # API Gateway HTTP API (replaces ALB)
-        # =====================================================================
-        # HTTP API - Direct integration to ECS public endpoint (no VPC Link needed)
-        # ECS tasks have public IPs and are accessible via service discovery
-        http_api = apigw.HttpApi(
-            self,
-            f"{project_name}ApiGateway",
-            api_name=f"{project_name}-API",
-            cors_preflight=apigw.CorsPreflightOptions(
-                allow_origins=["https://greengovrag.sundeep.id.au", "https://greengovrag.au"],
-                allow_methods=[apigw.CorsHttpMethod.ANY],
-                allow_headers=["*"],
-            ),
-        )
-
-        # Direct HTTP integration to ECS service via Cloud Map DNS
-        # Uses public endpoint - saves VPC Link costs
-        backend_integration = apigw_integrations.HttpUrlIntegration(
-            f"{project_name}BackendIntegration",
-            f"http://backend.greengovrag.local:8000/{{proxy}}",
-        )
-
-        http_api.add_routes(
-            path="/api/{proxy+}",
-            methods=[apigw.HttpMethod.ANY],
-            integration=backend_integration,
-        )
+        # Attach ECS service to target group
+        backend_service.attach_to_application_target_group(target_group)
 
         # =====================================================================
         # CloudFront Distribution
@@ -597,9 +584,7 @@ function handler(event) {{
             ),
             additional_behaviors={
                 "/api/*": cloudfront.BehaviorOptions(
-                    origin=origins.HttpOrigin(
-                        f"{http_api.api_id}.execute-api.{self.region}.amazonaws.com"
-                    ),
+                    origin=origins.HttpOrigin(alb.load_balancer_dns_name),
                     allowed_methods=cloudfront.AllowedMethods.ALLOW_ALL,
                     cache_policy=cloudfront.CachePolicy.CACHING_DISABLED,
                     origin_request_policy=cloudfront.OriginRequestPolicy.ALL_VIEWER,
@@ -665,12 +650,6 @@ function handler(event) {{
             description="RDS PostgreSQL endpoint",
         )
 
-        CfnOutput(
-            self,
-            "DatabaseSecretArn",
-            value=db_instance.secret.secret_arn,
-            description="RDS credentials secret ARN",
-        )
 
         CfnOutput(
             self,
@@ -695,9 +674,9 @@ function handler(event) {{
 
         CfnOutput(
             self,
-            "ApiGatewayURL",
-            value=http_api.url,
-            description="API Gateway endpoint URL",
+            "LoadBalancerDNS",
+            value=f"http://{alb.load_balancer_dns_name}",
+            description="Application Load Balancer DNS name",
         )
 
         CfnOutput(
@@ -710,15 +689,8 @@ function handler(event) {{
         CfnOutput(
             self,
             "QdrantInstanceId",
-            value=qdrant_spot_instance.ref,
-            description="Qdrant EC2 spot instance ID",
-        )
-
-        CfnOutput(
-            self,
-            "QdrantVolumeId",
-            value=qdrant_volume.volume_id,
-            description="Qdrant EBS volume ID",
+            value=qdrant_instance.instance_id,
+            description="Qdrant EC2 instance ID (on-demand)",
         )
 
         CfnOutput(

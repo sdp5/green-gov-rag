@@ -9,29 +9,35 @@ from green_gov_rag.api.schemas.analytics import (
     AnalyticsStats,
     DistributionData,
 )
-from green_gov_rag.models import DocumentSource, QueryHistory
+from green_gov_rag.models import DocumentFile, DocumentSource, QueryHistory
 from green_gov_rag.models.base import engine
 
 
 class AnalyticsService:
     """Service for analytics and statistics."""
 
-    def get_stats(self) -> AnalyticsStats:
+    def get_stats(self, session_id: str | None = None) -> AnalyticsStats:
         """Get overall analytics statistics.
+
+        Args:
+            session_id: Optional session ID to filter user-specific queries
 
         Returns:
             AnalyticsStats: Statistics and distributions
         """
         with Session(engine) as session:
-            # Total documents
+            # Total documents (count document files, not sources)
             total_docs = session.exec(
-                select(func.count()).select_from(DocumentSource)
+                select(func.count()).select_from(DocumentFile)
             ).one()
 
-            # Total queries
-            total_queries = session.exec(
-                select(func.count()).select_from(QueryHistory)
-            ).one()
+            # Total queries (filtered by session_id if provided)
+            query_count_query = select(func.count()).select_from(QueryHistory)
+            if session_id:
+                query_count_query = query_count_query.where(
+                    QueryHistory.session_id == session_id
+                )
+            total_queries = session.exec(query_count_query).one()
 
             # Average response time (ms)
             avg_response = session.exec(

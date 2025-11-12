@@ -28,7 +28,7 @@ const getRuntimeConfig = () => {
   // Fallback to Vite environment variables (development)
   return {
     API_URL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
-    API_ACCESS_KEY: import.meta.env.VITE_API_ACCESS_KEY || 'dev-insecure-key-change-in-prod',
+    API_ACCESS_KEY: import.meta.env.VITE_API_ACCESS_KEY || 'dev-insecure-key-change-in-production',
     MAPBOX_TOKEN: import.meta.env.VITE_MAPBOX_TOKEN || '',
     GITHUB_REPO_URL: import.meta.env.VITE_GITHUB_REPO_URL || 'https://github.com/sdp5/green-gov-rag',
   };

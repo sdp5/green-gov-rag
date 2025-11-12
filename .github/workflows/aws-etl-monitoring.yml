@@ -13,6 +13,7 @@ jobs:
   monitor-sources-aws:
     name: Monitor Document Sources (AWS)
     runs-on: ubuntu-latest
+    environment: aws-prod
     # Disabled - change to true to enable monitoring
     if: false
     timeout-minutes: 360

@@ -30,8 +30,8 @@ param projectName string = 'greengovrag'
 @description('Azure region for resources')
 param location string = resourceGroup().location
 
-@description('Environment (dev, staging, prod)')
-param environment string = 'prod'
+@description('Environment (dev, staging, production)')
+param environment string = 'production'
 
 @description('PostgreSQL administrator password')
 @secure()
@@ -476,12 +476,12 @@ resource apiContainerApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: 'azure'
             }
             {
-              name: 'STORAGE_CONTAINER'
-              value: storageAccount.name
+              name: 'CLOUD_REGION'
+              value: location
             }
             {
-              name: 'AZURE_STORAGE_ACCOUNT'
-              value: storageAccount.name
+              name: 'STORAGE_CONTAINER'
+              value: 'documents'
             }
             {
               name: 'AZURE_STORAGE_CONNECTION_STRING'
@@ -652,12 +652,12 @@ resource etlJob 'Microsoft.App/jobs@2023-05-01' = {
               value: 'azure'
             }
             {
-              name: 'STORAGE_CONTAINER'
-              value: storageAccount.name
+              name: 'CLOUD_REGION'
+              value: location
             }
             {
-              name: 'AZURE_STORAGE_ACCOUNT'
-              value: storageAccount.name
+              name: 'STORAGE_CONTAINER'
+              value: 'documents'
             }
             {
               name: 'AZURE_STORAGE_CONNECTION_STRING'
@@ -739,12 +739,12 @@ resource monitoringJob 'Microsoft.App/jobs@2023-05-01' = {
               value: 'azure'
             }
             {
-              name: 'STORAGE_CONTAINER'
-              value: storageAccount.name
+              name: 'CLOUD_REGION'
+              value: location
             }
             {
-              name: 'AZURE_STORAGE_ACCOUNT'
-              value: storageAccount.name
+              name: 'STORAGE_CONTAINER'
+              value: 'documents'
             }
             {
               name: 'AZURE_STORAGE_CONNECTION_STRING'

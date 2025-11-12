@@ -17,7 +17,6 @@ namespaces = false
 version_file = "green_gov_rag/_version.py"
 root = ".."
 git_describe_command = "git describe"
-version_scheme = "post-release"
 
 [project]
 name = "green_gov_rag"

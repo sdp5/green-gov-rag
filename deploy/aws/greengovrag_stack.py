@@ -210,7 +210,9 @@ class GreenGovRAGStack(Stack):
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             time_to_live_attribute="ttl",
             removal_policy=RemovalPolicy.DESTROY,
-            point_in_time_recovery=False,  # Cost optimization
+            point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(
+                point_in_time_recovery=False  # Cost optimization
+            ),
         )
 
         # =====================================================================
@@ -279,16 +281,15 @@ class GreenGovRAGStack(Stack):
         )
 
         # =====================================================================
-        # ECR Repository
+        # ECR Repository - Reference existing (created separately)
         # =====================================================================
-        backend_repo = ecr.Repository(
+        # Using from_repository_name instead of creating to avoid conflicts
+        # ECR repository should be created separately via AWS CLI or console
+        # This allows the repo to persist across stack deletions/updates
+        backend_repo = ecr.Repository.from_repository_name(
             self,
             f"{project_name}BackendRepo",
             repository_name=f"{project_name.lower()}-backend",
-            removal_policy=RemovalPolicy.DESTROY,
-            lifecycle_rules=[
-                ecr.LifecycleRule(max_image_count=5)  # Keep last 5 images
-            ],
         )
 
         # =====================================================================
@@ -298,7 +299,7 @@ class GreenGovRAGStack(Stack):
             self,
             f"{project_name}Cluster",
             vpc=vpc,
-            container_insights=False,  # Cost optimization
+            container_insights_v2=None,  # Cost optimization - disabled
         )
 
         # Cloud Map namespace for service discovery
@@ -577,7 +578,7 @@ function handler(event) {{
             self,
             f"{project_name}Distribution",
             default_behavior=cloudfront.BehaviorOptions(
-                origin=origins.S3Origin(frontend_bucket, origin_access_identity=oai),
+                origin=origins.S3BucketOrigin(frontend_bucket, origin_access_identity=oai),
                 viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
                 cache_policy=cloudfront.CachePolicy.CACHING_OPTIMIZED,
                 compress=True,

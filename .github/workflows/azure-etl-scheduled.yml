@@ -30,10 +30,17 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Get Azure resources
+        id: azure-resources
+        run: |
+          echo "resource_group=${{ secrets.AZURE_RESOURCE_GROUP }}" >> $GITHUB_OUTPUT
+          echo "job_name=greengovrag-etl-job" >> $GITHUB_OUTPUT
+          echo "storage_account=${{ secrets.AZURE_STORAGE_ACCOUNT }}" >> $GITHUB_OUTPUT
+
       - name: Upload config to Blob Storage
         run: |
           az storage blob upload \
-            --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
+            --account-name ${{ steps.azure-resources.outputs.storage_account }} \
             --container-name configs \
             --name documents_config.yml \
             --file ${{ env.CONFIG_PATH }} \
@@ -42,11 +49,7 @@ jobs:
       - name: Run ETL via Azure Container App Job
         id: run-etl-azure
         run: |
-          # Get resource group and container app job name
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
-          JOB_NAME="greengovrag-etl-job"
-
-          echo "Starting Azure Container App Job: $JOB_NAME"
+          echo "Starting Azure Container App Job: ${{ steps.azure-resources.outputs.job_name }}"
           echo ""
           echo "Note: The Container App Job must be configured with the following command:"
           echo "  greengovrag-cli etl ingest --config /app/configs/documents_config.yml && \"
@@ -60,8 +63,8 @@ jobs:
 
           # Start the ETL job execution
           JOB_EXECUTION=$(az containerapp job start \
-            --name $JOB_NAME \
-            --resource-group $RESOURCE_GROUP \
+            --name ${{ steps.azure-resources.outputs.job_name }} \
+            --resource-group ${{ steps.azure-resources.outputs.resource_group }} \
             --query 'name' \
             --output tsv)
 
@@ -70,17 +73,14 @@ jobs:
 
       - name: Monitor ETL job execution
         run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
-          JOB_NAME="greengovrag-etl-job"
           JOB_EXECUTION="${{ steps.run-etl-azure.outputs.job_execution }}"
-
           echo "Monitoring Azure Container App Job execution..."
 
           # Poll job status (max 60 minutes = 120 polls at 30s intervals)
           for i in {1..120}; do
             STATUS=$(az containerapp job execution show \
-              --name $JOB_NAME \
-              --resource-group $RESOURCE_GROUP \
+              --name ${{ steps.azure-resources.outputs.job_name }} \
+              --resource-group ${{ steps.azure-resources.outputs.resource_group }} \
               --job-execution-name $JOB_EXECUTION \
               --query 'properties.status' \
               --output tsv)
@@ -96,8 +96,8 @@ jobs:
               # Get logs for debugging
               echo "Fetching logs..."
               az containerapp job execution logs show \
-                --name $JOB_NAME \
-                --resource-group $RESOURCE_GROUP \
+                --name ${{ steps.azure-resources.outputs.job_name }} \
+                --resource-group ${{ steps.azure-resources.outputs.resource_group }} \
                 --job-execution-name $JOB_EXECUTION \
                 --tail 50
 
@@ -113,15 +113,11 @@ jobs:
       - name: Get ETL job logs
         if: success()
         run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
-          JOB_NAME="greengovrag-etl-job"
-          JOB_EXECUTION="${{ steps.run-etl-azure.outputs.job_execution }}"
-
           echo "Fetching ETL job logs (last 100 lines)..."
           az containerapp job execution logs show \
-            --name $JOB_NAME \
-            --resource-group $RESOURCE_GROUP \
-            --job-execution-name $JOB_EXECUTION \
+            --name ${{ steps.azure-resources.outputs.job_name }} \
+            --resource-group ${{ steps.azure-resources.outputs.resource_group }} \
+            --job-execution-name ${{ steps.run-etl-azure.outputs.job_execution }} \
             --tail 100
 
       - name: Verify Qdrant update

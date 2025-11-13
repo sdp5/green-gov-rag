@@ -45,6 +45,7 @@ jobs:
             --query "storageProfile.osDisk.name" \
             --output tsv)
 
+          echo "resource_group=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
           echo "pg_server=$PG_SERVER" >> $GITHUB_OUTPUT
           echo "storage_account=$STORAGE_ACCOUNT" >> $GITHUB_OUTPUT
           echo "qdrant_vm=$QDRANT_VM" >> $GITHUB_OUTPUT
@@ -58,7 +59,6 @@ jobs:
 
       - name: Create PostgreSQL backup
         run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
           PG_SERVER="${{ steps.resources.outputs.pg_server }}"
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
           BACKUP_NAME="greengovrag-backup-$TIMESTAMP"
@@ -67,7 +67,7 @@ jobs:
 
           # Trigger on-demand backup
           az postgres flexible-server backup create \
-            --resource-group $RESOURCE_GROUP \
+            --resource-group ${{ steps.resources.outputs.resource_group }} \
             --name $PG_SERVER \
             --backup-name $BACKUP_NAME
 
@@ -75,7 +75,6 @@ jobs:
 
       - name: Create Qdrant disk snapshot
         run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
           QDRANT_DISK="${{ steps.resources.outputs.qdrant_disk }}"
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
           SNAPSHOT_NAME="qdrant-snapshot-$TIMESTAMP"
@@ -84,14 +83,14 @@ jobs:
 
           # Get disk resource ID
           DISK_ID=$(az disk show \
-            --resource-group $RESOURCE_GROUP \
+            --resource-group ${{ steps.resources.outputs.resource_group }} \
             --name $QDRANT_DISK \
             --query id \
             --output tsv)
 
           # Create snapshot
           az snapshot create \
-            --resource-group $RESOURCE_GROUP \
+            --resource-group ${{ steps.resources.outputs.resource_group }} \
             --name $SNAPSHOT_NAME \
             --source $DISK_ID \
             --tags BackupType=Automated BackupDate=$(date +%Y-%m-%d)
@@ -141,7 +140,6 @@ jobs:
 
       - name: Export PostgreSQL database to Blob Storage
         run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
           PG_SERVER="${{ steps.resources.outputs.pg_server }}"
           STORAGE_ACCOUNT="${{ steps.resources.outputs.storage_account }}"
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
@@ -162,21 +160,20 @@ jobs:
 
       - name: Clean up old snapshots
         run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
           CUTOFF_DATE=$(date -d "28 days ago" +%Y-%m-%d)
 
           echo "Cleaning up snapshots older than $CUTOFF_DATE..."
 
           # Delete old disk snapshots (keep last 4 weekly backups = 28 days)
           OLD_SNAPSHOTS=$(az snapshot list \
-            --resource-group $RESOURCE_GROUP \
+            --resource-group ${{ steps.resources.outputs.resource_group }} \
             --query "[?tags.BackupType=='Automated' && tags.BackupDate<'$CUTOFF_DATE'].name" \
             --output tsv)
 
           for SNAPSHOT in $OLD_SNAPSHOTS; do
             echo "Deleting old snapshot: $SNAPSHOT"
             az snapshot delete \
-              --resource-group $RESOURCE_GROUP \
+              --resource-group ${{ steps.resources.outputs.resource_group }} \
               --name $SNAPSHOT \
               --yes || true
           done
@@ -185,14 +182,13 @@ jobs:
 
       - name: Clean up old PostgreSQL backups
         run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
           PG_SERVER="${{ steps.resources.outputs.pg_server }}"
 
           echo "Listing PostgreSQL backups..."
 
           # List all backups
           az postgres flexible-server backup list \
-            --resource-group $RESOURCE_GROUP \
+            --resource-group ${{ steps.resources.outputs.resource_group }} \
             --name $PG_SERVER \
             --query "[].{Name:name, CompletedTime:completedTime}" \
             --output table
@@ -212,22 +208,27 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Get Azure resources
+        id: resources
+        run: |
+          echo "resource_group=${{ secrets.AZURE_RESOURCE_GROUP }}" >> $GITHUB_OUTPUT
+          echo "storage_account=${{ secrets.AZURE_STORAGE_ACCOUNT }}" >> $GITHUB_OUTPUT
+
       - name: Check Container App health
         run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
           CONTAINER_APP=$(az containerapp list \
-            --resource-group $RESOURCE_GROUP \
+            --resource-group ${{ steps.resources.outputs.resource_group }} \
             --query "[?contains(name, 'greengovrag')].name" \
             --output tsv | head -1)
 
           STATUS=$(az containerapp show \
-            --resource-group $RESOURCE_GROUP \
+            --resource-group ${{ steps.resources.outputs.resource_group }} \
             --name $CONTAINER_APP \
             --query "properties.provisioningState" \
             --output tsv)
 
           REPLICAS=$(az containerapp replica list \
-            --resource-group $RESOURCE_GROUP \
+            --resource-group ${{ steps.resources.outputs.resource_group }} \
             --name $CONTAINER_APP \
             --query "length([?properties.runningState=='Running'])" \
             --output tsv)
@@ -245,14 +246,13 @@ jobs:
 
       - name: Check PostgreSQL health
         run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
           PG_SERVER=$(az postgres flexible-server list \
-            --resource-group $RESOURCE_GROUP \
+            --resource-group ${{ steps.resources.outputs.resource_group }} \
             --query "[?contains(name, 'greengovrag')].name" \
             --output tsv | head -1)
 
           STATE=$(az postgres flexible-server show \
-            --resource-group $RESOURCE_GROUP \
+            --resource-group ${{ steps.resources.outputs.resource_group }} \
             --name $PG_SERVER \
             --query "state" \
             --output tsv)
@@ -269,14 +269,13 @@ jobs:
 
       - name: Check Qdrant VM health
         run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
           QDRANT_VM=$(az vm list \
-            --resource-group $RESOURCE_GROUP \
+            --resource-group ${{ steps.resources.outputs.resource_group }} \
             --query "[?contains(name, 'qdrant')].name" \
             --output tsv | head -1)
 
           POWER_STATE=$(az vm show \
-            --resource-group $RESOURCE_GROUP \
+            --resource-group ${{ steps.resources.outputs.resource_group }} \
             --name $QDRANT_VM \
             --show-details \
             --query "powerState" \
@@ -312,11 +311,10 @@ jobs:
 
       - name: Check CDN endpoint
         run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
 
           # Get CDN endpoint
           CDN_ENDPOINT=$(az cdn endpoint list \
-            --resource-group $RESOURCE_GROUP \
+            --resource-group ${{ steps.resources.outputs.resource_group }} \
             --profile-name greengovrag-cdn \
             --query "[0].hostName" \
             --output tsv 2>/dev/null || echo "")

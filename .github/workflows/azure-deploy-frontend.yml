@@ -73,20 +73,19 @@ jobs:
       - name: Get Azure outputs
         id: az-outputs
         run: |
-          API_URL=$(az deployment group show \
+          # Query deployment outputs once using JMESPath
+          OUTPUTS=$(az deployment group show \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --name greengovrag-deployment \
-            --query properties.outputs.apiUrl.value \
-            --output tsv)
+            --query 'properties.outputs.{apiUrl:apiUrl.value,staticWebAppName:staticWebAppName.value}' \
+            --output json)
 
-          STATIC_APP=$(az deployment group show \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --name greengovrag-deployment \
-            --query properties.outputs.staticWebAppName.value \
-            --output tsv)
+          API_URL=$(echo "$OUTPUTS" | jq -r '.apiUrl')
+          STATIC_APP=$(echo "$OUTPUTS" | jq -r '.staticWebAppName')
 
           echo "api_url=$API_URL" >> $GITHUB_OUTPUT
           echo "app_name=$STATIC_APP" >> $GITHUB_OUTPUT
+          echo "resource_group=${{ secrets.AZURE_RESOURCE_GROUP }}" >> $GITHUB_OUTPUT
 
       - name: Generate runtime config.js
         run: |
@@ -111,7 +110,7 @@ jobs:
         run: |
           FRONTEND_URL=$(az staticwebapp show \
             --name ${{ steps.az-outputs.outputs.app_name }} \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --resource-group ${{ steps.az-outputs.outputs.resource_group }} \
             --query defaultHostname \
             --output tsv)
 

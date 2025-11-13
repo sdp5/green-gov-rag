@@ -48,6 +48,20 @@ jobs:
 
           echo "image=$ACR_NAME.azurecr.io/greengovrag-backend:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
+      - name: Get Azure resources
+        id: azure-resources
+        run: |
+          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
+
+          # Query Container App name once
+          CONTAINER_APP=$(az containerapp list \
+            --resource-group $RESOURCE_GROUP \
+            --query "[?contains(name, 'greengovrag')].name" \
+            --output tsv | head -1)
+
+          echo "container_app=$CONTAINER_APP" >> $GITHUB_OUTPUT
+          echo "resource_group=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
+
       - name: Update secrets in Key Vault
         run: |
           KEYVAULT_NAME="${{ secrets.AZURE_KEYVAULT_NAME }}"
@@ -66,35 +80,23 @@ jobs:
 
       - name: Update Container App with new image
         run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
-          CONTAINER_APP=$(az containerapp list \
-            --resource-group $RESOURCE_GROUP \
-            --query "[?contains(name, 'greengovrag')].name" \
-            --output tsv | head -1)
-
           # Update container app with new image
           az containerapp update \
-            --name $CONTAINER_APP \
-            --resource-group $RESOURCE_GROUP \
+            --name ${{ steps.azure-resources.outputs.container_app }} \
+            --resource-group ${{ steps.azure-resources.outputs.resource_group }} \
             --image ${{ steps.build-image.outputs.image }}
 
           echo "✓ Container App updated with new image"
 
       - name: Wait for deployment to complete
         run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
-          CONTAINER_APP=$(az containerapp list \
-            --resource-group $RESOURCE_GROUP \
-            --query "[?contains(name, 'greengovrag')].name" \
-            --output tsv | head -1)
-
           echo "Waiting for deployment to complete..."
 
           # Wait for provisioning to complete (max 10 minutes)
           for i in {1..60}; do
             STATUS=$(az containerapp show \
-              --resource-group $RESOURCE_GROUP \
-              --name $CONTAINER_APP \
+              --resource-group ${{ steps.azure-resources.outputs.resource_group }} \
+              --name ${{ steps.azure-resources.outputs.container_app }} \
               --query "properties.provisioningState" \
               --output tsv)
 
@@ -113,25 +115,17 @@ jobs:
 
       - name: Get deployment status
         run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
-          CONTAINER_APP=$(az containerapp list \
-            --resource-group $RESOURCE_GROUP \
-            --query "[?contains(name, 'greengovrag')].name" \
-            --output tsv | head -1)
-
           az containerapp revision list \
-            --name $CONTAINER_APP \
-            --resource-group $RESOURCE_GROUP \
+            --name ${{ steps.azure-resources.outputs.container_app }} \
+            --resource-group ${{ steps.azure-resources.outputs.resource_group }} \
             --query "[].{Name:name, Active:properties.active, Created:properties.createdTime}" \
             --output table
 
       - name: Run post-deployment health check
         run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
-
-          # Get Container App URL
+          # Get Container App URL from deployment outputs
           API_URL=$(az deployment group show \
-            --resource-group $RESOURCE_GROUP \
+            --resource-group ${{ steps.azure-resources.outputs.resource_group }} \
             --name greengovrag-deployment \
             --query properties.outputs.apiUrl.value \
             --output tsv)

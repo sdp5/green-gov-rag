@@ -726,3 +726,24 @@ function handler(event) {{
             value=f"https://{distribution.distribution_domain_name}",
             description="CloudFront distribution URL",
         )
+
+        CfnOutput(
+            self,
+            "FrontendBucket",
+            value=frontend_bucket.bucket_name,
+            description="Frontend S3 bucket name",
+        )
+
+        CfnOutput(
+            self,
+            "CloudFrontDistributionId",
+            value=distribution.distribution_id,
+            description="CloudFront distribution ID",
+        )
+
+        CfnOutput(
+            self,
+            "DocumentsBucket",
+            value=docs_bucket.bucket_name,
+            description="Documents S3 bucket name",
+        )

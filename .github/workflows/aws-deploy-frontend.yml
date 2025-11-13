@@ -92,13 +92,19 @@ jobs:
             --query 'Stacks[0].Outputs[?OutputKey==`FrontendBucket`].OutputValue' \
             --output text)
 
-          CF_DISTRIBUTION=$(aws cloudformation describe-stacks \
+          CF_URL=$(aws cloudformation describe-stacks \
             --stack-name GreenGovRAGStack \
             --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontURL`].OutputValue' \
             --output text)
 
+          CF_DISTRIBUTION_ID=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDistributionId`].OutputValue' \
+            --output text)
+
           echo "bucket=$FRONTEND_BUCKET" >> $GITHUB_OUTPUT
-          echo "cf_url=$CF_DISTRIBUTION" >> $GITHUB_OUTPUT
+          echo "cf_url=$CF_URL" >> $GITHUB_OUTPUT
+          echo "cf_distribution_id=$CF_DISTRIBUTION_ID" >> $GITHUB_OUTPUT
 
       - name: Generate runtime config.js
         run: |
@@ -131,17 +137,12 @@ jobs:
 
       - name: Invalidate CloudFront cache
         run: |
-          # Get distribution ID from URL
-          DISTRIBUTION_ID=$(aws cloudfront list-distributions \
-            --query "DistributionList.Items[?contains(Aliases.Items, '${{ steps.cf-outputs.outputs.cf_url }}')].Id" \
-            --output text)
+          # Use distribution ID from CloudFormation output
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ steps.cf-outputs.outputs.cf_distribution_id }} \
+            --paths "/*"
 
-          if [ -n "$DISTRIBUTION_ID" ]; then
-            aws cloudfront create-invalidation \
-              --distribution-id $DISTRIBUTION_ID \
-              --paths "/*"
-            echo "✓ CloudFront cache invalidated"
-          fi
+          echo "✓ CloudFront cache invalidated"
 
       - name: Deployment summary
         run: |

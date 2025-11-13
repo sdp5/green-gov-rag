@@ -22,7 +22,7 @@ jobs:
     name: Deploy Backend to AWS ECS
     runs-on: ubuntu-latest
     environment: aws-prod
-#    needs: ci-backend  # Wait for tests to pass
+    needs: ci-backend  # Wait for tests to pass
     permissions:
       id-token: write
       contents: read
@@ -187,11 +187,25 @@ jobs:
             --output text \
             --region ${{ vars.AWS_REGION }})
 
-          aws ecs update-service \
+          echo "Forcing new deployment for service: $SERVICE_NAME"
+
+          # Force new deployment and capture only status info
+          RESULT=$(aws ecs update-service \
             --cluster "$CLUSTER_NAME" \
             --service "$SERVICE_NAME" \
             --force-new-deployment \
-            --region ${{ vars.AWS_REGION }}
+            --region ${{ vars.AWS_REGION }} \
+            --query 'service.{Status:status,DesiredCount:desiredCount,RunningCount:runningCount}' \
+            --output json)
+
+          STATUS=$(echo "$RESULT" | jq -r '.Status')
+          DESIRED=$(echo "$RESULT" | jq -r '.DesiredCount')
+          RUNNING=$(echo "$RESULT" | jq -r '.RunningCount')
+
+          echo "✓ Deployment initiated successfully"
+          echo "  Status: $STATUS"
+          echo "  Desired tasks: $DESIRED"
+          echo "  Running tasks: $RUNNING"
 
       - name: Wait for ECS service stability
         run: |
@@ -232,7 +246,7 @@ jobs:
             --cluster "$CLUSTER_NAME" \
             --services "$SERVICE_NAME" \
             --region ${{ vars.AWS_REGION }} \
-            --query 'services[0].deployments' \
+            --query 'services[0].deployments[*].{Status:status,DesiredCount:desiredCount,RunningCount:runningCount,PendingCount:pendingCount,FailedTasks:failedTasks,RolloutState:rolloutState,PlatformVersion:platformVersion,CreatedAt:createdAt,UpdatedAt:updatedAt}' \
             --output table
 
       - name: Run post-deployment health check

@@ -66,7 +66,9 @@ class QdrantVectorStore(VectorStoreInterface):
             ) from e
 
     def _initialize_client(self) -> None:
-        """Initialize Qdrant client and check connection."""
+        """Initialize Qdrant client and check connection with retry logic."""
+        import time
+
         if not hasattr(self, "QdrantClient") or self.QdrantClient is None:
             raise ImportError("QdrantClient not available")
 
@@ -78,16 +80,35 @@ class QdrantVectorStore(VectorStoreInterface):
 
         assert self.client is not None  # Help MyPy
 
-        # Test connection
-        try:
-            collections = self.client.get_collections()
-            logger.info(
-                f"Connected to Qdrant at {self.url}. "
-                f"Found {len(collections.collections)} collections."
-            )
-        except Exception as e:
-            logger.error(f"Failed to connect to Qdrant: {e}")
-            raise
+        # Test connection with exponential backoff retry
+        # This handles the case where EC2 instance needs time to boot and start Qdrant
+        max_retries = 20  # 20 attempts over ~5 minutes with exponential backoff
+        retry_delay = 3.0  # Start with 3 seconds
+        max_delay = 30.0  # Cap at 30 seconds
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                collections = self.client.get_collections()
+                logger.info(
+                    f"Connected to Qdrant at {self.url} (attempt {attempt}/{max_retries}). "
+                    f"Found {len(collections.collections)} collections."
+                )
+                return  # Success!
+            except Exception as e:
+                if attempt == max_retries:
+                    logger.error(
+                        f"Failed to connect to Qdrant after {max_retries} attempts: {e}"
+                    )
+                    raise
+
+                logger.warning(
+                    f"Qdrant connection attempt {attempt}/{max_retries} failed: {e}. "
+                    f"Retrying in {retry_delay}s..."
+                )
+                time.sleep(retry_delay)
+
+                # Exponential backoff, capped at max_delay
+                retry_delay = min(retry_delay * 1.5, max_delay)
 
     def add_documents(self, docs: list[Document]) -> None:
         """Add documents to Qdrant."""

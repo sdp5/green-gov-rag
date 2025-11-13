@@ -79,20 +79,22 @@ if [ "${VECTOR_STORE_TYPE:-faiss}" = "qdrant" ]; then
 
         log_info "Qdrant host: $QDRANT_HOST:$QDRANT_PORT"
 
+        # Extended timeout for EC2 instance boot + Docker pull + Qdrant start
+        QDRANT_MAX_RETRIES=120  # 120 attempts * 3s = 360 seconds (6 minutes)
         RETRY_COUNT=0
-        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        while [ $RETRY_COUNT -lt $QDRANT_MAX_RETRIES ]; do
             if curl -sf "${QDRANT_URL}/health" > /dev/null 2>&1; then
                 log_info "Qdrant is ready ✓"
                 break
             fi
 
             RETRY_COUNT=$((RETRY_COUNT + 1))
-            log_warn "Qdrant not ready (attempt $RETRY_COUNT/$MAX_RETRIES), waiting..."
-            sleep 2
+            log_warn "Qdrant not ready (attempt $RETRY_COUNT/$QDRANT_MAX_RETRIES), waiting..."
+            sleep 3
         done
 
-        if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-            log_error "Qdrant did not become ready in time"
+        if [ $RETRY_COUNT -eq $QDRANT_MAX_RETRIES ]; then
+            log_error "Qdrant did not become ready in time (waited 360 seconds / 6 minutes)"
             log_error "Continuing anyway - application will fail if Qdrant is required"
         fi
     fi

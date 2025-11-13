@@ -186,6 +186,10 @@ class Settings(BaseSettings):
         default=None,
         description="Qdrant API key",
     )
+    collection_name: str | None = Field(
+        default="greengovrag",
+        description="Qdrant collection name",
+    )
 
     # =========================================================================
     # RAG Settings

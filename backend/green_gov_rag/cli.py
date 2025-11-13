@@ -20,6 +20,7 @@ from sqlmodel import Session, select
 
 # Import all required modules at the top
 from green_gov_rag.api.services.monitoring_service import MonitoringService
+from green_gov_rag.config import settings
 from green_gov_rag.etl import ingest
 from green_gov_rag.etl.chunker import TextChunker
 from green_gov_rag.etl.db_writer import (
@@ -589,7 +590,7 @@ def rag_index(
         help="Vector store type: faiss or qdrant (chromadb coming soon)",
     ),
     collection: str = typer.Option(
-        "greengovrag",
+        settings.collection_name,
         "--collection",
         help="Collection/index name (for qdrant/chromadb)",
     ),

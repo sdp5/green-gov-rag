@@ -84,7 +84,7 @@ class RAGAgent:
             store_kwargs = {}
             if store_type == "qdrant":
                 store_kwargs["url"] = settings.qdrant_url
-                store_kwargs["collection_name"] = "greengovrag"
+                store_kwargs["collection_name"] = settings.collection_name
             elif store_type == "faiss":
                 store_kwargs["index_path"] = settings.vector_store_path + "/faiss.index"
 
@@ -107,7 +107,7 @@ class RAGAgent:
                     import logging
 
                     logging.warning(f"Could not load existing vector store: {e}")
-                    raise  # Re-raise so we know what went wrong
+                    # Don't re-raise - allow API to start even if collection doesn't exist yet
 
         self.vector_store = vector_store
 

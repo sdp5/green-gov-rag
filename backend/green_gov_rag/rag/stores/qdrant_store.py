@@ -296,8 +296,10 @@ class QdrantVectorStore(VectorStoreInterface):
         assert self.client is not None
 
         # Check if collection exists
+        collection_exists = False
         try:
             self.client.get_collection(collection_name=self.collection_name)
+            collection_exists = True
             logger.info(
                 f"Connected to existing Qdrant collection '{self.collection_name}'"
             )
@@ -308,14 +310,29 @@ class QdrantVectorStore(VectorStoreInterface):
             )
 
         # Create store reference (will create collection on first add if needed)
-        self.store = self.LangChainQdrantVectorStore(
-            client=self.client,
-            collection_name=self.collection_name,
-            embedding=self.embeddings,
-        )
-        logger.info(
-            f"Qdrant vector store ready for collection '{self.collection_name}'"
-        )
+        # Only create if collection exists to avoid validation errors during startup
+        if collection_exists:
+            try:
+                self.store = self.LangChainQdrantVectorStore(
+                    client=self.client,
+                    collection_name=self.collection_name,
+                    embedding=self.embeddings,
+                )
+                logger.info(
+                    f"Qdrant vector store ready for collection '{self.collection_name}'"
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Could not initialize vector store for '{self.collection_name}': {e}"
+                )
+                self.store = None
+        else:
+            # Collection doesn't exist - store will be None until created
+            self.store = None
+            logger.info(
+                f"Qdrant vector store initialized without collection. "
+                f"Collection '{self.collection_name}' will be created on first document add."
+            )
 
     def delete_by_id(self, ids: list[str]) -> None:
         """Delete documents by ID from Qdrant."""

@@ -98,7 +98,7 @@ class VectorStoreFactory:
             )
 
         api_key: str | None = kwargs.pop("api_key", None) or settings.qdrant_api_key
-        collection_name: str = str(kwargs.pop("collection_name", "greengovrag"))
+        collection_name: str = str(kwargs.pop("collection_name", settings.collection_name))
 
         return QdrantVectorStore(
             embeddings=embeddings,

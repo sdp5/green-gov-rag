@@ -698,54 +698,27 @@ function handler(event) {{
         # =====================================================================
         # Outputs
         # =====================================================================
-        # CfnOutput(
-        #     self,
-        #     "VpcId",
-        #     value=vpc.vpc_id,
-        #     description="VPC ID",
-        # )
-        #
-        # CfnOutput(
-        #     self,
-        #     "BackendServiceName",
-        #     value=backend_service.service_name,
-        #     description="ECS Backend Service Name",
-        # )
-        #
+        # Essential outputs for GitHub Actions deployment workflow
+        CfnOutput(
+            self,
+            "BackendServiceName",
+            value=backend_service.service_name,
+            description="ECS Backend Service Name",
+        )
+
+        CfnOutput(
+            self,
+            "LoadBalancerDNS",
+            value=f"http://{alb.load_balancer_dns_name}",
+            description="Application Load Balancer DNS name",
+        )
+
+        # Additional useful outputs (optional)
         # CfnOutput(
         #     self,
         #     "DatabaseEndpoint",
         #     value=db_instance.db_instance_endpoint_address,
         #     description="RDS PostgreSQL endpoint",
-        # )
-        #
-        #
-        # CfnOutput(
-        #     self,
-        #     "DocumentsBucket",
-        #     value=docs_bucket.bucket_name,
-        #     description="S3 bucket for documents",
-        # )
-        #
-        # CfnOutput(
-        #     self,
-        #     "FrontendBucket",
-        #     value=frontend_bucket.bucket_name,
-        #     description="S3 bucket for frontend",
-        # )
-        #
-        # CfnOutput(
-        #     self,
-        #     "CacheTableName",
-        #     value=cache_table.table_name,
-        #     description="DynamoDB cache table name",
-        # )
-        #
-        # CfnOutput(
-        #     self,
-        #     "QdrantInstanceId",
-        #     value=qdrant_instance.instance_id,
-        #     description="Qdrant EC2 instance ID (on-demand)",
         # )
         #
         # CfnOutput(
@@ -760,13 +733,6 @@ function handler(event) {{
         #     "BackendECRRepository",
         #     value=backend_repo.repository_uri,
         #     description="ECR repository for backend images",
-        # )
-        #
-        # CfnOutput(
-        #     self,
-        #     "LoadBalancerDNS",
-        #     value=f"http://{alb.load_balancer_dns_name}",
-        #     description="Application Load Balancer DNS name",
         # )
 
         CfnOutput(

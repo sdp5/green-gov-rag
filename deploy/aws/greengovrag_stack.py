@@ -162,7 +162,7 @@ class GreenGovRAGStack(Stack):
             f"{project_name}QdrantSG",
             vpc=vpc,
             description="Security group for Qdrant vector database",
-            allow_all_outbound=False,
+            allow_all_outbound=True,  # Need internet for Docker Hub, yum, SSM
         )
         qdrant_sg.add_ingress_rule(
             peer=ecs_sg,

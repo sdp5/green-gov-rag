@@ -87,6 +87,9 @@ class GreenGovRAGStack(Stack):
         cache_ttl = self.node.try_get_context("cache_ttl") or "3600"
         enable_semantic_cache = self.node.try_get_context("enable_semantic_cache") or "true"
 
+        # Docker image tag - defaults to 'latest' for local development
+        image_tag = self.node.try_get_context("image_tag") or "latest"
+
         # =====================================================================
         # VPC - Public Subnets Only (No NAT Gateway)
         # =====================================================================
@@ -454,7 +457,7 @@ class GreenGovRAGStack(Stack):
         # Backend container
         backend_container = backend_task.add_container(
             "backend",
-            image=ecs.ContainerImage.from_ecr_repository(backend_repo, "latest"),
+            image=ecs.ContainerImage.from_ecr_repository(backend_repo, image_tag),
             logging=ecs.LogDrivers.aws_logs(
                 stream_prefix="backend",
                 log_retention=logs.RetentionDays.ONE_WEEK,

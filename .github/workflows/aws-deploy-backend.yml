@@ -124,7 +124,8 @@ jobs:
             --context enable_cache="${ENABLE_CACHE}" \
             --context enable_redis_cache="${ENABLE_REDIS_CACHE}" \
             --context cache_ttl="${CACHE_TTL}" \
-            --context enable_semantic_cache="${ENABLE_SEMANTIC_CACHE}" || true
+            --context enable_semantic_cache="${ENABLE_SEMANTIC_CACHE}" \
+            --context image_tag="${{ github.sha }}" || true
 
       - name: Deploy CDK Stack with Secrets
         env:
@@ -168,7 +169,8 @@ jobs:
             --context enable_cache="${ENABLE_CACHE}" \
             --context enable_redis_cache="${ENABLE_REDIS_CACHE}" \
             --context cache_ttl="${CACHE_TTL}" \
-            --context enable_semantic_cache="${ENABLE_SEMANTIC_CACHE}"
+            --context enable_semantic_cache="${ENABLE_SEMANTIC_CACHE}" \
+            --context image_tag="${{ github.sha }}"
 
       - name: Force new ECS deployment
         run: |

@@ -38,9 +38,23 @@ jobs:
       - name: Run monitoring via ECS Task
         id: run-monitoring
         run: |
-          # Get cluster and task definition
-          CLUSTER="GreenGovRAG-Cluster"
-          TASK_FAMILY="GreenGovRAG-BackendTask"
+          # Get cluster and service names from CloudFormation stack outputs
+          CLUSTER=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`ClusterName`].OutputValue' \
+            --output text)
+
+          SERVICE_NAME=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`BackendServiceName`].OutputValue' \
+            --output text)
+
+          # Get task definition family from the service
+          TASK_FAMILY=$(aws ecs describe-services \
+            --cluster "$CLUSTER" \
+            --services "$SERVICE_NAME" \
+            --query 'services[0].taskDefinition' \
+            --output text | cut -d'/' -f2 | cut -d':' -f1)
 
           # Get subnet and security group
           SUBNET=$(aws ec2 describe-subnets \
@@ -79,7 +93,12 @@ jobs:
       - name: Wait for monitoring task completion
         id: wait-monitoring
         run: |
-          CLUSTER="GreenGovRAG-Cluster"
+          # Get cluster name from CloudFormation stack outputs
+          CLUSTER=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`ClusterName`].OutputValue' \
+            --output text)
+
           TASK_ARN="${{ steps.run-monitoring.outputs.task_arn }}"
 
           echo "Waiting for monitoring task to complete..."
@@ -87,7 +106,7 @@ jobs:
           # Wait for task to complete (max 20 minutes)
           for i in {1..40}; do
             STATUS=$(aws ecs describe-tasks \
-              --cluster $CLUSTER \
+              --cluster "$CLUSTER" \
               --tasks $TASK_ARN \
               --query 'tasks[0].lastStatus' \
               --output text)
@@ -96,7 +115,7 @@ jobs:
 
             if [ "$STATUS" == "STOPPED" ]; then
               EXIT_CODE=$(aws ecs describe-tasks \
-                --cluster $CLUSTER \
+                --cluster "$CLUSTER" \
                 --tasks $TASK_ARN \
                 --query 'tasks[0].containers[0].exitCode' \
                 --output text)
@@ -240,9 +259,23 @@ jobs:
       - name: Run ETL via ECS Task
         id: run-etl
         run: |
-          # Get cluster and task definition
-          CLUSTER="GreenGovRAG-Cluster"
-          TASK_FAMILY="GreenGovRAG-BackendTask"
+          # Get cluster and service names from CloudFormation stack outputs
+          CLUSTER=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`ClusterName`].OutputValue' \
+            --output text)
+
+          SERVICE_NAME=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`BackendServiceName`].OutputValue' \
+            --output text)
+
+          # Get task definition family from the service
+          TASK_FAMILY=$(aws ecs describe-services \
+            --cluster "$CLUSTER" \
+            --services "$SERVICE_NAME" \
+            --query 'services[0].taskDefinition' \
+            --output text | cut -d'/' -f2 | cut -d':' -f1)
 
           # Get subnet and security group
           SUBNET=$(aws ec2 describe-subnets \
@@ -295,7 +328,12 @@ jobs:
 
       - name: Monitor ETL task
         run: |
-          CLUSTER="GreenGovRAG-Cluster"
+          # Get cluster name from CloudFormation stack outputs
+          CLUSTER=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`ClusterName`].OutputValue' \
+            --output text)
+
           TASK_ARN="${{ steps.run-etl.outputs.task_arn }}"
 
           echo "Monitoring task: $TASK_ARN"
@@ -303,7 +341,7 @@ jobs:
           # Wait for task to complete (with timeout)
           for i in {1..60}; do
             STATUS=$(aws ecs describe-tasks \
-              --cluster $CLUSTER \
+              --cluster "$CLUSTER" \
               --tasks $TASK_ARN \
               --query 'tasks[0].lastStatus' \
               --output text)
@@ -312,7 +350,7 @@ jobs:
 
             if [ "$STATUS" == "STOPPED" ]; then
               EXIT_CODE=$(aws ecs describe-tasks \
-                --cluster $CLUSTER \
+                --cluster "$CLUSTER" \
                 --tasks $TASK_ARN \
                 --query 'tasks[0].containers[0].exitCode' \
                 --output text)

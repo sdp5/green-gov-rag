@@ -146,15 +146,26 @@ jobs:
 
       - name: Check ECS service health
         run: |
+          # Get cluster and service names from CloudFormation stack outputs
+          CLUSTER_NAME=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`ClusterName`].OutputValue' \
+            --output text)
+
+          SERVICE_NAME=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`BackendServiceName`].OutputValue' \
+            --output text)
+
           STATUS=$(aws ecs describe-services \
-            --cluster GreenGovRAG-Cluster \
-            --services GreenGovRAG-BackendService \
+            --cluster "$CLUSTER_NAME" \
+            --services "$SERVICE_NAME" \
             --query 'services[0].status' \
             --output text)
 
           RUNNING=$(aws ecs describe-services \
-            --cluster GreenGovRAG-Cluster \
-            --services GreenGovRAG-BackendService \
+            --cluster "$CLUSTER_NAME" \
+            --services "$SERVICE_NAME" \
             --query 'services[0].runningCount' \
             --output text)
 

@@ -174,7 +174,13 @@ jobs:
 
       - name: Force new ECS deployment
         run: |
-          # Get service name from CloudFormation stack outputs
+          # Get cluster and service names from CloudFormation stack outputs
+          CLUSTER_NAME=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`ClusterName`].OutputValue' \
+            --output text \
+            --region ${{ vars.AWS_REGION }})
+
           SERVICE_NAME=$(aws cloudformation describe-stacks \
             --stack-name GreenGovRAGStack \
             --query 'Stacks[0].Outputs[?OutputKey==`BackendServiceName`].OutputValue' \
@@ -182,14 +188,20 @@ jobs:
             --region ${{ vars.AWS_REGION }})
 
           aws ecs update-service \
-            --cluster GreenGovRAG-Cluster \
+            --cluster "$CLUSTER_NAME" \
             --service "$SERVICE_NAME" \
             --force-new-deployment \
             --region ${{ vars.AWS_REGION }}
 
       - name: Wait for ECS service stability
         run: |
-          # Get service name from CloudFormation stack outputs
+          # Get cluster and service names from CloudFormation stack outputs
+          CLUSTER_NAME=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`ClusterName`].OutputValue' \
+            --output text \
+            --region ${{ vars.AWS_REGION }})
+
           SERVICE_NAME=$(aws cloudformation describe-stacks \
             --stack-name GreenGovRAGStack \
             --query 'Stacks[0].Outputs[?OutputKey==`BackendServiceName`].OutputValue' \
@@ -197,13 +209,19 @@ jobs:
             --region ${{ vars.AWS_REGION }})
 
           aws ecs wait services-stable \
-            --cluster GreenGovRAG-Cluster \
+            --cluster "$CLUSTER_NAME" \
             --services "$SERVICE_NAME" \
             --region ${{ vars.AWS_REGION }}
 
       - name: Get deployment status
         run: |
-          # Get service name from CloudFormation stack outputs
+          # Get cluster and service names from CloudFormation stack outputs
+          CLUSTER_NAME=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`ClusterName`].OutputValue' \
+            --output text \
+            --region ${{ vars.AWS_REGION }})
+
           SERVICE_NAME=$(aws cloudformation describe-stacks \
             --stack-name GreenGovRAGStack \
             --query 'Stacks[0].Outputs[?OutputKey==`BackendServiceName`].OutputValue' \
@@ -211,7 +229,7 @@ jobs:
             --region ${{ vars.AWS_REGION }})
 
           aws ecs describe-services \
-            --cluster GreenGovRAG-Cluster \
+            --cluster "$CLUSTER_NAME" \
             --services "$SERVICE_NAME" \
             --region ${{ vars.AWS_REGION }} \
             --query 'services[0].deployments' \

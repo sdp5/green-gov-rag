@@ -701,6 +701,13 @@ function handler(event) {{
         # Essential outputs for GitHub Actions deployment workflow
         CfnOutput(
             self,
+            "ClusterName",
+            value=cluster.cluster_name,
+            description="ECS Cluster Name",
+        )
+
+        CfnOutput(
+            self,
             "BackendServiceName",
             value=backend_service.service_name,
             description="ECS Backend Service Name",
@@ -712,28 +719,6 @@ function handler(event) {{
             value=f"http://{alb.load_balancer_dns_name}",
             description="Application Load Balancer DNS name",
         )
-
-        # Additional useful outputs (optional)
-        # CfnOutput(
-        #     self,
-        #     "DatabaseEndpoint",
-        #     value=db_instance.db_instance_endpoint_address,
-        #     description="RDS PostgreSQL endpoint",
-        # )
-        #
-        # CfnOutput(
-        #     self,
-        #     "QdrantPrivateIP",
-        #     value=qdrant_instance.instance_private_ip,
-        #     description="Qdrant private IP for backend connection",
-        # )
-        #
-        # CfnOutput(
-        #     self,
-        #     "BackendECRRepository",
-        #     value=backend_repo.repository_uri,
-        #     description="ECR repository for backend images",
-        # )
 
         CfnOutput(
             self,

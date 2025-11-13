@@ -83,7 +83,7 @@ if [ "${VECTOR_STORE_TYPE:-faiss}" = "qdrant" ]; then
         QDRANT_MAX_RETRIES=120  # 120 attempts * 3s = 360 seconds (6 minutes)
         RETRY_COUNT=0
         while [ $RETRY_COUNT -lt $QDRANT_MAX_RETRIES ]; do
-            if curl -sf "${QDRANT_URL}/health" > /dev/null 2>&1; then
+            if curl -sf "${QDRANT_URL}/" > /dev/null 2>&1; then
                 log_info "Qdrant is ready ✓"
                 break
             fi

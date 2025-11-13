@@ -170,6 +170,19 @@ class GreenGovRAGStack(Stack):
             description="Allow ECS tasks to access Qdrant",
         )
 
+        # Optional: Debug access (comment out in production)
+        # Uncomment below for ping/SSH access during development
+        # qdrant_sg.add_ingress_rule(
+        #     peer=ec2.Peer.any_ipv4(),
+        #     connection=ec2.Port.all_icmp(),
+        #     description="Allow ping for debugging",
+        # )
+        # qdrant_sg.add_ingress_rule(
+        #     peer=ec2.Peer.ipv4("YOUR_IP/32"),  # Replace with your IP
+        #     connection=ec2.Port.tcp(22),
+        #     description="SSH access for debugging"
+        # )
+
         # =====================================================================
         # S3 Bucket for Documents and Frontend
         # =====================================================================
@@ -380,7 +393,7 @@ class GreenGovRAGStack(Stack):
             "MAX_WAIT=60",
             "COUNT=0",
             "while [ $COUNT -lt $MAX_WAIT ]; do",
-            "  if curl -sf http://localhost:6333/health > /dev/null 2>&1; then",
+            "  if curl -sf http://localhost:6333/ > /dev/null 2>&1; then",
             "    echo '[SUCCESS] Qdrant is ready and accepting connections!'",
             "    exit 0",
             "  fi",

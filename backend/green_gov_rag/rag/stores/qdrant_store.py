@@ -282,7 +282,7 @@ class QdrantVectorStore(VectorStoreInterface):
         """Load Qdrant collection.
 
         Qdrant loads collections automatically on connection.
-        This creates a reference to an existing collection.
+        This creates a reference to an existing collection, or will create it on first add.
         """
         if not self.client:
             self._initialize_client()
@@ -295,12 +295,27 @@ class QdrantVectorStore(VectorStoreInterface):
         assert self.LangChainQdrantVectorStore is not None  # Help MyPy
         assert self.client is not None
 
+        # Check if collection exists
+        try:
+            self.client.get_collection(collection_name=self.collection_name)
+            logger.info(
+                f"Connected to existing Qdrant collection '{self.collection_name}'"
+            )
+        except Exception:
+            logger.info(
+                f"Collection '{self.collection_name}' doesn't exist yet. "
+                "Run 'rag index' or ETL pipeline to create and populate it."
+            )
+
+        # Create store reference (will create collection on first add if needed)
         self.store = self.LangChainQdrantVectorStore(
             client=self.client,
             collection_name=self.collection_name,
             embedding=self.embeddings,
         )
-        logger.info(f"Loaded Qdrant collection '{self.collection_name}'")
+        logger.info(
+            f"Qdrant vector store ready for collection '{self.collection_name}'"
+        )
 
     def delete_by_id(self, ids: list[str]) -> None:
         """Delete documents by ID from Qdrant."""

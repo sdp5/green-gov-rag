@@ -86,6 +86,7 @@ class GreenGovRAGStack(Stack):
         enable_redis_cache = self.node.try_get_context("enable_redis_cache") or "false"
         cache_ttl = self.node.try_get_context("cache_ttl") or "3600"
         enable_semantic_cache = self.node.try_get_context("enable_semantic_cache") or "true"
+        cors_origins = self.node.try_get_context("cors_origins") or "https://greengovrag.sundeep.id.au,https://greengovrag.au"
 
         # Docker image tag - defaults to 'latest' for local development
         image_tag = self.node.try_get_context("image_tag") or "latest"
@@ -504,6 +505,8 @@ class GreenGovRAGStack(Stack):
                 # API Security - Access key for all API endpoints
                 "API_ACCESS_KEY": api_access_key,
                 "APP_ENV": app_env,
+                # CORS - Allow CloudFront and custom domains
+                "CORS_ORIGINS": cors_origins,
             },
             health_check=ecs.HealthCheck(
                 command=["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"],
@@ -653,7 +656,10 @@ function handler(event) {{
             ),
             additional_behaviors={
                 "/api/*": cloudfront.BehaviorOptions(
-                    origin=origins.HttpOrigin(alb.load_balancer_dns_name),
+                    origin=origins.HttpOrigin(
+                        alb.load_balancer_dns_name,
+                        protocol_policy=cloudfront.OriginProtocolPolicy.HTTP_ONLY,
+                    ),
                     allowed_methods=cloudfront.AllowedMethods.ALLOW_ALL,
                     cache_policy=cloudfront.CachePolicy.CACHING_DISABLED,
                     origin_request_policy=cloudfront.OriginRequestPolicy.ALL_VIEWER,

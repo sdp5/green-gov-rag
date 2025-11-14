@@ -103,6 +103,7 @@ jobs:
           CACHE_TTL: ${{ vars.CACHE_TTL }}
           ENABLE_SEMANTIC_CACHE: ${{ vars.ENABLE_SEMANTIC_CACHE }}
           BEDROCK_MODEL_ID: ${{ vars.BEDROCK_MODEL_ID }}
+          CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
         run: |
           cd deploy/aws
           echo "=== Preview of changes that will be deployed ==="
@@ -124,6 +125,7 @@ jobs:
             --context enable_cache="${ENABLE_CACHE}" \
             --context enable_redis_cache="${ENABLE_REDIS_CACHE}" \
             --context cache_ttl="${CACHE_TTL}" \
+            --context cors_origins="${CORS_ORIGINS}" \
             --context enable_semantic_cache="${ENABLE_SEMANTIC_CACHE}" \
             --context image_tag="${{ github.sha }}" 2>&1 | grep -v -E "(api_key|password|secret|endpoint|token)" || true
 

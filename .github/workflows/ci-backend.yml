@@ -48,7 +48,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./backend
-        run: pip install -e .[dev]
+        run: pip install --no-cache-dir -e .[dev]
 
       - name: Run linting
         working-directory: ./backend

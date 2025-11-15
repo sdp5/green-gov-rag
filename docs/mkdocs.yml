@@ -1,0 +1,229 @@
+site_name: GreenGovRAG Documentation
+site_url: https://greengovrag.readthedocs.io  # or custom domain
+site_description: AI Assistant for Australian Environmental Regulations
+site_author: Sundeep Anand
+
+repo_url: https://github.com/sdp5/green-gov-rag
+repo_name: sdp5/green-gov-rag
+
+# Directory structure (mkdocs.yml is in docs/ folder)
+docs_dir: docs_src
+site_dir: ../site
+
+theme:
+  name: material
+  palette:
+    # Light mode - Professional Green
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: green
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode - Dark with green accent
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: green
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: Roboto Mono
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/leaf
+  features:
+    # Navigation
+    - navigation.instant        # XHR loading
+    - navigation.instant.prefetch  # Prefetch pages
+    - navigation.instant.progress  # Progress indicator
+    - navigation.tracking       # URL updates
+    - navigation.tabs           # Top-level tabs
+    - navigation.tabs.sticky    # Sticky tabs
+    - navigation.sections       # Collapsible sections
+    - navigation.path           # Breadcrumbs
+    - navigation.top            # Back to top button
+    - navigation.footer         # Footer navigation
+    - navigation.indexes        # Section index pages
+    # Search
+    - search.suggest            # Search suggestions
+    - search.highlight          # Highlight search terms
+    - search.share              # Share search results
+    # Table of contents
+    - toc.follow                # Follow active heading
+    - toc.integrate             # Integrate TOC into sidebar
+    # Content
+    - content.code.copy         # Copy code blocks
+    - content.code.annotate     # Code annotations
+    - content.code.select       # Select code
+    - content.tabs.link         # Link tabs across pages
+    - content.tooltips          # Improved tooltips
+    - content.action.edit       # Edit button
+    - content.action.view       # View source button
+
+plugins:
+  - search:                 # Full-text search
+      lang: en
+      separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
+  - mkdocstrings:          # Auto-generate API docs from docstrings
+      handlers:
+        python:
+          paths: [../backend]  # Source code path (relative to docs/)
+          options:
+            docstring_style: google  # Match Ruff config
+            show_source: true
+            show_root_heading: true
+            show_root_toc_entry: true
+            heading_level: 2
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            members_order: source
+            separate_signature: true
+            show_signature_annotations: true
+  - git-revision-date-localized:  # Show last updated dates
+      enable_creation_date: true
+      type: timeago
+      fallback_to_build_date: true
+  - minify:                # Minify HTML for production
+      minify_html: true
+      minify_js: true
+      minify_css: true
+      htmlmin_opts:
+        remove_comments: true
+      cache_safe: true
+
+markdown_extensions:
+  - pymdownx.highlight:    # Code highlighting
+      anchor_linenums: true
+  - pymdownx.superfences:  # Code blocks with tabs
+      custom_fences:
+        - name: mermaid    # Diagrams
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:       # Tabbed content
+      alternate_style: true
+  - pymdownx.tasklist:     # Task lists
+      custom_checkbox: true
+  - admonition             # Call-outs (notes, warnings, etc.)
+  - pymdownx.details       # Collapsible admonitions
+  - attr_list              # Add attributes to elements
+  - md_in_html             # Markdown inside HTML
+  - tables                 # Tables
+  - toc:                   # Table of contents
+      permalink: true
+      toc_depth: 3
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quickstart.md
+      - Configuration: getting-started/configuration.md
+      - First Query: getting-started/first-query.md
+  - User Guide:
+      - Querying the System: user-guide/querying.md
+      - Document Sources: user-guide/document-sources.md
+      - Vector Stores: user-guide/vector-stores.md
+      - Caching: user-guide/caching.md
+      - Monitoring: user-guide/monitoring.md
+      - Troubleshooting: user-guide/troubleshooting.md
+  - Contributor Guide:
+      - Overview: contributor-guide/overview.md
+      - Development Setup: contributor-guide/dev-setup.md
+      - Adding Document Sources: contributor-guide/document-sources.md
+      - Code Style: contributor-guide/code-style.md
+      - Testing: contributor-guide/testing.md
+      - Pull Requests: contributor-guide/pull-requests.md
+  - Developer Guide:
+      - Architecture:
+          - System Overview: developer-guide/architecture/overview.md
+          - RAG Pipeline: developer-guide/architecture/rag-pipeline.md
+          - ETL Pipeline: developer-guide/architecture/etl-pipeline.md
+          - Plugin System: developer-guide/architecture/plugin-system.md
+      - Components:
+          - Metadata Standards: developer-guide/metadata-standards.md
+          - Citation System: developer-guide/citations.md
+          - Cloud Storage: developer-guide/cloud-storage.md
+      - Customization:
+          - LLM Configuration: developer-guide/llm-config.md
+          - Custom Parsers: developer-guide/custom-parsers.md
+          - Custom Embeddings: developer-guide/custom-embeddings.md
+  - Deployment:
+      - Overview: deployment/overview.md
+      - Local (Docker): deployment/local-docker.md
+      - AWS Deployment: deployment/aws.md
+      - Azure Deployment: deployment/azure.md
+      - Cloud Comparison: deployment/cloud-comparison.md
+      - Production Checklist: deployment/production-checklist.md
+      - Monitoring: deployment/monitoring.md
+  - API Reference:
+      - REST API: api-reference/rest-api.md
+      - Python API:
+          - RAG Module: api-reference/python/rag.md
+          - ETL Module: api-reference/python/etl.md
+          - Models: api-reference/python/models.md
+          - Cloud Module: api-reference/python/cloud.md
+  - Reference:
+      - Data Sources: reference/data-sources.md
+      - Plugin API: reference/plugin-api.md
+      - Configuration Options: reference/config-reference.md
+      - CLI Commands: reference/cli-reference.md
+      - Database Schema: reference/database-schema.md
+      - Glossary: reference/glossary.md
+  - About:
+      - Changelog: about/changelog.md
+      - License: about/license.md
+      - Support: about/support.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/sdp5/green-gov-rag
+      name: GitHub Repository
+    - icon: fontawesome/solid/envelope
+      link: mailto:contact@sundeep.id.au
+      name: Contact Email
+  version:
+    provider: mike  # Versioned docs support
+    default: latest
+  analytics:
+    provider: google
+    property: G-XXXXXXXXXX  # Add your Google Analytics ID
+    feedback:
+      title: Was this page helpful?
+      ratings:
+        - icon: material/thumb-up-outline
+          name: This page was helpful
+          data: 1
+          note: Thanks for your feedback!
+        - icon: material/thumb-down-outline
+          name: This page could be improved
+          data: 0
+          note: Thanks for your feedback!
+  generator: false  # Remove "Made with Material for MkDocs"
+  status:
+    new: Recently added
+    deprecated: Deprecated
+
+# Custom CSS for professional design
+extra_css:
+  - stylesheets/extra.css
+
+# Custom JavaScript (if needed)
+extra_javascript:
+  - javascripts/extra.js
+
+# Exclude directories from documentation build
+exclude_docs: |
+  .local/
+  .venv/
+  archive/
+  __pycache__/
+
+# Copyright notice
+copyright: >
+  Copyright &copy; 2024-2025 Sundeep Anand –
+  <a href="#__consent">Cookie settings</a>

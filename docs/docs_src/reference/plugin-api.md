@@ -205,7 +205,7 @@ for s in load_document_sources():
 sources = load_document_sources()
 for source in sources:
     if source.validate().is_valid:
-        print(f"✅ {source.get_metadata()['title']}")
+        print(f"**{source.get_metadata()['title']}")
         for url in source.get_download_urls():
             print(f"   {url}")
 ```
@@ -243,12 +243,12 @@ for source in load_document_sources():
 
 ## Resources
 
-- [Full Guide](./CONTRIBUTING_DOCUMENT_SOURCES.md)
-- [Architecture](./PLUGIN_ARCHITECTURE_SUMMARY.md)
-- [Data Sources](./DATA.md)
+- [Full Guide](../contributor-guide/overview.md)
+- [Architecture](../developer-guide/architecture/plugin-system.md)
+- [Data Sources](data-sources.md)
 
 ## See Also
 
-- [Contributing Guide](./CONTRIBUTING_DOCUMENT_SOURCES.md) - Detailed plugin creation
-- [Plugin Architecture](./PLUGIN_ARCHITECTURE_SUMMARY.md) - System design
-- [Data Sources](./DATA.md) - Available documents
+- [Contributing Guide](../contributor-guide/overview.md) - Detailed plugin creation
+- [Plugin Architecture](../developer-guide/architecture/plugin-system.md) - System design
+- [Data Sources](data-sources.md) - Available documents

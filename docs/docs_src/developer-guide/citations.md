@@ -234,19 +234,19 @@ display = CitationFormatter.format_section_hierarchy_display([
 ## Industry Compliance
 
 ### Legal RAG Best Practices (2025)
-✅ **Hierarchical section extraction**: 78.67% recall vs 57.33% baseline
-✅ **Clause references with deep links**: Industry standard for legal documents
-✅ **Context-aware chunking**: Preserves document structure
+****Hierarchical section extraction**: 78.67% recall vs 57.33% baseline
+****Clause references with deep links**: Industry standard for legal documents
+****Context-aware chunking**: Preserves document structure
 
 ### ESG Reporting Standards
-✅ **NGER Compliance**: All 7 greenhouse gases tracked
-✅ **ISSB Alignment**: Scope 1/2/3 categorization
-✅ **GHG Protocol**: Consolidation methods documented
+****NGER Compliance**: All 7 greenhouse gases tracked
+****ISSB Alignment**: Scope 1/2/3 categorization
+****GHG Protocol**: Consolidation methods documented
 
 ### Geospatial RAG
-✅ **Hybrid search**: Elasticsearch/Bedrock pattern
-✅ **Spatial filtering**: Federal → State → Local hierarchy
-✅ **NER for locations**: Automatic LGA code extraction
+****Hybrid search**: Elasticsearch/Bedrock pattern
+****Spatial filtering**: Federal → State → Local hierarchy
+****NER for locations**: Automatic LGA code extraction
 
 ## Benefits
 

@@ -462,13 +462,21 @@ async def get_lga_geojson(request: Request) -> GeoJSONResponse:
         GeoJSONResponse: GeoJSON FeatureCollection
     """
     # Use absolute path relative to project root
-    # Go up from backend/green_gov_rag/api/ to project root
+    # Docker: /app/green_gov_rag/api/ (2 levels up to /app)
+    # Local: project_root/backend/green_gov_rag/api/ (3 levels up to project_root)
     api_dir = Path(__file__).parent
-    project_root = api_dir.parent.parent.parent
+
+    # Try Docker structure first (2 levels up)
+    project_root = api_dir.parent.parent
     # Data obtained from:
     # - Australian Bureau of Statistics (ABS): https://www.abs.gov.au/statistics/standards/australian-statistical-geography-standard-asgs-edition-3/jul2021-jun2026/access-and-downloads/digital-boundary-files
     # - data.gov.au: https://data.gov.au/
     geojson_path = project_root / "data" / "geo" / "aus_lga.geojson"
+
+    # Fallback to local dev structure (3 levels up) if not found
+    if not geojson_path.exists():
+        project_root = api_dir.parent.parent.parent
+        geojson_path = project_root / "data" / "geo" / "aus_lga.geojson"
 
     # Check if file exists
     if geojson_path.exists():

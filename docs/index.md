@@ -1,4 +1,4 @@
-# Documentation
+# GreenGovRAG Documentation
 
 Welcome to the GreenGovRAG documentation! GreenGovRAG is an AI assistant powered by Retrieval-Augmented Generation (RAG) that helps navigate Australian environmental and planning regulations.
 
@@ -21,7 +21,7 @@ GreenGovRAG combines regulatory document retrieval with geospatial filtering to 
 
 ## Getting Started Paths
 
-### I want to use GreenGovRAG
+### 🚀 I want to use GreenGovRAG
 
 **Start here if you want to query Australian regulations:**
 
@@ -34,7 +34,7 @@ GreenGovRAG combines regulatory document retrieval with geospatial filtering to 
 - [User Guide](user-guide/) - Learn how to use the system effectively
 - [Troubleshooting](user-guide/troubleshooting.md) - Common issues and solutions
 
-### I want to contribute to GreenGovRAG
+### 🛠️ I want to contribute to GreenGovRAG
 
 **Start here if you want to add document sources or fix bugs:**
 
@@ -45,7 +45,7 @@ GreenGovRAG combines regulatory document retrieval with geospatial filtering to 
 5. [Testing Guide](contributor-guide/testing.md) - Write and run tests
 6. [Pull Request Workflow](contributor-guide/pull-requests.md) - Submit your changes
 
-### I want to customize or extend GreenGovRAG
+### ⚙️ I want to customize or extend GreenGovRAG
 
 **Start here if you want to customize the RAG pipeline or add features:**
 
@@ -56,7 +56,7 @@ GreenGovRAG combines regulatory document retrieval with geospatial filtering to 
 5. [Metadata Standards](developer-guide/metadata-standards.md) - ESG & geospatial tags
 6. [Citation System](developer-guide/citations.md) - Legal-grade citations
 
-### I want to deploy GreenGovRAG
+### 🚀 I want to deploy GreenGovRAG
 
 **Start here if you want to deploy to production:**
 
@@ -187,13 +187,13 @@ Quick lookup documentation:
 **Current Version:** 0.1.0 (Pre-release)
 
 **What's Working:**
-- **RAG query pipeline with geospatial filtering
-- **Multi-LLM support (OpenAI, Anthropic, AWS Bedrock, Azure)
-- **Vector stores (FAISS, Qdrant)
-- **Cloud storage (AWS S3, Azure Blob, Local)
-- **ETL pipeline with plugin system
-- **Legal-grade citations
-- **AWS and Azure deployment
+- ✅ RAG query pipeline with geospatial filtering
+- ✅ Multi-LLM support (OpenAI, Anthropic, AWS Bedrock, Azure)
+- ✅ Vector stores (FAISS, Qdrant)
+- ✅ Cloud storage (AWS S3, Azure Blob, Local)
+- ✅ ETL pipeline with plugin system
+- ✅ Legal-grade citations
+- ✅ AWS and Azure deployment
 
 **In Progress:**
 - 🚧 React frontend (API-first development)

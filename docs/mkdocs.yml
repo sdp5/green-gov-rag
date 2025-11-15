@@ -1,5 +1,5 @@
-site_name: GreenGovRAG Documentation
-site_url: https://greengovrag.readthedocs.io  # or custom domain
+site_name: GreenGovRAG
+site_url: https://greengovrag.github.io  # or custom domain
 site_description: AI Assistant for Australian Environmental Regulations
 site_author: Sundeep Anand
 
@@ -13,25 +13,13 @@ site_dir: ../site
 theme:
   name: material
   palette:
-    # Light mode - Professional Green
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: green
-      accent: teal
-      toggle:
-        icon: material/brightness-7
-        name: Switch to dark mode
-    # Dark mode - Dark with green accent
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
+    # Light mode only - Match frontend (no dark mode toggle)
+    - scheme: default
       primary: teal
       accent: green
-      toggle:
-        icon: material/brightness-4
-        name: Switch to light mode
   font:
     text: Inter
-    code: Roboto Mono
+    code: 'JetBrains Mono'
   icon:
     repo: fontawesome/brands/github
     logo: material/leaf
@@ -43,7 +31,7 @@ theme:
     - navigation.tracking       # URL updates
     - navigation.tabs           # Top-level tabs
     - navigation.tabs.sticky    # Sticky tabs
-    - navigation.sections       # Collapsible sections
+    # - navigation.sections     # Render sections as groups (removed for collapsible menu)
     - navigation.path           # Breadcrumbs
     - navigation.top            # Back to top button
     - navigation.footer         # Footer navigation
@@ -54,7 +42,7 @@ theme:
     - search.share              # Share search results
     # Table of contents
     - toc.follow                # Follow active heading
-    - toc.integrate             # Integrate TOC into sidebar
+    # - toc.integrate           # Integrate TOC into sidebar (removed for cleaner nav)
     # Content
     - content.code.copy         # Copy code blocks
     - content.code.annotate     # Code annotations

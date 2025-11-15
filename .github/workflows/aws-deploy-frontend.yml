@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'frontend/**'
+      - 'data/geo/**'
       - '.github/workflows/aws-deploy-frontend.yml'
   workflow_dispatch:
   workflow_run:
@@ -115,10 +116,16 @@ jobs:
           // CloudFront routes /api/* requests to the ALB backend
           window.__RUNTIME_CONFIG__ = {
             API_URL: '${{ steps.cf-outputs.outputs.cf_url }}/api',
+            CDN_URL: '${{ steps.cf-outputs.outputs.cf_url }}',
             MAPBOX_TOKEN: '${{ secrets.VITE_MAPBOX_TOKEN || 'pk.your-mapbox-token-here' }}',
             GITHUB_REPO_URL: 'https://github.com/sdp5/green-gov-rag'
           };
           EOF
+
+      - name: Checkout code (for GeoJSON data)
+        uses: actions/checkout@v4
+        with:
+          path: repo
 
       - name: Sync to S3
         run: |
@@ -134,6 +141,17 @@ jobs:
 
           aws s3 cp dist/config.js s3://${{ steps.cf-outputs.outputs.bucket }}/config.js \
             --cache-control "no-cache, no-store, must-revalidate"
+
+      - name: Upload static GeoJSON to S3
+        run: |
+          # Gzip the file for better compression (9MB -> ~2MB)
+          gzip -c repo/data/geo/aus_lga.geojson > aus_lga.geojson.gz
+
+          # Upload LGA boundaries GeoJSON with long cache (30 days) and gzip encoding
+          aws s3 cp aus_lga.geojson.gz s3://${{ steps.cf-outputs.outputs.bucket }}/data/geo/aus_lga.geojson \
+            --content-type "application/geo+json" \
+            --content-encoding gzip \
+            --cache-control "public, max-age=2592000"
 
       - name: Invalidate CloudFront cache
         run: |

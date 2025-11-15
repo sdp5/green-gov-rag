@@ -2,8 +2,17 @@
   "$schema": "https://json.schemastore.org/staticwebapp.config.json",
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/api/*", "/*.{css,scss,js,ts,tsx,jsx,json,png,gif,ico,jpg,svg,woff,woff2,ttf,eot}"]
+    "exclude": ["/api/*", "/data/*", "/*.{css,scss,js,ts,tsx,jsx,json,geojson,png,gif,ico,jpg,svg,woff,woff2,ttf,eot}"]
   },
+  "routes": [
+    {
+      "route": "/data/geo/*.geojson",
+      "headers": {
+        "Cache-Control": "public, max-age=2592000",
+        "Content-Type": "application/geo+json"
+      }
+    }
+  ],
   "globalHeaders": {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
@@ -11,6 +20,7 @@
   },
   "mimeTypes": {
     ".json": "application/json",
+    ".geojson": "application/geo+json",
     ".js": "text/javascript",
     ".css": "text/css"
   }

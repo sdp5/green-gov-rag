@@ -1,17 +1,19 @@
 name: Deploy Frontend
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/azure-deploy-frontend.yml'
+  # Disabled automatic deployment - uncomment to enable on push to main
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - 'frontend/**'
+  #     - 'data/geo/**'
+  #     - '.github/workflows/azure-deploy-frontend.yml'
   workflow_dispatch:
 
 jobs:
   build:
-    # Disabled - change to true to enable deployment
-    if: false
+    # Disabled - change to true to enable Azure deployment
+    if: ${{ vars.ENABLE_AZURE_DEPLOY == 'true' }}
     name: Build Frontend
     runs-on: ubuntu-latest
 
@@ -55,8 +57,8 @@ jobs:
     name: Deploy to Azure Static Web App
     needs: build
     runs-on: ubuntu-latest
-    # Disabled - change to true to enable deployment
-    if: false
+    # Disabled - set ENABLE_AZURE_DEPLOY to 'true' in repository variables to enable
+    if: ${{ vars.ENABLE_AZURE_DEPLOY == 'true' }}
 
     steps:
       - name: Download build artifact
@@ -87,15 +89,44 @@ jobs:
           echo "app_name=$STATIC_APP" >> $GITHUB_OUTPUT
           echo "resource_group=${{ secrets.AZURE_RESOURCE_GROUP }}" >> $GITHUB_OUTPUT
 
+      - name: Checkout code (for GeoJSON data)
+        uses: actions/checkout@v4
+        with:
+          path: repo
+
+      - name: Get Static Web App URL for CDN
+        id: cdn-url
+        run: |
+          FRONTEND_URL=$(az staticwebapp show \
+            --name ${{ steps.az-outputs.outputs.app_name }} \
+            --resource-group ${{ steps.az-outputs.outputs.resource_group }} \
+            --query defaultHostname \
+            --output tsv)
+          echo "cdn_url=https://$FRONTEND_URL" >> $GITHUB_OUTPUT
+
       - name: Generate runtime config.js
         run: |
           cat > dist/config.js << EOF
+          // Runtime configuration for GreenGovRAG frontend
+          // Azure Static Web Apps handles authentication via staticwebapp.config.json
           window.__RUNTIME_CONFIG__ = {
             API_URL: '${{ steps.az-outputs.outputs.api_url }}/api',
-            API_ACCESS_KEY: '${{ secrets.API_ACCESS_KEY }}',
-            MAPBOX_TOKEN: '${{ secrets.VITE_MAPBOX_TOKEN }}'
+            CDN_URL: '${{ steps.cdn-url.outputs.cdn_url }}',
+            MAPBOX_TOKEN: '${{ secrets.VITE_MAPBOX_TOKEN }}',
+            GITHUB_REPO_URL: 'https://github.com/sdp5/green-gov-rag'
           };
           EOF
+
+      - name: Prepare GeoJSON for upload
+        run: |
+          # Create data/geo directory in dist
+          mkdir -p dist/data/geo
+
+          # Gzip the file for better compression (9MB -> ~2MB)
+          gzip -c repo/data/geo/aus_lga.geojson > dist/data/geo/aus_lga.geojson.gz
+
+          # Also copy uncompressed version as fallback
+          cp repo/data/geo/aus_lga.geojson dist/data/geo/aus_lga.geojson
 
       - name: Deploy to Azure Static Web App
         uses: Azure/static-web-apps-deploy@v1

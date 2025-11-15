@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_URL, API_ACCESS_KEY } from '../config/env';
+import { API_URL, API_ACCESS_KEY, CDN_URL } from '../config/env';
 import type { FeedbackRequest, FeedbackResponse, CoverageInfo } from '../types/api';
 import { getOrCreateSessionId } from '../utils/session';
 
@@ -63,6 +63,25 @@ export const analyticsAPI = {
 
 export const mapAPI = {
   getLGAs: async () => {
+    // Try CDN first (if configured), fallback to API
+    // AWS CloudFront: Serves static GeoJSON with gzip, 30-day cache
+    // Azure/Local: Uses backend API to serve from disk
+    if (CDN_URL) {
+      try {
+        const response = await axios.get(`${CDN_URL}/data/geo/aus_lga.geojson`, {
+          headers: {
+            'Accept': 'application/geo+json, application/json',
+          },
+          timeout: 10000, // 10s timeout for CDN
+        });
+        return response.data;
+      } catch (error) {
+        console.warn('CDN fetch failed, falling back to API:', error);
+        // Fallback to API if CDN fails
+      }
+    }
+
+    // Fallback: Use backend API (local dev, Azure, or CDN failure)
     const response = await apiClient.get('/map/lgas');
     return response.data;
   },

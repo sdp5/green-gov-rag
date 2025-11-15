@@ -12,6 +12,7 @@ declare global {
     __RUNTIME_CONFIG__?: {
       API_URL: string;
       API_ACCESS_KEY?: string;  // Optional: only used in local dev, CloudFront injects in prod
+      CDN_URL?: string;  // Optional: CDN base URL for static assets (AWS CloudFront, Azure CDN)
       MAPBOX_TOKEN: string;
       GITHUB_REPO_URL: string;
     };
@@ -29,6 +30,7 @@ const getRuntimeConfig = () => {
   return {
     API_URL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
     API_ACCESS_KEY: import.meta.env.VITE_API_ACCESS_KEY || 'dev-insecure-key-change-in-production',
+    CDN_URL: import.meta.env.VITE_CDN_URL,  // Optional: undefined in local dev
     MAPBOX_TOKEN: import.meta.env.VITE_MAPBOX_TOKEN || '',
     GITHUB_REPO_URL: import.meta.env.VITE_GITHUB_REPO_URL || 'https://github.com/sdp5/green-gov-rag',
   };
@@ -46,5 +48,7 @@ export const isProduction = import.meta.env.PROD;
 export const API_URL = ENV.API_URL;
 // API_ACCESS_KEY is only used in local dev (CloudFront/Front Door inject header in production)
 export const API_ACCESS_KEY = ENV.API_ACCESS_KEY;
+// CDN_URL is optional - only set in CDN deployments (AWS CloudFront, Azure CDN)
+export const CDN_URL = ENV.CDN_URL;
 export const MAPBOX_TOKEN = ENV.MAPBOX_TOKEN;
 export const GITHUB_REPO_URL = ENV.GITHUB_REPO_URL;

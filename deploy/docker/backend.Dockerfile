@@ -6,6 +6,7 @@ ARG VERSION="0.1.0"
 # Install system dependencies for ETL pipeline
 # - gcc, g++: C/C++ compilers for Python packages with native extensions
 # - curl: Health checks and debugging
+# - unzip: Required for AWS CLI installation
 # - postgresql-client: Database operations
 # - libgl1, libglib2.0-0, libsm6, libxext6, libxrender1: OpenCV headless support
 # - libgomp1: OpenMP for parallel processing (PyTorch, NumPy)
@@ -16,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     curl \
+    unzip \
     postgresql-client \
     libgl1 \
     libglib2.0-0 \
@@ -27,6 +29,12 @@ RUN apt-get update && apt-get install -y \
     poppler-utils \
     tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
+
+# Install AWS CLI v2 for S3 sync operations in ETL pipeline
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+    && unzip -q awscliv2.zip \
+    && ./aws/install \
+    && rm -rf aws awscliv2.zip
 
 # Copy backend code
 COPY backend/pyproject.toml backend/ruff.toml ./

@@ -36,6 +36,7 @@ from green_gov_rag.etl.parsers import parse_file
 from green_gov_rag.etl.parsers.layout_parser import HierarchicalPDFParser
 from green_gov_rag.etl.parsers.unstructured_parser import UnstructuredPDFParser
 from green_gov_rag.etl.pipeline import EnhancedETLPipeline
+from green_gov_rag.etl.storage_adapter import ETLStorageAdapter
 from green_gov_rag.models.base import engine
 from green_gov_rag.models.document_version import DocumentVersion
 from green_gov_rag.rag.embeddings import ChunkEmbedder
@@ -72,6 +73,33 @@ console = Console()
 
 
 # ============================================================================
+# Helper Functions
+# ============================================================================
+
+
+def _use_cloud_storage() -> bool:
+    """Determine if cloud storage should be used based on settings.
+
+    Returns:
+        True if cloud storage is configured (not 'local'), False otherwise.
+    """
+    return settings.cloud_provider != "local"
+
+
+def _get_storage_adapter() -> "ETLStorageAdapter | None":
+    """Get ETL storage adapter if cloud storage is enabled.
+
+    Returns:
+        ETLStorageAdapter instance if cloud enabled, None for local mode.
+    """
+    if _use_cloud_storage():
+        from green_gov_rag.etl.storage_adapter import ETLStorageAdapter
+
+        return ETLStorageAdapter()
+    return None
+
+
+# ============================================================================
 # ETL Commands
 # ============================================================================
 
@@ -101,10 +129,11 @@ def etl_ingest(
     console.print(f"[bold blue]Loading config from {config_path}...[/bold blue]")
 
     # Use ingest_documents() which creates hierarchical structure
-    ingest.ingest_documents(use_cloud=False, config_path=config_path)
+    # Automatically uses cloud storage if CLOUD_PROVIDER env var is set (not 'local')
+    ingest.ingest_documents(use_cloud=None, config_path=config_path)
 
     console.print(
-        "[bold green]✓ Ingestion complete. Processed documents saved to data/raw/[/bold green]",
+        "[bold green]✓ Ingestion complete. Documents saved to configured storage.[/bold green]",
     )
 
 

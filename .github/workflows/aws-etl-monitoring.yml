@@ -294,10 +294,15 @@ jobs:
             --query 'Stacks[0].Outputs[?OutputKey==`EcsSecurityGroupId`].OutputValue' \
             --output text)
 
-          # Get S3 bucket for environment
+          # Get S3 bucket and Qdrant URL from CloudFormation
           BUCKET=$(aws cloudformation describe-stacks \
             --stack-name GreenGovRAGStack \
             --query 'Stacks[0].Outputs[?OutputKey==`DocumentsBucket`].OutputValue' \
+            --output text)
+
+          QDRANT_URL=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`QdrantUrl`].OutputValue' \
             --output text)
 
           # Run delta ETL task (ingest to S3, parse, chunk, delta index to Qdrant)
@@ -317,12 +322,13 @@ jobs:
                   {\"name\": \"AWS_REGION\", \"value\": \"$AWS_REGION\"},
                   {\"name\": \"STORAGE_CONTAINER\", \"value\": \"$BUCKET\"},
                   {\"name\": \"VECTOR_STORE_TYPE\", \"value\": \"qdrant\"},
+                  {\"name\": \"QDRANT_URL\", \"value\": \"$QDRANT_URL\"},
                   {\"name\": \"QDRANT_API_KEY\", \"value\": \"${{ secrets.QDRANT_API_KEY }}\"},
-                  {\"name\": \"EMBEDDING_MODEL\", \"value\": \"${EMBEDDING_MODEL:-BAAI/bge-large-en-v1.5}\"}
+                  {\"name\": \"EMBEDDING_MODEL\", \"value\": \"${{ vars.EMBEDDING_MODEL }}\"}
                 ],
                 \"command\": [
                   \"sh\", \"-c\",
-                  \"aws s3 cp s3://$BUCKET/configs/changed_files.json /tmp/changed_files.json && greengovrag-cli etl ingest --config /app/data/configs/documents_config.yml && greengovrag-cli etl parse --input data/raw --output data/processed && greengovrag-cli etl chunk --input data/processed --output data/chunks --chunk-size 500 --chunk-overlap 100 --mode delta --accurate --raw-dir data/raw && greengovrag-cli rag index --chunks data/chunks --vector-store qdrant --collection greengovrag --model \\$EMBEDDING_MODEL --changed-files /tmp/changed_files.json --mode delta\"
+                  \"echo '=== Downloading changed_files.json ===' && aws s3 cp s3://$BUCKET/configs/changed_files.json /tmp/changed_files.json && echo '=== Step 1: Ingest documents to S3 (delta) ===' && greengovrag-cli etl ingest --config /app/configs/documents_config.yml && echo '=== Step 2: Download from S3 and parse ===' && aws s3 sync s3://$BUCKET/documents/ /app/data/raw/ --quiet && greengovrag-cli etl parse --input /app/data/raw --output /app/data/processed && echo '=== Step 3: Chunk and upload to S3 ===' && greengovrag-cli etl chunk --input /app/data/processed --output /app/data/chunks --chunk-size 500 --chunk-overlap 100 --mode delta && aws s3 sync /app/data/chunks/ s3://$BUCKET/chunks/ --quiet && echo '=== Step 4: Load chunks to database ===' && greengovrag-cli db load-chunks --chunks-dir /app/data/chunks --batch-size 100 && echo '=== Step 5: Index to Qdrant (delta mode) ===' && greengovrag-cli rag index --chunks /app/data/chunks --vector-store qdrant --collection greengovrag --model \\$EMBEDDING_MODEL --changed-files /tmp/changed_files.json --mode delta\"
                 ]
               }]
             }" \

@@ -80,14 +80,19 @@ jobs:
             --query 'Stacks[0].Outputs[?OutputKey==`EcsSecurityGroupId`].OutputValue' \
             --output text)
 
-          # Get S3 bucket for environment
+          # Get S3 bucket and Qdrant URL from CloudFormation
           BUCKET=$(aws cloudformation describe-stacks \
             --stack-name GreenGovRAGStack \
             --query 'Stacks[0].Outputs[?OutputKey==`DocumentsBucket`].OutputValue' \
             --output text)
 
-          # Run ETL task (ingest to S3, parse, chunk, index to Qdrant)
-          # Note: Documents stored in S3, vectors in Qdrant
+          QDRANT_URL=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`QdrantUrl`].OutputValue' \
+            --output text)
+
+          # Run ETL task (full pipeline: ingest → parse → chunk → index)
+          # Hybrid approach: S3 for persistence, ephemeral storage for processing
           TASK_ARN=$(aws ecs run-task \
             --cluster $CLUSTER \
             --task-definition $TASK_FAMILY \
@@ -98,16 +103,17 @@ jobs:
               \"containerOverrides\": [{
                 \"name\": \"backend\",
                 \"environment\": [
-                  {\"name\": \"CLOUD_PROVIDER\", \"value\": \"${{ vars.CLOUD_PROVIDER }}\"},
+                  {\"name\": \"CLOUD_PROVIDER\", \"value\": \"aws\"},
                   {\"name\": \"AWS_REGION\", \"value\": \"${{ vars.AWS_REGION }}\"},
                   {\"name\": \"STORAGE_CONTAINER\", \"value\": \"$BUCKET\"},
-                  {\"name\": \"VECTOR_STORE_TYPE\", \"value\": \"${{ vars.VECTOR_STORE_TYPE }}\"},
+                  {\"name\": \"VECTOR_STORE_TYPE\", \"value\": \"qdrant\"},
+                  {\"name\": \"QDRANT_URL\", \"value\": \"$QDRANT_URL\"},
                   {\"name\": \"QDRANT_API_KEY\", \"value\": \"${{ secrets.QDRANT_API_KEY }}\"},
                   {\"name\": \"EMBEDDING_MODEL\", \"value\": \"${{ vars.EMBEDDING_MODEL }}\"}
                 ],
                 \"command\": [
                   \"sh\", \"-c\",
-                  \"greengovrag-cli etl ingest --config /app/data/configs/documents_config.yml\"
+                  \"echo '=== Step 1: Ingest documents to S3 ===' && greengovrag-cli etl ingest --config /app/configs/documents_config.yml && echo '=== Step 2: Download from S3 and parse ===' && aws s3 sync s3://$BUCKET/documents/ /app/data/raw/ --quiet && greengovrag-cli etl parse --input /app/data/raw --output /app/data/processed && echo '=== Step 3: Chunk and upload to S3 ===' && greengovrag-cli etl chunk --input /app/data/processed --output /app/data/chunks --chunk-size 500 --chunk-overlap 100 --mode full --accurate && aws s3 sync /app/data/chunks/ s3://$BUCKET/chunks/ --quiet && echo '=== Step 4: Load chunks to database ===' && greengovrag-cli db load-chunks --chunks-dir /app/data/chunks --batch-size 100 && echo '=== Step 5: Index to Qdrant ===' && greengovrag-cli rag index --chunks /app/data/chunks --vector-store qdrant --collection greengovrag --model $EMBEDDING_MODEL --batch-size 100 --mode full\"
                 ]
               }]
             }" \

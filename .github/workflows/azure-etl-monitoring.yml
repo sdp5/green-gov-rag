@@ -197,17 +197,19 @@ jobs:
       - name: Run ETL via Azure Container App Job
         id: run-etl-azure
         run: |
+          STORAGE_ACCOUNT="${{ steps.azure-resources.outputs.storage_account }}"
+
           echo "Starting Azure Container App Job: ${{ steps.azure-resources.outputs.etl_job }}"
           echo ""
-          echo "Note: The Container App Job must be configured with the following command:"
-          echo "  greengovrag-cli etl ingest --config /app/configs/documents_config.yml && \"
-          echo "  greengovrag-cli etl parse --input data/raw --output data/processed && \"
-          echo "  greengovrag-cli etl chunk --input data/processed --output data/chunks --chunk-size 500 --chunk-overlap 100 --mode delta --accurate --raw-dir data/raw && \"
-          echo "  greengovrag-cli rag index --chunks data/chunks --vector-store qdrant --collection greengovrag --model \$EMBEDDING_MODEL --changed-files /tmp/changed_files.json --mode delta"
+          echo "Full ETL pipeline (delta mode): ingest → parse → chunk → load → index"
+          echo "Hybrid approach: Azure Blob for persistence, ephemeral storage for processing"
           echo ""
-          echo "This ensures the full ETL pipeline: ingest → parse → chunk → index"
-          echo "Delta mode uses changed_files.json uploaded to /tmp/changed_files.json by previous step"
-          echo ""
+
+          # Update job with full pipeline command (delta mode)
+          az containerapp job update \
+            --name ${{ steps.azure-resources.outputs.etl_job }} \
+            --resource-group ${{ steps.azure-resources.outputs.resource_group }} \
+            --args "sh,-c,echo '=== Downloading changed_files.json ===' && az storage blob download --account-name $STORAGE_ACCOUNT --container-name configs --name changed_files.json --file /tmp/changed_files.json --auth-mode login && echo '=== Step 1: Ingest documents to Blob Storage (delta) ===' && greengovrag-cli etl ingest --config /app/configs/documents_config.yml && echo '=== Step 2: Download from Blob and parse ===' && az storage blob download-batch --source documents --destination /app/data/raw/ --account-name $STORAGE_ACCOUNT --auth-mode login --no-progress && greengovrag-cli etl parse --input /app/data/raw --output /app/data/processed && echo '=== Step 3: Chunk and upload to Blob ===' && greengovrag-cli etl chunk --input /app/data/processed --output /app/data/chunks --chunk-size 500 --chunk-overlap 100 --mode delta && az storage blob upload-batch --source /app/data/chunks --destination chunks --account-name $STORAGE_ACCOUNT --auth-mode login --no-progress && echo '=== Step 4: Load chunks to database ===' && greengovrag-cli db load-chunks --chunks-dir /app/data/chunks --batch-size 100 && echo '=== Step 5: Index to Qdrant (delta mode) ===' && greengovrag-cli rag index --chunks /app/data/chunks --vector-store qdrant --collection greengovrag --model \$EMBEDDING_MODEL --changed-files /tmp/changed_files.json --mode delta"
 
           # Start the ETL job execution
           JOB_EXECUTION=$(az containerapp job start \

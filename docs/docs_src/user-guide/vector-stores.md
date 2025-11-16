@@ -136,37 +136,37 @@ pip install qdrant-client langchain-qdrant
 
 | Feature | FAISS | Qdrant |
 |---------|-------|--------|
-| **Setup** | **Zero config | **Requires server |
-| **Speed** | **Very fast (in-memory) | **Fast (network overhead) |
-| **Scalability** | **Memory limited | **Millions of vectors |
-| **Persistence** | **File-based | **Database-backed |
-| **Metadata Filtering** | **Post-filtering (slow) | **Native filtering (fast) |
-| **CRUD Operations** | **Add-only | **Full CRUD support |
-| **Document Deletion** | **Not supported | **Supported |
-| **List All Metadata** | **Not supported | **Supported |
-| **Production Ready** | **Not recommended | **Production-grade |
-| **High Availability** | **Single instance | **Clustering support |
+| **Setup** | Zero config | Requires server |
+| **Speed** | Very fast (in-memory) | Fast (network overhead) |
+| **Scalability** | Memory limited | Millions of vectors |
+| **Persistence** | File-based | Database-backed |
+| **Metadata Filtering** | Post-filtering (slow) | Native filtering (fast) |
+| **CRUD Operations** | Add-only | Full CRUD support |
+| **Document Deletion** | Not supported | Supported |
+| **List All Metadata** | Not supported | Supported |
+| **Production Ready** | Not recommended | Production-grade |
+| **High Availability** | Single instance | Clustering support |
 | **Cost** | Free | Free (self-hosted) or Paid (cloud) |
 | **Best For** | Development, demos | Production, large datasets |
 
 ### When to Use FAISS
 
-- **Development and testing
-- **Small datasets (<100K documents)
-- **Single-server deployments
-- **No need for deletion/updates
-- **Simple setup required
-- **Proof of concepts and demos
+- Development and testing
+- Small datasets (<100K documents)
+- Single-server deployments
+- No need for deletion/updates
+- Simple setup required
+- Proof of concepts and demos
 
 ### When to Use Qdrant
 
-- **Production deployments
-- **Large datasets (>100K documents)
-- **Need document deletion/updates
-- **Complex metadata filtering
-- **Multi-server/distributed setup
-- **High availability required
-- **Scalability is important
+- Production deployments
+- Large datasets (>100K documents)
+- Need document deletion/updates
+- Complex metadata filtering
+- Multi-server/distributed setup
+- High availability required
+- Scalability is important
 
 ## Using the Factory
 
@@ -396,6 +396,7 @@ for batch in chunk_batches:
 **1. Deploy Qdrant**
 
 See [Configuration](#configuration) section for deployment options:
+
 - Docker Compose for single-server
 - Kubernetes/Helm for multi-server
 - Qdrant Cloud for managed service
@@ -628,11 +629,11 @@ Stay tuned for updates!
 
 ## Summary
 
-****Factory pattern** - Easy switching between backends
-****Zero code changes** - Just update config
-****Migration tool** - Automated data transfer
-****Production ready** - Qdrant for scale
-****Backward compatible** - FAISS still works
+- **Factory pattern** - Easy switching between backends
+- **Zero code changes** - Just update config
+- **Migration tool** - Automated data transfer
+- **Production ready** - Qdrant for scale
+- **Backward compatible** - FAISS still works
 
 **Recommended setup:**
 - **Development**: FAISS (simple, fast)

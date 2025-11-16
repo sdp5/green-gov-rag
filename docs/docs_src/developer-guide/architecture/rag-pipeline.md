@@ -144,6 +144,7 @@ async def query_endpoint(
 **Module**: `/backend/green_gov_rag/rag/location_ner.py`
 
 **Capabilities**:
+
 - Extracts Australian locations from natural language
 - Resolves LGA names to ABS codes
 - Identifies state/territory mentions
@@ -167,6 +168,7 @@ locations = ner.extract_locations(
 ```
 
 **LGA Database**:
+
 - Source: ABS LGA codes (2021 Census)
 - Coverage: All Australian LGAs (~560 councils)
 - Fuzzy matching for variations
@@ -176,6 +178,7 @@ locations = ner.extract_locations(
 **Module**: `/backend/green_gov_rag/rag/query_expansion.py`
 
 **Acronym Resolution**:
+
 - NGER → National Greenhouse and Energy Reporting
 - EPBC → Environment Protection and Biodiversity Conservation
 - LGA → Local Government Area
@@ -191,6 +194,7 @@ expanded = expand_query(original)
 ```
 
 **Domain-Specific Expansions**:
+
 - Regulatory frameworks (NGER, ISSB, GRI)
 - Emission scopes (Scope 1/2/3)
 - Australian-specific terms (LGA, SA, NSW)
@@ -228,6 +232,7 @@ def detect_jurisdiction_from_query(query: str) -> str | None:
 **Module**: `/backend/green_gov_rag/rag/embeddings.py`
 
 **Default Model**: `sentence-transformers/all-MiniLM-L6-v2`
+
 - Dimensions: 384
 - Max sequence length: 512 tokens
 - Performance: ~3ms per embedding (CPU)
@@ -280,6 +285,7 @@ class ChunkEmbedder:
 **Module**: `/backend/green_gov_rag/rag/vector_store.py`
 
 **Search Algorithm**:
+
 - **FAISS**: Flat index (brute-force) or HNSW (approximate)
 - **Qdrant**: HNSW index with payload filtering
 
@@ -594,6 +600,7 @@ llm = LLMFactory.create_llm(
 ```
 
 **Temperature Tuning**:
+
 - `0.0-0.2`: Deterministic, precise (regulatory compliance)
 - `0.3-0.5`: Balanced creativity and accuracy
 - `0.6-1.0`: Creative, diverse outputs (not recommended for legal/regulatory)
@@ -926,6 +933,7 @@ hnsw_config = {
 | Total (uncached) | 2s | 4s |
 
 **Optimization Tips**:
+
 1. Use GPT-3.5-turbo for faster responses (500ms vs 1.5s)
 2. Enable caching for common queries
 3. Use Qdrant for datasets >100K documents
@@ -1024,5 +1032,4 @@ elif intent == "comparison":
 
 ---
 
-**Last Updated**: 2025-11-15
-**Maintainer**: Sundeep Anand (contact@sundeep.id.au)
+**Last Updated**: 2025-11-22

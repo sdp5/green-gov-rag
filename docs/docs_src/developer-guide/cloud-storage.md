@@ -37,12 +37,8 @@ All storage backends use a consistent hierarchical path structure:
 │   └── {jurisdiction}/
 │       └── {category}/
 │           └── {topic}/
-│               └── {filename}
-├── metadata/
-│   └── {jurisdiction}/
-│       └── {category}/
-│           └── {topic}/
-│               └── {filename}.json
+│               ├── {filename}
+│               └── {filename}.metadata.json
 └── chunks/
     └── {document_id}/
         └── {chunk_index}.json
@@ -51,65 +47,75 @@ All storage backends use a consistent hierarchical path structure:
 **Example**:
 ```
 greengovrag-documents/
-├── documents/federal/environment/emissions/nger-guidelines.pdf
-├── metadata/federal/environment/emissions/nger-guidelines.pdf.json
-└── chunks/abc123def456/000001.json
+├── documents/
+│   └── federal/
+│       └── environment/
+│           └── emissions/
+│               ├── nger-guidelines.pdf
+│               └── nger-guidelines.pdf.metadata.json
+└── chunks/
+    └── abc123def456/
+        └── 000001.json
 ```
 
 ### Components
 
 1. **Storage Adapter** (`green_gov_rag/etl/storage_adapter.py`)
-   - Cloud-agnostic interface for ETL operations
-   - Handles downloads, uploads, metadata management
-   - Automatic provider detection
+
+     - Cloud-agnostic interface for ETL operations
+     - Handles downloads, uploads, metadata management
+     - Automatic provider detection
 
 2. **Cloud Storage Backend** (`green_gov_rag/cloud/storage.py`)
-   - Low-level storage operations
-   - Provider-specific implementations (AWS, Azure, Local)
-   - Connection pooling and retry logic
+
+     - Low-level storage operations
+     - Provider-specific implementations (AWS, Azure, Local)
+     - Connection pooling and retry logic
 
 3. **ETL Modules** (Cloud-aware)
-   - `ingest.py` - Downloads documents to cloud/local storage
-   - `pipeline.py` - Processes documents from storage
-   - `loader.py` - Loads documents and chunks from storage
-   - `db_writer.py` - Tracks storage paths in database
+
+     - `ingest.py` - Downloads documents to cloud/local storage
+     - `pipeline.py` - Processes documents from storage
+     - `loader.py` - Loads documents and chunks from storage
+     - `db_writer.py` - Tracks storage paths in database
 
 4. **Airflow DAGs**
-   - `greengovrag_pipeline_cloud.py` - Cloud-aware workflow orchestration
-   - `greengovrag_s3_sensor` - AWS S3 monitoring (auto-trigger)
-   - `greengovrag_azure_sensor` - Azure Blob monitoring (auto-trigger)
+
+     - `greengovrag_pipeline_cloud.py` - Cloud-aware workflow orchestration
+     - `greengovrag_s3_sensor` - AWS S3 monitoring (auto-trigger)
+     - `greengovrag_azure_sensor` - Azure Blob monitoring (auto-trigger)
 
 ## Providers
 
 ### AWS S3
 
 **Use Cases:**
+
 - Production deployments requiring high availability
 - Global document distribution via CloudFront
 - Integration with AWS services (ECS, Lambda, RDS)
 - Cost-effective storage with lifecycle policies
 
-**Pricing**: ~$0.023/GB/month (Standard tier)
 
 ### Azure Blob Storage
 
 **Use Cases:**
+
 - Azure-native deployments (Container Apps, AKS)
 - Integration with Azure services (Functions, Cosmos DB)
 - Hybrid cloud scenarios with on-premises Azure Stack
 - Australian data residency requirements (australiaeast region)
 
-**Pricing**: ~$0.02/GB/month (Hot tier)
 
 ### Local Filesystem
 
 **Use Cases:**
+
 - Development and testing
 - Air-gapped or offline deployments
 - Single-server deployments
 - Data privacy constraints
 
-**Pricing**: Storage hardware costs only
 
 See [Cloud Provider Comparison](../.local/cloud-comparison.md) for detailed comparison matrix.
 
@@ -432,6 +438,7 @@ The cloud-aware DAG executes these tasks in sequence:
 For automatic processing when new documents arrive, the DAG includes sensor support for both AWS S3 and Azure Blob Storage.
 
 **How Sensors Work:**
+
 1. Sensor DAG polls cloud storage every 60 seconds (configurable)
 2. Looks for `trigger.json` files matching pattern `documents/*/trigger.json`
 3. When detected, automatically triggers the main ETL pipeline via `TriggerDagRunOperator`
@@ -439,6 +446,7 @@ For automatic processing when new documents arrive, the DAG includes sensor supp
 5. Sensor continues monitoring for future triggers
 
 **Sensor DAGs:**
+
 - `greengovrag_s3_sensor` - AWS S3 monitoring (active when STORAGE_PROVIDER=aws)
 - `greengovrag_azure_sensor` - Azure Blob monitoring (active when STORAGE_PROVIDER=azure)
 
@@ -1072,10 +1080,3 @@ pip install apache-airflow-providers-microsoft-azure>=8.4.0
 - [AWS Deployment Guide](../deployment/aws.md) - Deploy on AWS
 - [Azure Deployment Guide](../deployment/azure.md) - Deploy on Azure
 - [Local Docker Setup](../deployment/local-docker.md) - Development environment
-
-## Support
-
-For issues or questions:
-- **GitHub Issues**: https://github.com/sdp5/green-gov-rag/issues
-- **Documentation**: https://greengovrag.readthedocs.io
-- **Contact**: contact@sundeep.id.au

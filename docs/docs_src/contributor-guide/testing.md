@@ -39,6 +39,7 @@ Testing is a critical part of GreenGovRAG's development process. We maintain hig
 ### Testing Framework
 
 We use **pytest** with these key plugins:
+
 - `pytest-cov`: Code coverage reporting
 - `pytest-mock`: Simplified mocking
 - `pytest-asyncio`: Async test support

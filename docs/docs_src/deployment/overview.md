@@ -8,21 +8,18 @@ GreenGovRAG supports multiple deployment architectures to suit different require
 
 ### 1. Local Development (Docker Compose)
 - **Best for**: Development, testing, proof-of-concept
-- **Cost**: Free (infrastructure only)
 - **Complexity**: Low
 - **Setup time**: 5 minutes
 - **Scalability**: Limited to single machine
 
 ### 2. AWS Deployment (ECS Fargate)
 - **Best for**: Production, scalable applications
-- **Cost**: ~$47/month (low traffic)
 - **Complexity**: Medium
 - **Setup time**: 30-45 minutes
 - **Scalability**: Auto-scaling to thousands of requests
 
 ### 3. Azure Deployment (Container Apps)
 - **Best for**: Enterprise Azure environments
-- **Cost**: ~$50/month (low traffic)
 - **Complexity**: Medium
 - **Setup time**: 30-45 minutes
 - **Scalability**: Auto-scaling with KEDA
@@ -66,7 +63,6 @@ All deployment options include these core components:
 
 | Feature | Local Docker | AWS | Azure |
 |---------|-------------|-----|-------|
-| **Cost** | Free | ~$47/mo | ~$50/mo |
 | **Setup** | 5 min | 45 min | 45 min |
 | **Auto-scaling** | No | Yes | Yes |
 | **High Availability** | No | Yes | Yes |
@@ -180,10 +176,10 @@ See [Monitoring Guide](monitoring.md) for detailed setup.
 - Use SQLite instead of PostgreSQL (not recommended)
 
 ### Production
-- Use AWS Spot instances for Qdrant ($2.64/mo vs $9/mo)
+- Use AWS Spot instances for Qdrant
 - Use CDN caching to reduce backend requests
 - Use DynamoDB for query result caching
-- Use gpt-5-mini instead of gpt-5 ($0.15 vs $2.50 per 1M tokens)
+- Use gpt-5-mini instead of gpt-5
 - Schedule ETL during off-peak hours
 - Auto-scale down during low traffic
 
@@ -195,13 +191,6 @@ Choose your deployment path:
 2. **Production**: [AWS Deployment](aws.md) (45 minutes)
 3. **Enterprise**: [Azure Deployment](azure.md) (45 minutes)
 
-## Support
-
-- **Documentation**: [GreenGovRAG Docs](https://greengovrag.readthedocs.io)
-- **GitHub Issues**: [github.com/sdp5/green-gov-rag/issues](https://github.com/sdp5/green-gov-rag/issues)
-- **Email**: contact@sundeep.id.au
-
 ---
 
-**Last Updated**: 2025-11-15
-**Version**: 1.0.0
+**Last Updated**: 2025-11-22

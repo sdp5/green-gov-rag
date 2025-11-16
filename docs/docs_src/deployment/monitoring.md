@@ -5,6 +5,7 @@
 ## Overview
 
 Effective monitoring is critical for production RAG systems. This guide covers:
+
 - Health checks and uptime monitoring
 - Logging configuration
 - Performance metrics
@@ -76,12 +77,14 @@ async def health_check():
 ### Uptime Monitoring
 
 **External Monitoring Services**:
+
 - **Pingdom**: https://www.pingdom.com (paid)
 - **UptimeRobot**: https://uptimerobot.com (free tier available)
 - **AWS CloudWatch Synthetics**: Canary monitoring
 - **Azure Application Insights Availability Tests**: URL ping tests
 
 **Setup (UptimeRobot example)**:
+
 1. Create monitor: HTTP(S)
 2. URL: `https://your-api.com/api/health`
 3. Interval: 5 minutes
@@ -399,6 +402,7 @@ az monitor metrics alert create \
 ### Slack Integration
 
 **AWS SNS → Slack**:
+
 1. Create SNS topic: `greengovrag-alerts`
 2. Subscribe webhook: `https://hooks.slack.com/services/YOUR/WEBHOOK/URL`
 3. Configure CloudWatch alarms to publish to SNS topic
@@ -514,6 +518,7 @@ aws cloudwatch put-dashboard \
 **Create in Portal**: Azure Portal → Dashboards → New dashboard
 
 **Pin metrics**:
+
 1. Navigate to Container App
 2. Click "Metrics"
 3. Select metric (CPU, Memory, Requests)
@@ -529,6 +534,7 @@ docker run -d -p 3000:3000 grafana/grafana
 **Add Prometheus data source**: Configuration → Data sources → Add Prometheus
 
 **Create dashboard**:
+
 1. New dashboard
 2. Add panel
 3. Query: `rate(http_requests_total[5m])`
@@ -715,5 +721,4 @@ az consumption budget create \
 
 ---
 
-**Last Updated**: 2025-11-15
-**Version**: 1.0.0
+**Last Updated**: 2025-11-22

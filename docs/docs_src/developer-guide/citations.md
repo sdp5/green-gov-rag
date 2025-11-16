@@ -12,6 +12,7 @@ GreenGovRAG implements **legal-grade citation metadata** following 2025 industry
 **File**: `green_gov_rag/etl/parsers/layout_parser.py`
 
 Uses LLMSherpa LayoutPDFReader to extract:
+
 - Section hierarchy (chapters → sections → subsections)
 - Page numbers and page ranges
 - Chunk types (paragraph, table, list, header)
@@ -45,12 +46,14 @@ chunks = parser.parse_with_structure("policy.pdf")
 `SourceDocument` schema includes:
 
 **Core Fields:**
+
 - `title`: Document title
 - `source_url`: Document URL
 - `excerpt`: Relevant text excerpt
 - `relevance_score`: Similarity score (0-1)
 
 **Citation Metadata:**
+
 - `page_number`: Page where content appears
 - `page_range`: [start, end] if multi-page
 - `section_title`: Current section title
@@ -60,12 +63,14 @@ chunks = parser.parse_with_structure("policy.pdf")
 - `citation`: Formatted citation string
 
 **Document Context:**
+
 - `jurisdiction`: federal/state/local
 - `category`: environment, planning, legislation
 - `topic`: emissions_reporting, biodiversity, etc.
 - `region`: Geographic region
 
 **ESG Metadata:**
+
 - `frameworks`: [NGER, ISSB, GHG_Protocol]
 - `emission_scopes`: [scope_1, scope_2, scope_3]
 - `greenhouse_gases`: [CO2, CH4, N2O, ...]
@@ -73,6 +78,7 @@ chunks = parser.parse_with_structure("policy.pdf")
 - `regulator`: Regulatory authority
 
 **Spatial Metadata:**
+
 - `spatial_scope`: federal/state/local
 - `state`: State code (SA, NSW, VIC, etc.)
 - `lga_codes`: ABS LGA codes
@@ -234,19 +240,22 @@ display = CitationFormatter.format_section_hierarchy_display([
 ## Industry Compliance
 
 ### Legal RAG Best Practices (2025)
-****Hierarchical section extraction**: 78.67% recall vs 57.33% baseline
-****Clause references with deep links**: Industry standard for legal documents
-****Context-aware chunking**: Preserves document structure
+
+- **Hierarchical section extraction**: 78.67% recall vs 57.33% baseline
+- **Clause references with deep links**: Industry standard for legal documents
+- **Context-aware chunking**: Preserves document structure
 
 ### ESG Reporting Standards
-****NGER Compliance**: All 7 greenhouse gases tracked
-****ISSB Alignment**: Scope 1/2/3 categorization
-****GHG Protocol**: Consolidation methods documented
+
+- **NGER Compliance**: All 7 greenhouse gases tracked
+- **ISSB Alignment**: Scope 1/2/3 categorization
+- **GHG Protocol**: Consolidation methods documented
 
 ### Geospatial RAG
-****Hybrid search**: Elasticsearch/Bedrock pattern
-****Spatial filtering**: Federal → State → Local hierarchy
-****NER for locations**: Automatic LGA code extraction
+
+- **Hybrid search**: Elasticsearch/Bedrock pattern
+- **Spatial filtering**: Federal → State → Local hierarchy
+- **NER for locations**: Automatic LGA code extraction
 
 ## Benefits
 
@@ -300,6 +309,4 @@ display = CitationFormatter.format_section_hierarchy_display([
 
 ---
 
-**Last Updated**: 2025-10-15
-**Version**: 1.0.0
-**Status**: Production-Ready ✅
+**Last Updated**: 2025-10-22

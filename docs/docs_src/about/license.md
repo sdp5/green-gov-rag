@@ -221,11 +221,13 @@ GreenGovRAG retrieves and processes publicly available Australian government doc
 ## Data Privacy
 
 GreenGovRAG does not:
+
 - Collect personal information from users
 - Store user queries persistently (unless explicitly configured)
 - Share data with third parties (except LLM providers for query processing)
 
 Query logs (if enabled) are used solely for:
+
 - System analytics and improvement
 - Performance monitoring
 - Debugging
@@ -255,16 +257,16 @@ See [Contributor Guide](../contributor-guide/overview.md) for contribution proce
 ## Questions
 
 For licensing questions, contact:
-- **Email**: contact@sundeep.id.au
+
 - **GitHub Issues**: https://github.com/sdp5/green-gov-rag/issues
 
 ## Full License Text
 
 The complete MIT License text is available at:
+
 - **Repository**: https://github.com/sdp5/green-gov-rag/blob/main/LICENSE
 - **OSI**: https://opensource.org/licenses/MIT
 
 ---
 
-**Last Updated**: 2025-11-15
-**Version**: 0.1.0
+**Last Updated**: 2025-11-22

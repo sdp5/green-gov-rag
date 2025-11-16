@@ -6,8 +6,8 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                         CloudFront                           │
-│                      (CDN + HTTPS)                           │
+│                         CloudFront                          │
+│                      (CDN + HTTPS)                          │
 └──────────────────┬──────────────────────────────────────────┘
                    │
      ┌─────────────┴────────────┐
@@ -32,22 +32,6 @@
        │  (pgvector) │   │ (EC2 t4g)│    │   (Cache)    │
        └─────────────┘   └──────────┘    └──────────────┘
 ```
-
-## Cost Breakdown
-
-**Total: ~$47/month** (low traffic, us-east-1)
-
-| Service | Configuration | Monthly Cost |
-|---------|--------------|--------------|
-| ECS Fargate | 0.25 vCPU, 0.5GB RAM | $15.18 |
-| RDS PostgreSQL | t4g.micro, 20GB storage | $16.05 |
-| EC2 Spot (Qdrant) | t4g.micro | $2.64 |
-| S3 + CloudFront | 10GB storage, 100GB transfer | $1.50 |
-| DynamoDB | On-demand, 1GB storage | $0.75 |
-| API Gateway | HTTP API, 1M requests | $1.00 |
-| **Total** | | **~$47.00** |
-
-See [Cloud Comparison](cloud-comparison.md) for Azure cost comparison.
 
 ## Prerequisites
 
@@ -74,6 +58,7 @@ cdk --version
 ### 3. Required IAM Permissions
 
 Your AWS user/role needs permissions for:
+
 - ECS, EC2, VPC, ELB
 - RDS, S3, CloudFront, DynamoDB
 - IAM, CloudFormation, Systems Manager
@@ -83,6 +68,7 @@ Or use `AdministratorAccess` policy (not recommended for production).
 ### 4. LLM API Key
 
 You need an API key for one of:
+
 - OpenAI API (`sk-...`)
 - Azure OpenAI (endpoint + key + deployment name)
 - AWS Bedrock (in supported region)
@@ -169,6 +155,7 @@ cdk deploy --require-approval never
 ```
 
 Deployment takes ~15-20 minutes. You'll see:
+
 - VPC and subnets creation
 - RDS PostgreSQL instance
 - ECS cluster and service
@@ -186,6 +173,7 @@ aws cloudformation describe-stacks \
 ```
 
 **Important outputs**:
+
 - `ApiUrl`: Backend API endpoint
 - `FrontendUrl`: CloudFront distribution URL
 - `QdrantUrl`: Qdrant service endpoint (internal VPC only)
@@ -385,6 +373,7 @@ aws logs filter-pattern /ecs/greengovrag-backend --pattern "ERROR"
 **View in AWS Console**: CloudWatch → Dashboards → greengovrag-dashboard
 
 **Key metrics**:
+
 - ECS CPU/Memory utilization
 - RDS CPU/Connections
 - API Gateway 4XX/5XX errors
@@ -393,6 +382,7 @@ aws logs filter-pattern /ecs/greengovrag-backend --pattern "ERROR"
 ### CloudWatch Alarms
 
 Auto-created alarms:
+
 - `HighCPUUtilization`: ECS CPU > 80% for 5 minutes
 - `HighMemoryUtilization`: ECS Memory > 90% for 5 minutes
 - `DatabaseHighConnections`: RDS connections > 80
@@ -493,6 +483,7 @@ aws cloudformation describe-stack-events \
 ```
 
 Common causes:
+
 - Insufficient IAM permissions
 - Parameter Store secrets missing
 - Resource limits exceeded (VPC, EIP, etc.)
@@ -587,6 +578,7 @@ cdk destroy
 ```
 
 **Note**: Some resources may have deletion protection:
+
 - RDS instance (if `deletionProtection: true`)
 - S3 bucket (if not empty)
 
@@ -613,5 +605,4 @@ cdk destroy
 
 ---
 
-**Last Updated**: 2025-11-15
-**Version**: 1.0.0
+**Last Updated**: 2025-11-22

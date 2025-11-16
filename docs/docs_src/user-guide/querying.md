@@ -205,12 +205,14 @@ Each source has a `confidence_score` indicating relevance:
 
 ### Writing Effective Queries
 
-****Good queries**:
+#### Good queries
+
 - "What are the emissions reporting thresholds under NGER?"
 - "Do I need an EIA for a solar farm in regional NSW?"
 - "What are the biodiversity offset requirements in South Australia?"
 
-****Poor queries**:
+#### Poor queries
+
 - "emissions" (too vague)
 - "Tell me everything about environmental law" (too broad)
 - "Is coal bad?" (subjective, not regulatory)

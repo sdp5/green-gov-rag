@@ -173,11 +173,10 @@ See [GitHub Contributors](https://github.com/sdp5/green-gov-rag/graphs/contribut
 
 ## License
 
-Copyright © 2024-2025 Sundeep Anand
+Copyright © 2025-2026 Sundeep Anand
 
 This project is licensed under the MIT License - see the [LICENSE](license.md) file for details.
 
 ---
 
 **Last Updated**: 2025-11-22
-**Version**: 0.1.0

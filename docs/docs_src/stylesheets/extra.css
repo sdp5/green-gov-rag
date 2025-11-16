@@ -46,7 +46,7 @@
 }
 
 html {
-  font-size: 19px;
+  font-size: 18px;
   scroll-behavior: smooth;
 }
 
@@ -55,14 +55,14 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Header - Professional sticky header */
+/* Header - Match frontend gradient (emerald-50/50 via green-50/30) */
 .md-header {
   background: linear-gradient(to right,
-    rgba(255, 255, 255, 0.98),
-    rgba(248, 250, 252, 0.98),
-    rgba(255, 255, 255, 0.98)
+    rgba(236, 253, 245, 0.5),   /* emerald-50/50 */
+    rgba(240, 253, 244, 0.3),   /* green-50/30 */
+    rgba(236, 253, 245, 0.5)    /* emerald-50/50 */
   );
-  backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(8px) saturate(180%);
   border-bottom: 1px solid rgba(226, 232, 240, 0.6);
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -248,15 +248,15 @@ body {
   border-radius: 2px;
 }
 
-/* Footer - Professional */
+/* Footer - Match frontend gradient */
 .md-footer {
   background: linear-gradient(to right,
-    rgba(248, 250, 252, 0.98),
-    rgba(255, 255, 255, 0.98),
-    rgba(248, 250, 252, 0.98)
+    rgba(236, 253, 245, 0.5),   /* emerald-50/50 */
+    rgba(240, 253, 244, 0.3),   /* green-50/30 */
+    rgba(236, 253, 245, 0.5)    /* emerald-50/50 */
   );
   border-top: 1px solid rgba(226, 232, 240, 0.6);
-  backdrop-filter: blur(12px) saturate(180%);
+  backdrop-filter: blur(8px) saturate(180%);
   box-shadow: 0 -1px 3px 0 rgba(0, 0, 0, 0.03);
 }
 
@@ -817,7 +817,15 @@ body {
   display: none;
 }
 
-/* Logo styling */
+/* Logo styling - Match frontend gradient leaf (emerald-500 to green-600) */
+.md-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.md-logo svg,
 .md-logo img {
-  filter: brightness(0) saturate(100%) invert(29%) sepia(75%) saturate(1844%) hue-rotate(134deg) brightness(92%) contrast(96%);
+  filter: brightness(0) saturate(100%) invert(52%) sepia(98%) saturate(1151%) hue-rotate(115deg) brightness(96%) contrast(89%);
+  /* Creates emerald-500 (#10b981) color */
 }

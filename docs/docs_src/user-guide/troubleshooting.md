@@ -186,6 +186,7 @@ openai.error.RateLimitError: Rate limit reached
 **Cause**: Exceeded OpenAI rate limits
 
 **Solution**:
+
 1. Wait and retry with exponential backoff
 2. Upgrade OpenAI plan for higher limits
 3. Switch to Azure OpenAI (higher limits):
@@ -245,6 +246,7 @@ requests.exceptions.HTTPError: 404 Client Error
 **Cause**: Source URL is broken or moved
 
 **Solution**:
+
 1. Check document source URL in `configs/documents_config.yml`
 2. Manually verify URL in browser
 3. Update config with new URL
@@ -409,7 +411,6 @@ If you're still stuck:
 2. **Enable debug logging**: `LOG_LEVEL=DEBUG` in `.env`
 3. **Search issues**: [GitHub Issues](https://github.com/sdp5/green-gov-rag/issues)
 4. **Create issue**: Include logs, .env (redacted), and error messages
-5. **Contact**: contact@sundeep.id.au
 
 ## See Also
 

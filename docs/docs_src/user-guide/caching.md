@@ -51,11 +51,13 @@ When a user submits a query:
 ### 2. Cache Key Generation
 
 Cache keys are MD5 hashes of:
+
 - User query text
 - Retrieved context (documents)
 - Applied filters (region, jurisdiction, topics)
 
 This ensures:
+
 - Same query + same context = cache hit
 - Different filters = different cache entry
 - Different retrieved documents = different cache entry
@@ -312,6 +314,7 @@ POST /api/admin/cache/warm
 ## Summary
 
 Caching provides:
+
 - **60-90% cost reduction** on LLM API calls
 - **10-50x faster** response times for cached queries
 - **Automatic invalidation** when documents change

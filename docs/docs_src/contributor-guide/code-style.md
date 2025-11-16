@@ -23,6 +23,7 @@
 GreenGovRAG follows strict code quality standards to ensure maintainability, readability, and consistency across the codebase. We use automated tools to enforce these standards.
 
 **Core Principles:**
+
 - Code should be self-documenting
 - Type hints are required for all functions
 - Documentation should explain "why", not "what"
@@ -31,6 +32,7 @@ GreenGovRAG follows strict code quality standards to ensure maintainability, rea
 - Performance implications should be understood
 
 **Tools We Use:**
+
 - **Ruff**: Fast Python linter and formatter (replaces Black, isort, flake8, pylint)
 - **MyPy**: Static type checker
 - **Pytest**: Testing framework
@@ -43,6 +45,7 @@ GreenGovRAG follows strict code quality standards to ensure maintainability, rea
 We follow [PEP 8](https://pep8.org/) with specific customizations defined in `pyproject.toml`.
 
 **Key Rules:**
+
 - Line length: 100 characters (not 79)
 - Indentation: 4 spaces (never tabs)
 - Encoding: UTF-8

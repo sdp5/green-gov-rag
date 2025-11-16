@@ -1,6 +1,7 @@
 # Documentation
 
-Welcome to the GreenGovRAG documentation! GreenGovRAG is an AI assistant powered by Retrieval-Augmented Generation (RAG) that helps navigate Australian environmental and planning regulations.
+Welcome!
+GreenGovRAG is an AI assistant powered by Retrieval-Augmented Generation (RAG) that helps navigate Australian environmental and planning regulations.
 
 ## What is GreenGovRAG?
 
@@ -12,6 +13,7 @@ GreenGovRAG combines regulatory document retrieval with geospatial filtering to 
 - **Emissions Standards** - NGER reporting, ESG frameworks, carbon accounting
 
 **Key Features:**
+
 - Multi-LLM support (OpenAI, Anthropic, AWS Bedrock, Azure)
 - Geospatial filtering by Local Government Area (LGA)
 - Legal-grade citations with page numbers and sections
@@ -31,6 +33,7 @@ GreenGovRAG combines regulatory document retrieval with geospatial filtering to 
 4. [First Query Tutorial](getting-started/first-query.md) - Submit your first query
 
 **Then explore:**
+
 - [User Guide](user-guide/) - Learn how to use the system effectively
 - [Troubleshooting](user-guide/troubleshooting.md) - Common issues and solutions
 
@@ -92,18 +95,18 @@ For open-source contributors:
 For advanced customization:
 
 - **Architecture**
-  - [System Overview](developer-guide/architecture/overview.md) - High-level design
-  - [RAG Pipeline](developer-guide/architecture/rag-pipeline.md) - RAG internals
-  - [ETL Pipeline](developer-guide/architecture/etl-pipeline.md) - Document processing
-  - [Plugin System](developer-guide/architecture/plugin-system.md) - Extensibility
+    - [System Overview](developer-guide/architecture/overview.md) - High-level design
+    - [RAG Pipeline](developer-guide/architecture/rag-pipeline.md) - RAG internals
+    - [ETL Pipeline](developer-guide/architecture/etl-pipeline.md) - Document processing
+    - [Plugin System](developer-guide/architecture/plugin-system.md) - Extensibility
 - **Components**
-  - [Metadata Standards](developer-guide/metadata-standards.md) - ESG & geospatial
-  - [Citation System](developer-guide/citations.md) - Legal-grade citations
-  - [Cloud Storage](developer-guide/cloud-storage.md) - Multi-cloud architecture
+    - [Metadata Standards](developer-guide/metadata-standards.md) - ESG & geospatial
+    - [Citation System](developer-guide/citations.md) - Legal-grade citations
+    - [Cloud Storage](developer-guide/cloud-storage.md) - Multi-cloud architecture
 - **Customization**
-  - [LLM Configuration](developer-guide/llm-config.md) - Switching LLM providers
-  - [Custom Parsers](developer-guide/custom-parsers.md) - Build custom parsers
-  - [Custom Embeddings](developer-guide/custom-embeddings.md) - Custom embedding models
+    - [LLM Configuration](developer-guide/llm-config.md) - Switching LLM providers
+    - [Custom Parsers](developer-guide/custom-parsers.md) - Build custom parsers
+    - [Custom Embeddings](developer-guide/custom-embeddings.md) - Custom embedding models
 
 ### Deployment
 Production deployment guides:
@@ -187,20 +190,17 @@ Quick lookup documentation:
 **Current Version:** 0.1.0 (Pre-release)
 
 **What's Working:**
-- **RAG query pipeline with geospatial filtering
-- **Multi-LLM support (OpenAI, Anthropic, AWS Bedrock, Azure)
-- **Vector stores (FAISS, Qdrant)
-- **Cloud storage (AWS S3, Azure Blob, Local)
-- **ETL pipeline with plugin system
-- **Legal-grade citations
-- **AWS and Azure deployment
 
-**In Progress:**
-- 🚧 React frontend (API-first development)
-- 🚧 User authentication (API currently open)
-- 🚧 MkDocs static site for documentation
+- RAG query pipeline with geospatial filtering
+- Multi-LLM support (OpenAI, Anthropic, AWS Bedrock, Azure)
+- Vector stores (FAISS, Qdrant)
+- Cloud storage (AWS S3, Azure Blob, Local)
+- ETL pipeline with plugin system
+- Legal-grade citations
+- AWS and Azure deployment
 
 **Planned:**
+
 - 📋 Multi-LGA query support
 - 📋 Real-time document update webhooks
 - 📋 Parcel-level geospatial queries
@@ -211,7 +211,6 @@ Quick lookup documentation:
 ### Get Help
 
 - **GitHub Issues:** [Report bugs or request features](https://github.com/sdp5/green-gov-rag/issues)
-- **Email:** contact@sundeep.id.au
 - **Documentation:** You're here! 📚
 
 ### Contributing
@@ -237,7 +236,7 @@ We welcome contributions! See the [Contributor Guide](contributor-guide/overview
 
 **Purpose:** GreenGovRAG helps individuals, businesses, and government navigate Australia's complex environmental and planning regulations through AI-powered document retrieval.
 
-**Data Sovereignty:** All regulatory documents are sourced from official Australian government websites. See [Data Sources](reference/data-sources.md) for details.
+**Data Sovereignty:** All regulatory documents are sourced from official Australian government websites, and all data are processed and stored in Australia. (Sydney Datacenter) See [Data Sources](reference/data-sources.md) for details.
 
 ---
 

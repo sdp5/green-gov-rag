@@ -8,20 +8,21 @@
 
 The primary support channel is GitHub Issues:
 
-**https://github.com/sdp5/green-gov-rag/issues**
+**[GitHub Issues](https://github.com/sdp5/green-gov-rag/issues)**
 
 #### Before Creating an Issue
 
 1. **Search existing issues** to avoid duplicates
 2. **Check documentation** (you're reading it!)
 3. **Review troubleshooting guide**: [User Guide > Troubleshooting](../user-guide/troubleshooting.md)
-4. **Check discussions** for Q&A: https://github.com/sdp5/green-gov-rag/discussions
+4. **Check discussions** for Q&A: [GitHub Discussions](https://github.com/sdp5/green-gov-rag/discussions)
 
 #### Creating a Good Issue
 
 Include:
 
 **For Bug Reports**:
+
 - GreenGovRAG version (`greengovrag-cli --version`)
 - Python version (`python --version`)
 - Operating system (Linux, macOS, Windows)
@@ -80,9 +81,10 @@ QDRANT_URL=http://qdrant:6333
 
 For questions, ideas, and general discussion:
 
-**https://github.com/sdp5/green-gov-rag/discussions**
+**[GitHub Discussions](https://github.com/sdp5/green-gov-rag/discussions)**
 
 **Categories**:
+
 - **Q&A**: Ask questions
 - **Ideas**: Propose new features
 - **Show and Tell**: Share your use cases
@@ -95,6 +97,7 @@ For commercial deployments, custom integrations, or dedicated support:
 **Email**: contact@sundeep.id.au
 
 **Services offered**:
+
 - Custom document source development
 - Deployment assistance (AWS, Azure, on-premises)
 - Performance tuning and optimization
@@ -116,13 +119,15 @@ For commercial deployments, custom integrations, or dedicated support:
 ### Video Tutorials
 
 Coming soon! Subscribe to updates:
+
 - **YouTube**: TBD
 - **Newsletter**: TBD
 
 ### Blog Posts
 
 Coming soon! Follow for updates:
-- **Blog**: https://sundeep.id.au/blog
+
+- **Blog**: [Sundeep's Blog](https://sundeep.id.au/blog)
 
 ## Common Issues
 
@@ -222,11 +227,13 @@ AZURE_OPENAI_DEPLOYMENT=<correct-deployment-name>
 ## Response Times
 
 **GitHub Issues**:
+
 - **Bug reports**: 1-3 business days
 - **Feature requests**: 1-7 business days
 - **Questions**: 1-5 business days
 
 **Professional Support** (paid):
+
 - **Critical issues**: 4 hours (business hours)
 - **High priority**: 1 business day
 - **Normal priority**: 3 business days
@@ -251,6 +258,7 @@ See [Contributor Guide](../contributor-guide/overview.md) for details.
 ### Recognition
 
 Contributors are listed in:
+
 - [Changelog](changelog.md) (for significant contributions)
 - [GitHub Contributors](https://github.com/sdp5/green-gov-rag/graphs/contributors)
 - Release notes
@@ -266,6 +274,7 @@ Contributors are listed in:
 ### Unofficial Channels
 
 None at this time. We recommend using official channels to ensure:
+
 - Searchable history
 - Proper tracking
 - Transparency
@@ -275,6 +284,7 @@ None at this time. We recommend using official channels to ensure:
 GreenGovRAG follows the [Contributor Covenant Code of Conduct](https://www.contributor-covenant.org/version/2/1/code_of_conduct/).
 
 **Summary**:
+
 - Be respectful and inclusive
 - Welcome diverse perspectives
 - Focus on constructive feedback
@@ -295,6 +305,7 @@ See [Security Policy](https://github.com/sdp5/green-gov-rag/security/policy) for
 ## Roadmap
 
 See [GitHub Projects](https://github.com/sdp5/green-gov-rag/projects) for:
+
 - Planned features
 - Current priorities
 - Release schedule
@@ -303,7 +314,7 @@ Upvote features you'd like to see in GitHub Discussions!
 
 ## Stay Updated
 
-- **GitHub Releases**: https://github.com/sdp5/green-gov-rag/releases
+- **GitHub Releases**: [Latest Releases](https://github.com/sdp5/green-gov-rag/releases)
 - **GitHub Watch**: Click "Watch" → "Custom" → "Releases"
 - **Changelog**: [Changelog](changelog.md)
 
@@ -311,12 +322,12 @@ Upvote features you'd like to see in GitHub Discussions!
 
 ### External Resources
 
-- **LangChain Documentation**: https://python.langchain.com/docs
-- **FastAPI Documentation**: https://fastapi.tiangolo.com
-- **Qdrant Documentation**: https://qdrant.tech/documentation
-- **PostgreSQL Documentation**: https://www.postgresql.org/docs
-- **AWS Documentation**: https://docs.aws.amazon.com
-- **Azure Documentation**: https://docs.microsoft.com/azure
+- **LangChain Documentation**: [python.langchain.com/docs](https://python.langchain.com/docs)
+- **FastAPI Documentation**: [fastapi.tiangolo.com](https://fastapi.tiangolo.com)
+- **Qdrant Documentation**: [qdrant.tech/documentation](https://qdrant.tech/documentation)
+- **PostgreSQL Documentation**: [postgresql.org/docs](https://www.postgresql.org/docs)
+- **AWS Documentation**: [docs.aws.amazon.com](https://docs.aws.amazon.com)
+- **Azure Documentation**: [docs.microsoft.com/azure](https://docs.microsoft.com/azure)
 
 ### Related Projects
 
@@ -329,6 +340,7 @@ Upvote features you'd like to see in GitHub Discussions!
 ## Acknowledgments
 
 Thank you to:
+
 - All contributors
 - Open-source community
 - Australian government for open data
@@ -336,10 +348,10 @@ Thank you to:
 
 ---
 
-**Last Updated**: 2025-11-15
-**Version**: 0.1.0
+**Last Updated**: 2025-11-22
 
 **Need Help?**
-- **Issues**: https://github.com/sdp5/green-gov-rag/issues
-- **Discussions**: https://github.com/sdp5/green-gov-rag/discussions
+
+- **Issues**: [GitHub Issues](https://github.com/sdp5/green-gov-rag/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/sdp5/green-gov-rag/discussions)
 - **Email**: contact@sundeep.id.au

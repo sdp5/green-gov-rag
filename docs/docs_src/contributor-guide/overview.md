@@ -61,11 +61,13 @@ This Code of Conduct applies within all project spaces, including the GitHub rep
 Found a bug? Help us fix it!
 
 **Before submitting a bug report:**
+
 1. Check the [existing issues](https://github.com/sdp5/green-gov-rag/issues) to avoid duplicates
 2. Verify the bug exists in the latest version
 3. Gather relevant information (error messages, logs, environment details)
 
 **When submitting a bug report, include:**
+
 - A clear and descriptive title
 - Steps to reproduce the issue
 - Expected behavior vs. actual behavior
@@ -107,11 +109,13 @@ SQL query needs proper escaping for apostrophes
 Have an idea to improve GreenGovRAG? We'd love to hear it!
 
 **Before submitting an enhancement:**
+
 1. Check if it already exists in [issues](https://github.com/sdp5/green-gov-rag/issues)
 2. Consider if it aligns with the project's scope and goals
 3. Think about implementation complexity and maintenance burden
 
 **When suggesting an enhancement, include:**
+
 - A clear and descriptive title
 - Detailed description of the proposed feature
 - Use cases and benefits
@@ -120,6 +124,7 @@ Have an idea to improve GreenGovRAG? We'd love to hear it!
 - Any breaking changes or migration needs
 
 **Enhancement categories:**
+
 - **New Features**: Document sources, query capabilities, API endpoints
 - **Performance**: Optimization, caching, indexing improvements
 - **User Experience**: API design, error messages, documentation
@@ -131,6 +136,7 @@ Have an idea to improve GreenGovRAG? We'd love to hear it!
 Ready to write code? Excellent!
 
 **Code contribution areas:**
+
 1. **RAG Pipeline**: Improve retrieval, ranking, response generation
 2. **ETL Pipeline**: Add document sources, enhance parsing, improve chunking
 3. **API**: New endpoints, enhanced filtering, better error handling
@@ -140,6 +146,7 @@ Ready to write code? Excellent!
 7. **Infrastructure**: Docker, deployment, CI/CD improvements
 
 **Before starting development:**
+
 1. Read the [Development Setup Guide](dev-setup.md)
 2. Review the [Code Style Guide](code-style.md)
 3. Understand the [Testing Requirements](testing.md)
@@ -150,6 +157,7 @@ Ready to write code? Excellent!
 Documentation improvements are always welcome!
 
 **Documentation types:**
+
 - **User Guides**: Help users understand features and workflows
 - **Developer Guides**: Explain architecture and implementation details
 - **API Documentation**: Document endpoints, parameters, responses
@@ -158,6 +166,7 @@ Documentation improvements are always welcome!
 - **Troubleshooting**: Document common issues and solutions
 
 **Documentation locations:**
+
 - User guides: `/docs/user-guide/`
 - Developer guides: `/docs/developer-guide/`
 - Getting started: `/docs/getting-started/`
@@ -169,6 +178,7 @@ Documentation improvements are always welcome!
 One of the most valuable contributions is adding new regulatory document sources!
 
 **Process:**
+
 1. Identify a relevant Australian environmental/planning regulation source
 2. Review the [Document Sources Guide](../user-guide/document-sources.md)
 3. Implement a scraper using the plugin system
@@ -177,6 +187,7 @@ One of the most valuable contributions is adding new regulatory document sources
 6. Submit a pull request
 
 **See also:**
+
 - [Plugin System Architecture](../developer-guide/architecture/plugin-system.md)
 - [Plugin API Reference](../reference/plugin-api.md)
 
@@ -185,6 +196,7 @@ One of the most valuable contributions is adding new regulatory document sources
 Help maintain code quality by reviewing pull requests!
 
 **What to look for:**
+
 - Code follows style guidelines
 - Tests are comprehensive and passing
 - Documentation is updated
@@ -193,6 +205,7 @@ Help maintain code quality by reviewing pull requests!
 - Security considerations addressed
 
 **Review guidelines:**
+
 - Be constructive and respectful
 - Explain reasoning behind suggestions
 - Distinguish between required changes and suggestions
@@ -221,6 +234,7 @@ Look for issues labeled `good first issue` - these are beginner-friendly and wel
 Issues labeled `help wanted` indicate where maintainers need community assistance.
 
 **Areas needing help:**
+
 - Adding new document sources
 - Improving test coverage
 - Enhancing documentation
@@ -228,6 +242,7 @@ Issues labeled `help wanted` indicate where maintainers need community assistanc
 - Bug fixes
 
 **Claiming an issue:**
+
 1. Comment on the issue expressing interest
 2. Wait for maintainer acknowledgment
 3. Ask clarifying questions if needed
@@ -261,6 +276,7 @@ git checkout -b fix/your-bug-fix
 ```
 
 **Branch naming conventions:**
+
 - `feature/description` - New features
 - `fix/description` - Bug fixes
 - `docs/description` - Documentation changes
@@ -270,6 +286,7 @@ git checkout -b fix/your-bug-fix
 ### 3. Make Changes
 
 Follow the development workflow:
+
 1. Write code following [code style guidelines](code-style.md)
 2. Add/update tests ([testing guide](testing.md))
 3. Update documentation as needed
@@ -336,6 +353,7 @@ By contributing to GreenGovRAG, you agree that:
 ### Third-Party Code
 
 When contributing code from third-party sources:
+
 1. Ensure it's compatible with our license
 2. Maintain original copyright notices
 3. Document the source and license
@@ -348,6 +366,7 @@ We value all contributions and ensure contributors are recognized!
 ### Contributors List
 
 All contributors are listed in:
+
 - `CONTRIBUTORS.md` file
 - GitHub contributors page
 - Release notes for their contributions
@@ -355,26 +374,31 @@ All contributors are listed in:
 ### How We Recognize Contributors
 
 **Code Contributors:**
+
 - Listed in git commit history
 - Mentioned in release notes
 - Added to CONTRIBUTORS.md
 
 **Documentation Contributors:**
+
 - Credited in documentation
 - Listed in CONTRIBUTORS.md
 - Mentioned in release notes
 
 **Issue Reporters:**
+
 - Mentioned in issue resolution commits
 - Credited in release notes for significant bugs
 
 **Reviewers:**
+
 - Acknowledged for thorough reviews
 - Mentioned in PR discussions
 
 ### Adding Yourself as a Contributor
 
 When making your first contribution:
+
 1. Add your name to `CONTRIBUTORS.md` (if it doesn't exist, create it)
 2. Include your GitHub username
 3. Briefly describe your contribution
@@ -391,6 +415,7 @@ When making your first contribution:
 ### Release Credits
 
 Contributors to each release are credited in:
+
 - GitHub release notes
 - CHANGELOG.md
 - Project announcements
@@ -400,18 +425,21 @@ Contributors to each release are credited in:
 ### Questions About Contributing
 
 **For general questions:**
+
 - Check existing [documentation](../index.md)
 - Search [closed issues](https://github.com/sdp5/green-gov-rag/issues?q=is%3Aissue+is%3Aclosed)
 - Ask in GitHub Discussions (if enabled)
 - Create a new issue with the `question` label
 
 **For development help:**
+
 - Review the [Developer Guide](../developer-guide/)
 - Check the [Troubleshooting Guide](../user-guide/troubleshooting.md)
 - Ask in your pull request
 - Tag maintainers in issues/PRs (sparingly)
 
 **For urgent issues:**
+
 - Security vulnerabilities: Email contact@sundeep.id.au
 - Critical bugs: Create issue with `critical` label
 - Infrastructure issues: Contact maintainers
@@ -421,7 +449,6 @@ Contributors to each release are credited in:
 - **GitHub Issues**: Bug reports, feature requests, discussions
 - **GitHub Pull Requests**: Code review and collaboration
 - **Documentation**: Comprehensive guides and references
-- **Email**: contact@sundeep.id.au (for sensitive matters)
 
 ### Response Time Expectations
 
@@ -444,14 +471,15 @@ Now that you understand the contribution process:
 ## Project Maintainers
 
 - **Sundeep Anand** (@sdp5) - Project Creator and Lead Maintainer
-  - Email: contact@sundeep.id.au
-  - Responsible for: Overall direction, code review, releases
+- Email: contact@sundeep.id.au
+- Responsible for: Overall direction, code review, releases
 
 ## Acknowledgments
 
 Thank you to all contributors who help make GreenGovRAG better! Your time, expertise, and dedication to improving access to environmental regulations is truly appreciated.
 
 Special thanks to:
+
 - The LangChain community for excellent RAG tooling
 - The FastAPI team for the robust API framework
 - All open source projects that make GreenGovRAG possible

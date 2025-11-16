@@ -47,6 +47,7 @@ CREATE INDEX idx_documents_esg_metadata ON documents USING GIN(esg_metadata);
 ```
 
 **Columns**:
+
 - `id`: Primary key
 - `title`: Document title
 - `source_url`: Original URL
@@ -123,6 +124,7 @@ CREATE INDEX idx_chunks_embedding ON chunks USING ivfflat(embedding vector_cosin
 ```
 
 **Columns**:
+
 - `id`: Primary key
 - `document_id`: Foreign key to documents table
 - `chunk_index`: Position in document (0-indexed)
@@ -191,6 +193,7 @@ CREATE INDEX idx_query_logs_filters ON query_logs USING GIN(filters);
 ```
 
 **Columns**:
+
 - `id`: Primary key
 - `query_text`: User query
 - `query_hash`: MD5 hash for cache lookup
@@ -226,6 +229,7 @@ CREATE INDEX idx_query_sources_chunk_id ON query_sources(chunk_id);
 ```
 
 **Columns**:
+
 - `id`: Primary key
 - `query_log_id`: Foreign key to query_logs
 - `chunk_id`: Foreign key to chunks
@@ -250,6 +254,7 @@ CREATE INDEX idx_cache_expires_at ON cache(expires_at);
 ```
 
 **Columns**:
+
 - `key`: Cache key (query hash)
 - `value`: Cached response (JSONB)
 - `expires_at`: Expiration timestamp
@@ -285,6 +290,7 @@ CREATE INDEX idx_lga_boundaries_geometry ON lga_boundaries USING GIST(geometry);
 ```
 
 **Columns**:
+
 - `id`: Primary key
 - `lga_code`: ABS LGA code (unique)
 - `lga_name`: LGA name
@@ -572,5 +578,4 @@ engine = create_engine(
 
 ---
 
-**Last Updated**: 2025-11-15
-**Version**: 1.0.0
+**Last Updated**: 2025-11-22

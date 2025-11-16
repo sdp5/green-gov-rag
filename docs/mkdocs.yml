@@ -14,8 +14,9 @@ theme:
   name: material
   palette:
     # Light mode only - Match frontend (no dark mode toggle)
-    - scheme: default
-      primary: teal
+    - media: "(prefers-color-scheme)"  # Force light mode regardless of system preference
+      scheme: default
+      primary: green
       accent: green
   font:
     text: Inter

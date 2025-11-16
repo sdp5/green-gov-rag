@@ -169,13 +169,14 @@ llm = LLMFactory.create_llm(
 
 ### 5. Benefits of Azure OpenAI
 
-****Enterprise SLAs**: 99.9% uptime guarantee
-****Data Residency**: Data stays in Australia (Australia East region)
-****No API Keys in Code**: Managed Identity support
-****Cost Control**: Dedicated capacity prevents rate limiting
-****Compliance**: SOC 2, ISO 27001, HIPAA certified
+- **Enterprise SLAs**: 99.9% uptime guarantee
+- **Data Residency**: Data stays in Australia (Australia East region)
+- **No API Keys in Code**: Managed Identity support
+- **Cost Control**: Dedicated capacity prevents rate limiting
+- **Compliance**: SOC 2, ISO 27001, HIPAA certified
 
 **Pricing** (Australia East):
+
 - gpt-4o-mini: $0.15/1M input tokens, $0.60/1M output tokens
 - gpt-4o: $2.50/1M input tokens, $10/1M output tokens
 
@@ -712,5 +713,4 @@ LLM_TEMPERATURE=0.3  # Instead of 0.2 (less deterministic)
 
 ---
 
-**Last Updated**: 2025-11-15
-**Maintainer**: Sundeep Anand (contact@sundeep.id.au)
+**Last Updated**: 2025-11-22

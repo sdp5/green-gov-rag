@@ -585,5 +585,4 @@ az keyvault secret set \
 
 ---
 
-**Last Updated**: 2025-11-15
-**Version**: 1.0.0
+**Last Updated**: 2025-11-22

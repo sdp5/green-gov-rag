@@ -53,6 +53,7 @@ Geographic area under the jurisdiction of a local council. Identified by ABS (Au
 
 ### Jurisdiction
 Level of government authority:
+
 - **Federal**: Commonwealth level
 - **State**: NSW, VIC, SA, WA, QLD, TAS, NT, ACT
 - **Local**: Council/LGA level
@@ -66,6 +67,7 @@ Geographic information about document applicability (state, LGA codes, spatial s
 Database optimized for storing and searching high-dimensional vectors.
 
 **Implementations**:
+
 - **FAISS** (Facebook AI Similarity Search): In-memory, file-based
 - **Qdrant**: Persistent, distributed vector database
 
@@ -104,6 +106,7 @@ Parameter controlling randomness in LLM output (0.0 = deterministic, 2.0 = very 
 Maximum amount of text (in tokens) an LLM can process in a single request.
 
 **Examples**:
+
 - GPT-5-mini: 16K tokens
 - GPT-4o: 128K tokens
 - Claude 3: 200K tokens
@@ -184,6 +187,7 @@ PostgreSQL's binary JSON data type, allowing efficient querying of nested struct
 Database structure that speeds up data retrieval.
 
 **Types**:
+
 - **B-tree**: Standard index for equality/range queries
 - **GIN**: Generalized Inverted Index for JSONB/array data
 - **IVFFlat**: Index for vector similarity search (pgvector)
@@ -293,6 +297,7 @@ Percentage of requests served from cache rather than recomputed.
 
 ### p50, p95, p99
 Percentile metrics:
+
 - **p50** (median): 50% of requests faster than this
 - **p95**: 95% faster (5% slower)
 - **p99**: 99% faster (1% slower)
@@ -405,5 +410,4 @@ Time-stamped record of events and errors.
 
 ---
 
-**Last Updated**: 2025-11-15
-**Version**: 1.0.0
+**Last Updated**: 2025-11-22

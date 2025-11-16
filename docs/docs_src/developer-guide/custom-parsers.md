@@ -749,5 +749,4 @@ def parse_large_document(file_path: str, max_pages_per_batch: int = 50):
 
 ---
 
-**Last Updated**: 2025-11-15
-**Maintainer**: Sundeep Anand (contact@sundeep.id.au)
+**Last Updated**: 2025-11-22

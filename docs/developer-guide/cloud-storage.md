@@ -1077,5 +1077,5 @@ pip install apache-airflow-providers-microsoft-azure>=8.4.0
 
 For issues or questions:
 - **GitHub Issues**: https://github.com/sdp5/green-gov-rag/issues
-- **Documentation**: https://greengovrag.readthedocs.io
+- **Documentation**: https://green-gov-rag.github.io
 - **Contact**: contact@sundeep.id.au

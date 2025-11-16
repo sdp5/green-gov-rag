@@ -332,6 +332,7 @@ CHUNK_OVERLAP=200
 ### Getting API Keys
 
 **OpenAI:**
+
 1. Visit https://platform.openai.com/
 2. Sign up or log in
 3. Navigate to API keys
@@ -339,6 +340,7 @@ CHUNK_OVERLAP=200
 5. Copy to `OPENAI_API_KEY` in `.env`
 
 **Anthropic:**
+
 1. Visit https://console.anthropic.com/
 2. Sign up or log in
 3. Navigate to API keys
@@ -346,6 +348,7 @@ CHUNK_OVERLAP=200
 5. Copy to `ANTHROPIC_API_KEY` in `.env`
 
 **Azure OpenAI:**
+
 1. Requires Azure subscription
 2. Create Azure OpenAI resource in Azure Portal
 3. Deploy a model (e.g., gpt-4o-mini)
@@ -997,14 +1000,14 @@ docker-compose logs -f backend
 
 ```
 green-gov-rag/
-├── backend/              # Python backend
+├── backend/             # Python backend
 │   ├── green_gov_rag/   # Main package
 │   ├── tests/           # Test suite
 │   ├── .env             # Environment variables (create from .env.example)
 │   └── pyproject.toml   # Dependencies and tool configuration
 ├── deploy/docker/       # Docker Compose setup
 ├── docs/                # Documentation
-└── .venv/              # Virtual environment (created locally)
+└── .venv/               # Virtual environment (created locally)
 ```
 
 ---

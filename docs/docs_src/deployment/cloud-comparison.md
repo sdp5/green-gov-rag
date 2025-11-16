@@ -2,33 +2,6 @@
 
 > Detailed comparison of AWS vs Azure deployment options
 
-## Cost Comparison
-
-### Monthly Costs (Low Traffic Scenario)
-
-| Component | AWS | Azure | Notes |
-|-----------|-----|-------|-------|
-| **Compute (Backend)** | $15.18 | $16.50 | ECS Fargate vs Container Apps |
-| **Database (PostgreSQL)** | $16.05 | $18.20 | RDS t4g.micro vs Flexible Server B1ms |
-| **Vector Store (Qdrant)** | $2.64 | $8.40 | EC2 Spot t4g.micro vs Container Instance |
-| **Storage + CDN** | $1.50 | $3.50 | S3+CloudFront vs Blob+FrontDoor |
-| **Caching** | $0.75 | $2.50 | DynamoDB vs Cosmos DB Serverless |
-| **API Gateway** | $1.00 | $0.00 | HTTP API vs Container Apps ingress |
-| **Total (USD)** | **$47.12** | **$49.10** | ~4% difference |
-
-### Cost at Scale (1,000 req/hour)
-
-| Component | AWS | Azure |
-|-----------|-----|-------|
-| **Compute** | $35.40 | $38.20 |
-| **Database** | $32.10 | $35.50 |
-| **Vector Store** | $9.48 | $16.80 |
-| **Storage + CDN** | $5.20 | $8.30 |
-| **Caching** | $3.50 | $7.20 |
-| **Total** | **$85.68** | **$106.00** | AWS 19% cheaper at scale |
-
-**Conclusion**: AWS is slightly cheaper at low traffic, significantly cheaper at scale due to Spot instances and DynamoDB pricing.
-
 ## Feature Comparison
 
 ### Compute
@@ -70,7 +43,6 @@
 | **Persistent Storage** | EBS volumes | Azure Files | Tie |
 | **Auto-restart** | Yes (with Auto Scaling Group) | Yes (with restart policy) | Tie |
 | **Monitoring** | CloudWatch | Azure Monitor | Tie |
-| **Cost (micro)** | $2.64/mo (Spot) | $8.40/mo | AWS |
 
 **Winner**: **AWS** (significantly cheaper with Spot instances)
 
@@ -84,7 +56,6 @@
 | **Lifecycle Policies** | Yes | Yes | Tie |
 | **Versioning** | Yes | Yes | Tie |
 | **Access Tiers** | S3 Standard, IA, Glacier | Hot, Cool, Archive | Tie |
-| **Total (10GB + 100GB egress)** | $1.50/mo | $3.50/mo | AWS |
 
 **Winner**: **AWS** (overall cheaper despite higher storage cost)
 
@@ -98,7 +69,6 @@
 | **Backup** | Continuous (PITR) | Automatic | Tie |
 | **TTL** | Yes | Yes | Tie |
 | **Multi-region** | Global tables | Multi-region writes | Azure (easier setup) |
-| **Total (low traffic)** | $0.75/mo | $2.50/mo | AWS |
 
 **Winner**: **AWS** (cheaper for low traffic)
 
@@ -194,6 +164,7 @@
 ## Decision Matrix
 
 ### Choose AWS if:
+
 - Cost is primary concern (especially at scale)
 - Using Spot instances for Qdrant (70% cost savings)
 - Need maximum flexibility and control
@@ -203,6 +174,7 @@
 - Running other services on AWS
 
 ### Choose Azure if:
+
 - Using Azure OpenAI (keeps everything in Azure)
 - Prefer simpler developer experience
 - Want scale-to-zero for backend (Container Apps)
@@ -212,6 +184,7 @@
 - Easier blue-green deployments
 
 ### Choose Local Docker if:
+
 - Development and testing only
 - Proof-of-concept
 - No budget for cloud services
@@ -227,6 +200,7 @@
 - **Multi-cloud**: Primary on AWS, DR on Azure
 
 **Challenges**:
+
 - Increased complexity
 - Cross-cloud data transfer costs
 - Harder to manage
@@ -259,12 +233,14 @@
 ### For GreenGovRAG Specifically
 
 **Recommended: AWS** for:
+
 - **Cost**: 19% cheaper at scale
 - **Spot instances**: 70% savings on Qdrant
 - **DynamoDB**: Better caching performance/cost
 - **Ecosystem**: Larger marketplace
 
 **Consider Azure if**:
+
 - Using Azure OpenAI (no cross-cloud API calls)
 - Enterprise already on Azure
 - Prefer Application Insights monitoring
@@ -291,6 +267,7 @@ Use these tools to estimate your specific costs:
 **Overall Winner**: **AWS** (by narrow margin)
 
 **Breakdown**:
+
 - **Cost**: AWS wins (especially at scale)
 - **Performance**: Azure slightly better in Australia
 - **Ease of Use**: Azure wins (simpler DX)
@@ -298,11 +275,11 @@ Use these tools to estimate your specific costs:
 - **Reliability**: AWS wins (better SLAs)
 
 **Final Recommendation**:
+
 - Use **AWS** for production (cost-optimized)
 - Use **Azure** if already invested in Microsoft ecosystem
 - Use **Local Docker** for development
 
 ---
 
-**Last Updated**: 2025-11-15
-**Version**: 1.0.0
+**Last Updated**: 2025-11-22

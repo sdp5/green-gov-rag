@@ -70,6 +70,7 @@ Submit a natural language query about Australian environmental regulations.
 List all available regulatory documents.
 
 **Query Parameters**:
+
 - `jurisdiction` (optional): Filter by jurisdiction (Federal, NSW, VIC, etc.)
 - `document_type` (optional): Filter by type (legislation, guidelines, etc.)
 - `skip` (optional): Pagination offset
@@ -157,6 +158,7 @@ Detailed system health metrics.
 ## Rate Limiting
 
 Default rate limits:
+
 - **Public endpoints**: 30 requests/minute
 - **Admin endpoints**: 100 requests/minute
 

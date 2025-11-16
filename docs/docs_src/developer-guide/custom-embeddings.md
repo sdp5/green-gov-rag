@@ -23,6 +23,7 @@ embeddings = HuggingFaceEmbeddings(
 ```
 
 **Specifications**:
+
 - **Dimensions**: 384
 - **Max Sequence Length**: 256 tokens
 - **Performance**: ~14,200 documents/sec on CPU
@@ -69,6 +70,7 @@ embeddings = HuggingFaceEmbeddings(
 ```
 
 **Specifications**:
+
 - **Dimensions**: 768
 - **Max Sequence Length**: 384 tokens
 - **Performance**: ~2,800 documents/sec on CPU
@@ -89,6 +91,7 @@ embeddings = OpenAIEmbeddings(
 ```
 
 **Specifications**:
+
 - **Dimensions**: 1536
 - **Max Sequence Length**: 8191 tokens
 - **Cost**: $0.02 per 1M tokens
@@ -105,6 +108,7 @@ embeddings = OpenAIEmbeddings(
 ```
 
 **Specifications**:
+
 - **Dimensions**: 3072
 - **Cost**: $0.13 per 1M tokens
 - **Best for**: Maximum accuracy requirements
@@ -123,6 +127,7 @@ embeddings = AzureOpenAIEmbeddings(
 ```
 
 **Specifications**:
+
 - Same as OpenAI models
 - **Best for**: Enterprise Azure deployments
 
@@ -138,6 +143,7 @@ embeddings = BedrockEmbeddings(
 ```
 
 **Specifications**:
+
 - **Dimensions**: 1536
 - **Max Sequence Length**: 8192 tokens
 - **Cost**: $0.0001 per 1K tokens
@@ -155,6 +161,7 @@ embeddings = CohereEmbeddings(
 ```
 
 **Specifications**:
+
 - **Dimensions**: 1024
 - **Max Sequence Length**: 512 tokens
 - **Cost**: $0.10 per 1M tokens
@@ -481,6 +488,4 @@ For 10,000 regulatory documents (~500 tokens each):
 
 ---
 
-**Last Updated**: 2025-11-15
-**Version**: 1.0.0
-**Status**: Production-Ready
+**Last Updated**: 2025-11-22

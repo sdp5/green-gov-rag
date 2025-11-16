@@ -171,10 +171,11 @@ def create_document_id(source_url: str, title: str) -> str:
 ```
 
 **Benefits**:
-- Deterministic: Same document always gets same ID
-- Collision-resistant: MD5 provides 128-bit uniqueness
-- Delta indexing: Only reprocess documents that changed
-- Idempotent: Safe to re-run without duplicates
+
+- **Deterministic**: Same document always gets same ID
+- **Collision-resistant**: MD5 provides 128-bit uniqueness
+- **Delta indexing**: Only reprocess documents that changed
+- **Idempotent**: Safe to re-run without duplicates
 
 ### 3. Document Download
 
@@ -228,9 +229,10 @@ def download_file(
 ```
 
 **Error Handling**:
-- HTTP 403/503: Detect Cloudflare protection and skip retries
-- Timeout: 30 seconds per request
-- Retries: 3 attempts with exponential backoff (2s, 4s, 8s)
+
+- **HTTP 403/503**: Detect Cloudflare protection and skip retries
+- **Timeout**: 30 seconds per request
+- **Retries**: 3 attempts with exponential backoff (2s, 4s, 8s)
 - Failed downloads logged to `logs/failed_downloads.txt`
 
 ### 4. File Type Detection
@@ -393,12 +395,13 @@ def _infer_heading_level(self, text: str) -> int:
 ### 3. Clause Reference Extraction
 
 **Supported Formats**:
-- Section numbers: `3.2.1` → `s.3.2.1`
-- Clauses: `Clause 42` → `cl.42`
-- Subsections: `5(2)(a)` → `s.5(2)(a)`
-- Regulations: `Regulation 12` → `reg.12`
-- Schedules: `Schedule 1` → `sch.1`
-- Parts: `Part IV` → `part.IV`
+
+- **Section numbers**: `3.2.1` → `s.3.2.1`
+- **Clauses**: `Clause 42` → `cl.42`
+- **Subsections**: `5(2)(a)` → `s.5(2)(a)`
+- **Regulations**: `Regulation 12` → `reg.12`
+- **Schedules**: `Schedule 1` → `sch.1`
+- **Parts**: `Part IV` → `part.IV`
 
 **Extraction Logic**:
 ```python
@@ -455,6 +458,7 @@ for element in elements:
 ```
 
 **Table Formatting**:
+
 - Convert to markdown for LLM consumption
 - Preserve headers and cell structure
 - Link to parent section for context
@@ -483,6 +487,7 @@ class TextChunker:
 ```
 
 **Separator Priority**:
+
 1. `\n\n` - Paragraph breaks (preferred)
 2. `\n` - Line breaks
 3. ` ` - Word boundaries
@@ -712,9 +717,10 @@ def embed_chunks(self, chunks: list[dict], batch_size: int = 100) -> list[dict]:
 ```
 
 **Performance**:
-- HuggingFace (local): ~300 embeddings/second (CPU)
-- HuggingFace (GPU): ~3000 embeddings/second
-- OpenAI API: ~1000 embeddings/second (rate limited)
+
+- **HuggingFace (local)**: ~300 embeddings/second (CPU)
+- **HuggingFace (GPU)**: ~3000 embeddings/second
+- **OpenAI API**: ~1000 embeddings/second (rate limited)
 
 ### 2. Model Selection
 
@@ -749,6 +755,7 @@ embedder = ChunkEmbedder(
 ### 1. Database Schema
 
 **Tables**:
+
 - `document_sources`: Document source configurations (1:many with files)
 - `document_files`: Individual PDF files
 - `document_chunks`: Text chunks with embeddings
@@ -1056,5 +1063,4 @@ python -m green_gov_rag.rag.embeddings      # Generate embeddings
 
 ---
 
-**Last Updated**: 2025-11-15
-**Maintainer**: Sundeep Anand (contact@sundeep.id.au)
+**Last Updated**: 2025-11-22

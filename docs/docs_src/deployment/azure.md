@@ -6,8 +6,8 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      Azure Front Door                        │
-│                   (CDN + WAF + HTTPS)                        │
+│                      Azure Front Door                       │
+│                   (CDN + WAF + HTTPS)                       │
 └──────────────────┬──────────────────────────────────────────┘
                    │
      ┌─────────────┴────────────┐
@@ -27,22 +27,6 @@
          │   Server    │   │Instance) │    │              │
          └─────────────┘   └──────────┘    └──────────────┘
 ```
-
-## Cost Breakdown
-
-**Total: ~$50/month** (low traffic, Australia East)
-
-| Service | Configuration | Monthly Cost (AUD) |
-|---------|--------------|-------------------|
-| Container Apps | 0.25 vCPU, 0.5GB RAM | $16.50 |
-| PostgreSQL Flexible | Burstable B1ms | $18.20 |
-| Container Instance (Qdrant) | 1 vCPU, 2GB RAM | $8.40 |
-| Blob Storage + CDN | 10GB storage, 100GB egress | $3.50 |
-| Cosmos DB | Serverless, 1GB storage | $2.50 |
-| Front Door | Standard tier | $5.00 |
-| **Total** | | **~$54.00 AUD (~$50 USD)** |
-
-See [Cloud Comparison](cloud-comparison.md) for AWS cost comparison.
 
 ## Prerequisites
 
@@ -73,16 +57,18 @@ az group create \
 ### 3. Required Permissions
 
 Your Azure account needs:
+
 - Contributor role on subscription
 - Permissions to create:
-  - Container Apps, Container Instances
-  - PostgreSQL Flexible Server
-  - Storage Account, Front Door, Cosmos DB
-  - Virtual Network, Log Analytics
+    - Container Apps, Container Instances
+    - PostgreSQL Flexible Server
+    - Storage Account, Front Door, Cosmos DB
+    - Virtual Network, Log Analytics
 
 ### 4. LLM API Key
 
 You need an API key for:
+  
 - Azure OpenAI (recommended for enterprise)
 - OpenAI API
 - Other supported providers
@@ -483,6 +469,7 @@ az monitor log-analytics query \
 **View in Azure Portal**: Monitor → Metrics → Select resource
 
 **Key metrics**:
+
 - Container Apps: CPU/Memory usage, HTTP requests, Response time
 - PostgreSQL: CPU/Memory, Connections, Storage
 - Cosmos DB: Request units, Storage, Latency
@@ -562,6 +549,7 @@ az containerapp logs show \
 ```
 
 Common causes:
+
 - Missing environment variables
 - Database connection string incorrect
 - Container image not found
@@ -602,6 +590,7 @@ az group delete \
 ```
 
 **Note**: Some resources may have soft-delete:
+
 - Key Vault (can be purged after 90 days or immediately with `--purge`)
 - Blob Storage (soft-deleted blobs retained for 7 days)
 
@@ -621,5 +610,4 @@ az keyvault purge \
 
 ---
 
-**Last Updated**: 2025-11-15
-**Version**: 1.0.0
+**Last Updated**: 2025-11-22

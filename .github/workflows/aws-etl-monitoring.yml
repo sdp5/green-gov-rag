@@ -229,7 +229,7 @@ jobs:
             --query 'Stacks[0].Outputs[?OutputKey==`DocumentsBucket`].OutputValue' \
             --output text)
 
-          aws s3 cp configs/documents_config.yml \
+          aws s3 cp backend/configs/documents_config.yml \
             s3://${BUCKET}/configs/documents_config.yml
 
       - name: Create changed files JSON for delta indexing

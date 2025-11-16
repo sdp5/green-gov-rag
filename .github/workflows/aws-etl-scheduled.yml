@@ -7,12 +7,11 @@ on:
     inputs:
       config_path:
         description: 'Path to documents config'
-        default: 'configs/documents_config.yml'
+        default: 'backend/configs/documents_config.yml'
         required: false
 
 env:
-  AWS_REGION: ap-southeast-2
-  CONFIG_PATH: ${{ github.event.inputs.config_path || 'configs/documents_config.yml' }}
+  CONFIG_PATH: ${{ github.event.inputs.config_path || 'backend/configs/documents_config.yml' }}
 
 jobs:
   etl-aws:
@@ -20,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: aws-prod
     # Disabled - change to true to enable ETL pipeline
-    if: false
+    if: true
     timeout-minutes: 360
     permissions:
       id-token: write
@@ -34,7 +33,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Upload config to S3
         run: |
@@ -96,16 +95,16 @@ jobs:
               \"containerOverrides\": [{
                 \"name\": \"backend\",
                 \"environment\": [
-                  {\"name\": \"CLOUD_PROVIDER\", \"value\": \"aws\"},
-                  {\"name\": \"AWS_REGION\", \"value\": \"$AWS_REGION\"},
+                  {\"name\": \"CLOUD_PROVIDER\", \"value\": \"${{ vars.CLOUD_PROVIDER }}\"},
+                  {\"name\": \"AWS_REGION\", \"value\": \"${{ vars.AWS_REGION }}\"},
                   {\"name\": \"STORAGE_CONTAINER\", \"value\": \"$BUCKET\"},
-                  {\"name\": \"VECTOR_STORE_TYPE\", \"value\": \"qdrant\"},
+                  {\"name\": \"VECTOR_STORE_TYPE\", \"value\": \"${{ vars.VECTOR_STORE_TYPE }}\"},
                   {\"name\": \"QDRANT_API_KEY\", \"value\": \"${{ secrets.QDRANT_API_KEY }}\"},
-                  {\"name\": \"EMBEDDING_MODEL\", \"value\": \"${EMBEDDING_MODEL:-BAAI/bge-large-en-v1.5}\"}
+                  {\"name\": \"EMBEDDING_MODEL\", \"value\": \"${{ vars.EMBEDDING_MODEL }}\"}
                 ],
                 \"command\": [
                   \"sh\", \"-c\",
-                  \"greengovrag-cli etl ingest --config /app/data/configs/documents_config.yml && greengovrag-cli etl parse --input data/raw --output data/processed && greengovrag-cli etl chunk --input data/processed --output data/chunks --chunk-size 500 --chunk-overlap 100 --mode delta --accurate --raw-dir data/raw && greengovrag-cli db load-chunks --chunks-dir data/chunks --batch-size 100 && greengovrag-cli rag index --chunks data/chunks --vector-store qdrant --collection greengovrag --model \\$EMBEDDING_MODEL\"
+                  \"greengovrag-cli etl ingest --config /app/data/configs/documents_config.yml\"
                 ]
               }]
             }" \

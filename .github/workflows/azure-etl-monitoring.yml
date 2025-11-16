@@ -167,7 +167,7 @@ jobs:
             --account-name ${{ steps.azure-resources.outputs.storage_account }} \
             --container-name configs \
             --name documents_config.yml \
-            --file configs/documents_config.yml \
+            --file backend/configs/documents_config.yml \
             --overwrite
 
       - name: Create changed files JSON for delta indexing

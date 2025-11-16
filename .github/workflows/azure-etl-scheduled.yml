@@ -7,11 +7,11 @@ on:
     inputs:
       config_path:
         description: 'Path to documents config'
-        default: 'configs/documents_config.yml'
+        default: 'backend/configs/documents_config.yml'
         required: false
 
 env:
-  CONFIG_PATH: ${{ github.event.inputs.config_path || 'configs/documents_config.yml' }}
+  CONFIG_PATH: ${{ github.event.inputs.config_path || 'backend/configs/documents_config.yml' }}
 
 jobs:
   etl-azure:

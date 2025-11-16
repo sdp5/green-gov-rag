@@ -753,3 +753,17 @@ function handler(event) {{
             value=docs_bucket.bucket_name,
             description="Documents S3 bucket name",
         )
+
+        CfnOutput(
+            self,
+            "EcsSecurityGroupId",
+            value=ecs_sg.security_group_id,
+            description="ECS Security Group ID",
+        )
+
+        CfnOutput(
+            self,
+            "PublicSubnetIds",
+            value=",".join([subnet.subnet_id for subnet in vpc.public_subnets]),
+            description="Public Subnet IDs (comma-separated)",
+        )

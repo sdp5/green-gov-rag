@@ -56,15 +56,18 @@ jobs:
             --query 'services[0].taskDefinition' \
             --output text | cut -d'/' -f2 | cut -d':' -f1)
 
-          # Get subnet and security group
-          SUBNET=$(aws ec2 describe-subnets \
-            --filters "Name=tag:Name,Values=*Public*" \
-            --query 'Subnets[0].SubnetId' \
+          # Get subnet and security group from CloudFormation outputs
+          SUBNET_IDS=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`PublicSubnetIds`].OutputValue' \
             --output text)
 
-          SG=$(aws ec2 describe-security-groups \
-            --filters "Name=tag:Name,Values=*EcsSG*" \
-            --query 'SecurityGroups[0].GroupId' \
+          # Use first subnet from comma-separated list
+          SUBNET=$(echo $SUBNET_IDS | cut -d',' -f1)
+
+          SG=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`EcsSecurityGroupId`].OutputValue' \
             --output text)
 
           # Run monitoring task
@@ -277,15 +280,18 @@ jobs:
             --query 'services[0].taskDefinition' \
             --output text | cut -d'/' -f2 | cut -d':' -f1)
 
-          # Get subnet and security group
-          SUBNET=$(aws ec2 describe-subnets \
-            --filters "Name=tag:Name,Values=*Public*" \
-            --query 'Subnets[0].SubnetId' \
+          # Get subnet and security group from CloudFormation outputs
+          SUBNET_IDS=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`PublicSubnetIds`].OutputValue' \
             --output text)
 
-          SG=$(aws ec2 describe-security-groups \
-            --filters "Name=tag:Name,Values=*EcsSG*" \
-            --query 'SecurityGroups[0].GroupId' \
+          # Use first subnet from comma-separated list
+          SUBNET=$(echo $SUBNET_IDS | cut -d',' -f1)
+
+          SG=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`EcsSecurityGroupId`].OutputValue' \
             --output text)
 
           # Get S3 bucket for environment

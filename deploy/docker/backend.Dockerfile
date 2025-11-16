@@ -31,10 +31,17 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install AWS CLI v2 for S3 sync operations in ETL pipeline
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+# Auto-detect architecture (x86_64 or aarch64) for correct binary
+RUN ARCH=$(uname -m) \
+    && if [ "$ARCH" = "aarch64" ]; then \
+         curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip"; \
+       else \
+         curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"; \
+       fi \
     && unzip -q awscliv2.zip \
     && ./aws/install \
-    && rm -rf aws awscliv2.zip
+    && rm -rf aws awscliv2.zip \
+    && aws --version
 
 # Copy backend code
 COPY backend/pyproject.toml backend/ruff.toml ./

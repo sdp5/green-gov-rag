@@ -28,9 +28,9 @@ class ETLStorageAdapter:
     Provides a unified interface for document and chunk storage operations
     across different cloud providers (AWS S3, Azure Blob, local filesystem).
 
-    All paths use a consistent structure:
+    All paths use a consistent structure (matching local mode):
     - Documents: {container}/documents/{jurisdiction}/{category}/{topic}/{filename}
-    - Metadata: {container}/metadata/{jurisdiction}/{category}/{topic}/{filename}.json
+    - Metadata: {container}/documents/{jurisdiction}/{category}/{topic}/{filename}.metadata.json
     - Chunks: {container}/chunks/{document_id}/{chunk_id}.json
     """
 
@@ -111,7 +111,8 @@ class ETLStorageAdapter:
         category = category.replace(" ", "_").lower()
         topic = topic.replace(" ", "_").lower()
 
-        return f"metadata/{jurisdiction}/{category}/{topic}/{filename}.json"
+        # Store metadata alongside documents (consistent with local mode)
+        return f"documents/{jurisdiction}/{category}/{topic}/{filename}.metadata.json"
 
     def download_from_url(
         self,
@@ -456,8 +457,8 @@ class ETLStorageAdapter:
         Returns:
             List of document metadata dictionaries
         """
-        # Build prefix based on filters
-        prefix_parts = ["metadata"]
+        # Build prefix based on filters (metadata alongside documents)
+        prefix_parts = ["documents"]
         if jurisdiction:
             prefix_parts.append(jurisdiction.replace(" ", "_").lower())
             if category:
@@ -467,12 +468,12 @@ class ETLStorageAdapter:
 
         prefix = "/".join(prefix_parts) + "/"
 
-        # List metadata files
+        # List metadata files (*.metadata.json)
         metadata_files = self.storage.list_files(self.container, prefix)
 
         documents = []
         for meta_file in metadata_files:
-            if not meta_file.endswith(".json"):
+            if not meta_file.endswith(".metadata.json"):
                 continue
 
             try:
@@ -504,11 +505,11 @@ class ETLStorageAdapter:
                 self.storage.delete_file(self.container, storage_path)
                 logger.info(f"Deleted document: {storage_path}")
 
-        # Delete metadata
-        metadata_path = f"metadata/{document_id}.json"
-        if self.storage.file_exists(self.container, metadata_path):
-            self.storage.delete_file(self.container, metadata_path)
-            logger.info(f"Deleted metadata: {metadata_path}")
+            # Delete metadata (stored alongside document)
+            metadata_path = f"{storage_path}.metadata.json"
+            if self.storage.file_exists(self.container, metadata_path):
+                self.storage.delete_file(self.container, metadata_path)
+                logger.info(f"Deleted metadata: {metadata_path}")
 
         # Delete chunks
         chunk_prefix = f"chunks/{document_id}/"

@@ -286,16 +286,41 @@ linkchecker site/
 
 ## Deployment
 
-### GitHub Pages
+### Automated GitHub Pages Deployment
 
-The documentation can be auto-deployed to GitHub Pages:
+Documentation is **automatically deployed** to GitHub Pages when changes are pushed to `main` or `docs` branches:
+
+- **Workflow**: `.github/workflows/docs-deploy.yml`
+- **URL**: https://sdp5.github.io/green-gov-rag/
+- **Trigger**: Push to `main`/`docs` branches (docs changes only) or manual workflow dispatch
+
+The workflow:
+1. Builds the MkDocs site in strict mode
+2. Uploads the artifact
+3. Deploys to GitHub Pages
+
+#### Manual Deployment
+
+You can also deploy manually:
 
 ```bash
-# Deploy to gh-pages branch
-mkdocs gh-deploy
+# Using GitHub Actions (recommended)
+# Go to: Actions → Deploy Documentation → Run workflow
 
-# Available at: https://username.github.io/green-gov-rag/
+# Or using MkDocs CLI
+cd docs/
+mkdocs gh-deploy --force
+
+# Available at: https://sdp5.github.io/green-gov-rag/
 ```
+
+#### First-Time Setup
+
+To enable GitHub Pages in your repository:
+
+1. Go to **Settings** → **Pages**
+2. Set **Source** to "GitHub Actions"
+3. The next push to `main` will trigger automatic deployment
 
 ### Read the Docs
 

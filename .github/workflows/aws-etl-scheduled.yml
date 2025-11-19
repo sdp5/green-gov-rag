@@ -93,6 +93,7 @@ jobs:
 
           # Run ETL task (full pipeline: ingest → parse → chunk → index)
           # Hybrid approach: S3 for persistence, ephemeral storage for processing
+          # ETL-specific resources: 2 vCPU / 8GB RAM for embedding generation
           TASK_ARN=$(aws ecs run-task \
             --cluster $CLUSTER \
             --task-definition $TASK_FAMILY \
@@ -100,6 +101,8 @@ jobs:
             --platform-version LATEST \
             --network-configuration "awsvpcConfiguration={subnets=[$SUBNET],securityGroups=[$SG],assignPublicIp=ENABLED}" \
             --overrides "{
+              \"cpu\": \"2048\",
+              \"memory\": \"8192\",
               \"containerOverrides\": [{
                 \"name\": \"backend\",
                 \"environment\": [

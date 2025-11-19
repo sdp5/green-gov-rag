@@ -762,17 +762,9 @@ body {
 }
 
 .md-nav--secondary .md-nav__link--active {
-  color: var(--green-dark) !important;
-  font-weight: 600 !important;
-  border-left-color: var(--green-primary) !important;
-  background: rgba(236, 253, 245, 0.3) !important;
-}
-
-/* Ensure TOC active state persists */
-.md-nav--secondary .md-nav__link--active:not(:hover) {
-  color: var(--green-dark) !important;
-  border-left-color: var(--green-primary) !important;
-  background: rgba(236, 253, 245, 0.3) !important;
+  color: var(--green-dark);
+  font-weight: 600;
+  border-left-color: var(--green-primary);
 }
 
 /* Content spacing - Professional readability */
@@ -867,18 +859,18 @@ body {
   background: rgba(236, 253, 245, 0.5) !important;
 }
 
-/* Force active sidebar nav items to remain visible */
-.md-nav__item--active > .md-nav__link,
-.md-nav__link[aria-current="page"],
-.md-nav__item .md-nav__link--active {
+/* Force active sidebar nav items to remain visible (left sidebar only) */
+.md-sidebar--primary .md-nav__item--active > .md-nav__link,
+.md-sidebar--primary .md-nav__link[aria-current="page"],
+.md-sidebar--primary .md-nav__item .md-nav__link--active {
   color: var(--green-dark) !important;
   font-weight: 600 !important;
   background: linear-gradient(90deg, rgba(236, 253, 245, 0.8) 0%, rgba(236, 253, 245, 0.2) 100%) !important;
   border-left-color: var(--green-primary) !important;
 }
 
-/* Increase specificity for Material theme overrides */
-html .md-nav__item--active > .md-nav__link[data-md-state="blur"],
+/* Increase specificity for Material theme overrides (exclude right sidebar) */
+html .md-sidebar--primary .md-nav__item--active > .md-nav__link[data-md-state="blur"],
 html .md-tabs__item--active .md-tabs__link[data-md-state="blur"] {
   color: var(--green-dark) !important;
   opacity: 1 !important;

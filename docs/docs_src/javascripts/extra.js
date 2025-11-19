@@ -3,7 +3,7 @@
 // Fix for active menu items becoming invisible
 // This ensures active navigation items remain visible even after mouse leaves
 document.addEventListener('DOMContentLoaded', function() {
-  // Force active state on navigation items
+  // Force active state on navigation items (excluding right TOC sidebar)
   function maintainActiveStates() {
     // Fix active tabs (top navigation)
     const activeTabs = document.querySelectorAll('.md-tabs__link--active, .md-tabs__link[aria-current="page"]');
@@ -14,8 +14,8 @@ document.addEventListener('DOMContentLoaded', function() {
       tab.style.background = 'rgba(236, 253, 245, 0.5)';
     });
 
-    // Fix active sidebar navigation
-    const activeSidebarLinks = document.querySelectorAll('.md-nav__link--active, .md-nav__link[aria-current="page"]');
+    // Fix active left sidebar navigation only (exclude right TOC sidebar)
+    const activeSidebarLinks = document.querySelectorAll('.md-sidebar--primary .md-nav__link--active, .md-sidebar--primary .md-nav__link[aria-current="page"]');
     activeSidebarLinks.forEach(link => {
       link.style.color = '#059669'; // var(--green-dark)
       link.style.fontWeight = '600';

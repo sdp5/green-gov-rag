@@ -250,6 +250,6 @@ results = vector_store.similarity_search(
 
 ## See Also
 
-- [Data Sources](./DATA.md) - Document sources and metadata
-- [Plugin Architecture](./PLUGIN_ARCHITECTURE_SUMMARY.md) - Document source plugins
-- [Project Structure](./PROJECT.md) - Repository organization
+- [Data Sources](#data-structure) - Document sources and metadata
+- [Plugin Architecture](./architecture/plugin-system.md) - Document source plugins
+- [Project Structure](./architecture/overview.md) - Repository organization

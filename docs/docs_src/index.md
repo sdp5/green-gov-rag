@@ -34,7 +34,7 @@ GreenGovRAG combines regulatory document retrieval with geospatial filtering to 
 
 **Then explore:**
 
-- [User Guide](user-guide/) - Learn how to use the system effectively
+- [User Guide](user-guide/querying.md) - Learn how to use the system effectively
 - [Troubleshooting](user-guide/troubleshooting.md) - Common issues and solutions
 
 ### I want to contribute to GreenGovRAG
@@ -64,7 +64,7 @@ GreenGovRAG combines regulatory document retrieval with geospatial filtering to 
 **Start here if you want to deploy to production:**
 
 1. [Deployment Overview](deployment/overview.md) - Choose your deployment
-2. [Cloud Provider Comparison](.local/cloud-comparison.md) - AWS vs Azure vs Local
+2. [Cloud Provider Comparison](deployment/cloud-comparison.md) - AWS vs Azure vs Local
 3. [Local Docker Setup](deployment/local-docker.md) - Development environment
 4. [AWS Deployment](deployment/aws.md) - Deploy on AWS
 5. [Azure Deployment](deployment/azure.md) - Deploy on Azure
@@ -115,7 +115,7 @@ Production deployment guides:
 - [Local Docker](deployment/local-docker.md) - Docker Compose setup
 - [AWS](deployment/aws.md) - AWS ECS, S3, RDS
 - [Azure](deployment/azure.md) - Azure Container Apps, Blob Storage
-- [Cloud Comparison](.local/cloud-comparison.md) - Cost and feature matrix
+- [Cloud Comparison](deployment/cloud-comparison.md) - Cost and feature matrix
 - [Production Checklist](deployment/production-checklist.md) - Security, scaling, backups
 - [Monitoring](deployment/monitoring.md) - Logs, metrics, alerts
 
@@ -146,20 +146,20 @@ Quick lookup documentation:
 - [Adding Document Sources](contributor-guide/document-sources.md) - Contribute new regulations
 - [Cloud Storage Guide](developer-guide/cloud-storage.md) - Multi-cloud setup
 - [Vector Stores](user-guide/vector-stores.md) - FAISS vs Qdrant
-- [Cloud Provider Comparison](.local/cloud-comparison.md) - Choose your cloud
+- [Cloud Provider Comparison](deployment/cloud-comparison.md) - Choose your cloud
 
 ### Common Tasks
-- [Submit a query via API](user-guide/querying.md#api-usage)
-- [Add a new document source](contributor-guide/document-sources.md#creating-a-new-plugin)
+- [Submit a query via API](user-guide/querying.md)
+- [Add a new document source](contributor-guide/document-sources.md)
 - [Switch from FAISS to Qdrant](user-guide/vector-stores.md#migrating-from-faiss-to-qdrant)
 - [Deploy on AWS](deployment/aws.md)
 - [Configure LLM provider](reference/config-reference.md#llm-configuration)
 
 ### Troubleshooting
-- [Common installation issues](getting-started/installation.md#troubleshooting)
-- [Vector store problems](user-guide/vector-stores.md#troubleshooting)
-- [Cloud storage errors](developer-guide/cloud-storage.md#troubleshooting)
-- [Deployment issues](deployment/production-checklist.md#common-issues)
+- [Common installation issues](getting-started/installation.md)
+- [Vector store problems](user-guide/vector-stores.md)
+- [Cloud storage errors](developer-guide/cloud-storage.md)
+- [Deployment issues](deployment/production-checklist.md)
 
 ## Technology Stack
 
@@ -218,7 +218,6 @@ Quick lookup documentation:
 We welcome contributions! See the [Contributor Guide](contributor-guide/overview.md) to get started.
 
 **Quick links:**
-- [Code of Conduct](about/code-of-conduct.md)
 - [Contributing Guidelines](contributor-guide/overview.md)
 - [Development Setup](contributor-guide/dev-setup.md)
 - [Pull Request Process](contributor-guide/pull-requests.md)

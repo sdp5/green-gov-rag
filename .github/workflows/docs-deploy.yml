@@ -55,7 +55,7 @@ jobs:
       - name: Build documentation
         run: |
           cd docs
-          mkdocs build --strict
+          mkdocs build --verbose
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

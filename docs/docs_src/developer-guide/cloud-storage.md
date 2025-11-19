@@ -117,7 +117,7 @@ greengovrag-documents/
 - Data privacy constraints
 
 
-See [Cloud Provider Comparison](../.local/cloud-comparison.md) for detailed comparison matrix.
+See [Cloud Provider Comparison](../deployment/cloud-comparison.md) for detailed comparison matrix.
 
 ## Configuration
 
@@ -1075,7 +1075,7 @@ pip install apache-airflow-providers-microsoft-azure>=8.4.0
 
 ## See Also
 
-- [Cloud Provider Comparison](../.local/cloud-comparison.md) - Choose your provider
+- [Cloud Provider Comparison](../deployment/cloud-comparison.md) - Choose your provider
 - [Data Sources Reference](../reference/data-sources.md) - Data sovereignty considerations
 - [AWS Deployment Guide](../deployment/aws.md) - Deploy on AWS
 - [Azure Deployment Guide](../deployment/azure.md) - Deploy on Azure

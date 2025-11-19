@@ -106,10 +106,10 @@
 
 ## Adding Documents
 
-See [Plugin Architecture](./PLUGIN_ARCHITECTURE_SUMMARY.md) for how to contribute new document sources.
+See [Plugin Architecture](../developer-guide/architecture/plugin-system.md) for how to contribute new document sources.
 
 ## See Also
 
-- [Cloud Deployment](./CLOUD_MIGRATION.md) - Multi-cloud setup with data sovereignty
-- [Plugin Guide](./CONTRIBUTING_DOCUMENT_SOURCES.md) - Add new document sources
-- [Metadata Enhancement](./METADATA_ENHANCEMENT.md) - ESG and spatial metadata
+- [Cloud Deployment](../developer-guide/cloud-storage.md#migration-guide) - Multi-cloud setup with data sovereignty
+- [Plugin Guide](../contributor-guide/document-sources.md) - Add new document sources
+- [Metadata Enhancement](../developer-guide/metadata-standards.md) - ESG and spatial metadata

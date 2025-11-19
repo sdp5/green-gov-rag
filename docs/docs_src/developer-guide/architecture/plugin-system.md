@@ -223,6 +223,6 @@ sources = load_document_sources()  # Returns list[DocumentSource]
 
 ## See Also
 
-- [Contributing Guide](./CONTRIBUTING_DOCUMENT_SOURCES.md) - Add new sources
-- [Quick Reference](./QUICK_REFERENCE_PLUGINS.md) - API cheat sheet
-- [Data Sources](./DATA.md) - Available documents
+- [Contributing Guide](../../contributor-guide/document-sources.md) - Add new sources
+- [Quick Reference](#plugin-reference) - API cheat sheet
+- [Data Sources](#data-structure) - Available documents

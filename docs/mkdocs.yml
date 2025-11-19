@@ -72,6 +72,9 @@ plugins:
             members_order: source
             separate_signature: true
             show_signature_annotations: true
+          import:
+            - https://docs.python.org/3/objects.inv
+      enable_inventory: true
   - git-revision-date-localized:  # Show last updated dates
       enable_creation_date: true
       type: timeago

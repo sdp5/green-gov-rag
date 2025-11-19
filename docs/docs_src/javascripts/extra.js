@@ -1,5 +1,41 @@
 // Custom JavaScript for GreenGovRAG documentation
 
+// Fix for active menu items becoming invisible
+// This ensures active navigation items remain visible even after mouse leaves
+document.addEventListener('DOMContentLoaded', function() {
+  // Force active state on navigation items
+  function maintainActiveStates() {
+    // Fix active tabs (top navigation)
+    const activeTabs = document.querySelectorAll('.md-tabs__link--active, .md-tabs__link[aria-current="page"]');
+    activeTabs.forEach(tab => {
+      tab.style.color = '#047857'; // var(--green-darker)
+      tab.style.fontWeight = '600';
+      tab.style.opacity = '1';
+      tab.style.background = 'rgba(236, 253, 245, 0.5)';
+    });
+
+    // Fix active sidebar navigation
+    const activeSidebarLinks = document.querySelectorAll('.md-nav__link--active, .md-nav__link[aria-current="page"]');
+    activeSidebarLinks.forEach(link => {
+      link.style.color = '#059669'; // var(--green-dark)
+      link.style.fontWeight = '600';
+      link.style.borderLeftColor = '#10b981'; // var(--green-primary)
+    });
+  }
+
+  // Run on load
+  maintainActiveStates();
+
+  // Re-run after navigation (Material theme uses XHR navigation)
+  const observer = new MutationObserver(maintainActiveStates);
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['class', 'aria-current']
+  });
+});
+
 // Add smooth scroll behavior
 document.addEventListener('DOMContentLoaded', function() {
   // Smooth scrolling for anchor links

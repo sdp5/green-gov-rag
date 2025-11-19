@@ -152,19 +152,27 @@ body {
 }
 
 .md-tabs__link--active {
-  color: var(--green-darker);
-  font-weight: 600;
-  opacity: 1;
+  color: var(--green-darker) !important;
+  font-weight: 600 !important;
+  opacity: 1 !important;
+  background: rgba(236, 253, 245, 0.5) !important;
 }
 
 .md-tabs__link--active::after {
-  transform: translateX(-50%) scaleX(1);
+  transform: translateX(-50%) scaleX(1) !important;
+  height: 3px !important;
 }
 
 .md-tabs__link:hover {
   color: var(--green-dark);
   opacity: 1;
   background: rgba(236, 253, 245, 0.3);
+}
+
+/* Ensure active state persists even without hover */
+.md-tabs__link--active:not(:hover) {
+  color: var(--green-darker) !important;
+  background: rgba(236, 253, 245, 0.5) !important;
 }
 
 /* Sidebar - Professional minimal */
@@ -219,11 +227,18 @@ body {
 }
 
 .md-nav__link--active {
-  color: var(--green-dark);
-  font-weight: 600;
-  background: linear-gradient(90deg, rgba(236, 253, 245, 0.8) 0%, rgba(236, 253, 245, 0.2) 100%);
-  border-left-color: var(--green-primary);
-  box-shadow: 0 1px 2px 0 rgba(16, 185, 129, 0.1);
+  color: var(--green-dark) !important;
+  font-weight: 600 !important;
+  background: linear-gradient(90deg, rgba(236, 253, 245, 0.8) 0%, rgba(236, 253, 245, 0.2) 100%) !important;
+  border-left-color: var(--green-primary) !important;
+  box-shadow: 0 1px 2px 0 rgba(16, 185, 129, 0.1) !important;
+}
+
+/* Ensure sidebar active state persists even without hover */
+.md-nav__link--active:not(:hover) {
+  color: var(--green-dark) !important;
+  background: linear-gradient(90deg, rgba(236, 253, 245, 0.8) 0%, rgba(236, 253, 245, 0.2) 100%) !important;
+  border-left-color: var(--green-primary) !important;
 }
 
 /* Links - Professional styling */
@@ -747,9 +762,17 @@ body {
 }
 
 .md-nav--secondary .md-nav__link--active {
-  color: var(--green-dark);
-  font-weight: 600;
-  border-left-color: var(--green-primary);
+  color: var(--green-dark) !important;
+  font-weight: 600 !important;
+  border-left-color: var(--green-primary) !important;
+  background: rgba(236, 253, 245, 0.3) !important;
+}
+
+/* Ensure TOC active state persists */
+.md-nav--secondary .md-nav__link--active:not(:hover) {
+  color: var(--green-dark) !important;
+  border-left-color: var(--green-primary) !important;
+  background: rgba(236, 253, 245, 0.3) !important;
 }
 
 /* Content spacing - Professional readability */
@@ -828,4 +851,35 @@ body {
 .md-logo img {
   filter: brightness(0) saturate(100%) invert(52%) sepia(98%) saturate(1151%) hue-rotate(115deg) brightness(96%) contrast(89%);
   /* Creates emerald-500 (#10b981) color */
+}
+
+/* ============================================================================ */
+/* CRITICAL FIX: Prevent active menu items from becoming invisible */
+/* ============================================================================ */
+
+/* Force active tabs to remain visible at all times */
+.md-tabs__item--active .md-tabs__link,
+.md-tabs__item .md-tabs__link[aria-current="page"],
+.md-tabs__item .md-tabs__link.md-tabs__link--active {
+  color: var(--green-darker) !important;
+  font-weight: 600 !important;
+  opacity: 1 !important;
+  background: rgba(236, 253, 245, 0.5) !important;
+}
+
+/* Force active sidebar nav items to remain visible */
+.md-nav__item--active > .md-nav__link,
+.md-nav__link[aria-current="page"],
+.md-nav__item .md-nav__link--active {
+  color: var(--green-dark) !important;
+  font-weight: 600 !important;
+  background: linear-gradient(90deg, rgba(236, 253, 245, 0.8) 0%, rgba(236, 253, 245, 0.2) 100%) !important;
+  border-left-color: var(--green-primary) !important;
+}
+
+/* Increase specificity for Material theme overrides */
+html .md-nav__item--active > .md-nav__link[data-md-state="blur"],
+html .md-tabs__item--active .md-tabs__link[data-md-state="blur"] {
+  color: var(--green-dark) !important;
+  opacity: 1 !important;
 }

@@ -56,6 +56,9 @@ jobs:
         run: |
           cd docs
           mkdocs build --verbose
+          # Copy .nojekyll and CNAME to site directory
+          cp docs_src/.nojekyll ../site/.nojekyll
+          cp docs_src/CNAME ../site/CNAME
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

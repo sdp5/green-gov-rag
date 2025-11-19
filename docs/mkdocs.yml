@@ -1,7 +1,8 @@
 site_name: GreenGovRAG
-site_url: https://sdp5.github.io/green-gov-rag/
+site_url: https://docs.greengovrag.sundeep.id.au/
 site_description: AI Assistant for Australian Environmental Regulations
 site_author: Sundeep Anand
+use_directory_urls: true
 
 repo_url: https://github.com/sdp5/green-gov-rag
 repo_name: sdp5/green-gov-rag

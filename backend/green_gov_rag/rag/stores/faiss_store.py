@@ -70,7 +70,7 @@ class FAISSVectorStore(VectorStoreInterface):
 
         total_batches = (len(chunks) + batch_size - 1) // batch_size
         logger.info(
-            f"Building FAISS store with {len(chunks)} chunks in {total_batches} batches"
+            f"Building FAISS store with {len(chunks):,} chunks in {total_batches} batches (batch_size={batch_size})"
         )
 
         # Process first batch to create index
@@ -81,9 +81,12 @@ class FAISSVectorStore(VectorStoreInterface):
             for chunk in first_batch
         ]
 
+        logger.info(f"Creating index with first batch of {len(first_batch)} chunks...")
         self.store = FAISS.from_documents(documents, self.embeddings)
+        chunks_processed = len(first_batch)
         logger.info(
-            f"Created FAISS index with first batch of {len(first_batch)} chunks"
+            f"✓ Batch 1/{total_batches} complete "
+            f"({chunks_processed:,}/{len(chunks):,} chunks = {100*chunks_processed/len(chunks):.1f}%)"
         )
 
         # Process remaining batches if any
@@ -101,11 +104,17 @@ class FAISSVectorStore(VectorStoreInterface):
                 ]
 
                 self.add_documents(documents)
+                chunks_processed += len(documents)
+
+                # Log progress for every batch
                 logger.info(
-                    f"Added batch {batch_num}/{total_batches}: {len(documents)} chunks"
+                    f"✓ Batch {batch_num}/{total_batches} complete "
+                    f"({chunks_processed:,}/{len(chunks):,} chunks = {100*chunks_processed/len(chunks):.1f}%)"
                 )
 
-        logger.info(f"Completed building FAISS store with {len(chunks)} total chunks")
+        logger.info(
+            f"✓ Completed building FAISS store with {len(chunks):,} total chunks"
+        )
 
     def add_chunks(self, chunks: list[dict]) -> None:
         """Add chunks to existing store."""

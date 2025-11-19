@@ -845,12 +845,22 @@ def rag_index(
     console.print(
         f"[dim]Note: This may take 20-60 minutes for {len(all_chunks)} chunks on CPU[/dim]"
     )
+
+    # Configure logging to show progress from vector stores
+    import logging
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(message)s",
+        force=True,
+    )
+
     embedder = ChunkEmbedder(provider="huggingface", model_name=embedding_model)
 
     # Build vector store
     console.print(f"Building {vector_store} vector store...")
     console.print(
-        "[dim]Embedding and indexing in progress (no progress bar available yet)...[/dim]"
+        f"[dim]Processing {len(all_chunks)} chunks in batches of {batch_size}...[/dim]"
     )
 
     # Determine output path

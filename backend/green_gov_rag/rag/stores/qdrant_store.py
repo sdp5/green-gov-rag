@@ -141,7 +141,7 @@ class QdrantVectorStore(VectorStoreInterface):
         total_batches = (len(chunks) + batch_size - 1) // batch_size
         logger.info(
             f"Building Qdrant collection '{self.collection_name}' "
-            f"with {len(chunks)} chunks in {total_batches} batches"
+            f"with {len(chunks):,} chunks in {total_batches} batches (batch_size={batch_size})"
         )
 
         # Process first batch to create collection
@@ -155,6 +155,9 @@ class QdrantVectorStore(VectorStoreInterface):
             for chunk in first_batch
         ]
 
+        logger.info(
+            f"Creating collection with first batch of {len(first_batch)} chunks..."
+        )
         self.store = self.LangChainQdrantVectorStore.from_documents(
             documents,
             self.embeddings,
@@ -163,7 +166,11 @@ class QdrantVectorStore(VectorStoreInterface):
             collection_name=self.collection_name,
             prefer_grpc=False,  # Use HTTP for compatibility
         )
-        logger.info(f"Created collection with first batch of {len(first_batch)} chunks")
+        chunks_processed = len(first_batch)
+        logger.info(
+            f"✓ Batch 1/{total_batches} complete "
+            f"({chunks_processed:,}/{len(chunks):,} chunks = {100*chunks_processed/len(chunks):.1f}%)"
+        )
 
         # Process remaining batches if any
         if len(chunks) > first_batch_size:
@@ -180,13 +187,17 @@ class QdrantVectorStore(VectorStoreInterface):
                 ]
 
                 self.add_documents(documents)
+                chunks_processed += len(documents)
+
+                # Log progress for every batch
                 logger.info(
-                    f"Added batch {batch_num}/{total_batches}: {len(documents)} chunks"
+                    f"✓ Batch {batch_num}/{total_batches} complete "
+                    f"({chunks_processed:,}/{len(chunks):,} chunks = {100*chunks_processed/len(chunks):.1f}%)"
                 )
 
         logger.info(
-            f"Completed building Qdrant collection '{self.collection_name}' "
-            f"with {len(chunks)} total chunks"
+            f"✓ Completed building Qdrant collection '{self.collection_name}' "
+            f"with {len(chunks):,} total chunks"
         )
 
     def add_chunks(self, chunks: list[dict]) -> None:

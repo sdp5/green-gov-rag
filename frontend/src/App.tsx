@@ -67,11 +67,11 @@ function App() {
               © 2025 GreenGovRAG. AI Assistant for Australian Environmental & Planning Regulations. {version && `v${version}`}
             </p>
             <div className="flex items-center gap-4">
-              <a href="#" className="hover:text-emerald-600 transition-colors font-medium">About</a>
+              <a href="https://sundeep.id.au/blog/data_ai/greengovrag/" target="_blank" className="hover:text-emerald-600 transition-colors font-medium">About</a>
               <Separator orientation="vertical" className="h-4 bg-slate-300" />
-              <a href="#" className="hover:text-emerald-600 transition-colors font-medium">Documentation</a>
+              <a href="https://docs.greengovrag.sundeep.id.au/" target="_blank" className="hover:text-emerald-600 transition-colors font-medium">Documentation</a>
               <Separator orientation="vertical" className="h-4 bg-slate-300" />
-              <a href="#" className="hover:text-emerald-600 transition-colors font-medium">Contact</a>
+              <a href="https://github.com/sdp5/green-gov-rag/discussions" target="_blank" className="hover:text-emerald-600 transition-colors font-medium">Contact</a>
             </div>
           </div>
         </div>

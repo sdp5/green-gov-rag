@@ -35,11 +35,30 @@ jobs:
             --query 'Stacks[0].Outputs[?OutputKey==`QdrantInstanceId`].OutputValue' \
             --output text)
 
+          echo "Qdrant Instance ID: $INSTANCE_ID"
+
+          if [ -z "$INSTANCE_ID" ] || [ "$INSTANCE_ID" == "None" ]; then
+            echo "Error: Could not find Qdrant instance ID in CloudFormation outputs"
+            exit 1
+          fi
+
           # Get Qdrant EBS volume ID dynamically (volume is attached to the instance)
+          # Filter by instance-id AND device name to ensure we get the data volume
           VOLUME_ID=$(aws ec2 describe-volumes \
-            --filters "Name=attachment.instance-id,Values=$INSTANCE_ID" \
+            --filters \
+              "Name=attachment.instance-id,Values=$INSTANCE_ID" \
+              "Name=attachment.device,Values=/dev/xvdf" \
             --query 'Volumes[0].VolumeId' \
             --output text)
+
+          echo "Qdrant Volume ID: $VOLUME_ID"
+
+          if [ -z "$VOLUME_ID" ] || [ "$VOLUME_ID" == "None" ]; then
+            echo "Error: Could not find Qdrant EBS volume attached to instance $INSTANCE_ID"
+            echo "Listing all volumes for instance:"
+            aws ec2 describe-volumes --filters "Name=attachment.instance-id,Values=$INSTANCE_ID"
+            exit 1
+          fi
 
           # Get RDS instance identifier
           DB_INSTANCE=$(aws rds describe-db-instances \

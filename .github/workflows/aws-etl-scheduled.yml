@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: aws-prod
     # Disabled - change to true to enable ETL pipeline
-    if: false
+    if: true
     timeout-minutes: 360
     permissions:
       id-token: write
@@ -116,7 +116,7 @@ jobs:
                 ],
                 \"command\": [
                   \"sh\", \"-c\",
-                  \"echo '=== Step 6: Download from S3 and Index to Qdrant ===' && aws s3 sync s3://$BUCKET/chunks/ /app/data/chunks/ --quiet && greengovrag-cli rag index --chunks /app/data/chunks --vector-store qdrant --collection greengovrag --model ${{ vars.EMBEDDING_MODEL }} --batch-size 100 --mode full\"
+                  \"echo '=== Step 1: Ingest documents to S3 ===' && greengovrag-cli etl ingest --config /app/configs/documents_config.yml && echo '=== Step 2: Download from S3 and parse ===' && aws s3 sync s3://$BUCKET/documents/ /app/data/raw/ --quiet && greengovrag-cli etl parse --input /app/data/raw --output /app/data/processed && echo '=== Step 3: Chunk documents ===' && greengovrag-cli etl chunk --input /app/data/processed --output /app/data/chunks --chunk-size 500 --chunk-overlap 100 --mode auto --accurate && echo '=== Step 4: Load chunks to database (adds file_id metadata) ===' && greengovrag-cli db load-chunks --chunks-dir /app/data/chunks --batch-size 100 && echo '=== Step 5: Upload updated chunks to S3 ===' && aws s3 sync /app/data/chunks/ s3://$BUCKET/chunks/ --quiet && echo '=== Step 6: Download from S3 and Index to Qdrant ===' && aws s3 sync s3://$BUCKET/chunks/ /app/data/chunks/ --quiet && greengovrag-cli rag index --chunks /app/data/chunks --vector-store qdrant --collection greengovrag --model ${{ vars.EMBEDDING_MODEL }} --batch-size 100 --mode auto\"
                 ]
               }]
             }" \

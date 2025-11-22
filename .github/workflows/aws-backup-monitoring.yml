@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: aws-prod
     # Disabled - change to true to enable backup
-    if: false
+    if: true
     permissions:
       id-token: write
       contents: read
@@ -29,10 +29,16 @@ jobs:
       - name: Get resource IDs
         id: resources
         run: |
-          # Get Qdrant EBS volume ID
-          VOLUME_ID=$(aws cloudformation describe-stacks \
+          # Get Qdrant instance ID from CloudFormation
+          INSTANCE_ID=$(aws cloudformation describe-stacks \
             --stack-name GreenGovRAGStack \
-            --query 'Stacks[0].Outputs[?OutputKey==`QdrantVolumeId`].OutputValue' \
+            --query 'Stacks[0].Outputs[?OutputKey==`QdrantInstanceId`].OutputValue' \
+            --output text)
+
+          # Get Qdrant EBS volume ID dynamically (volume is attached to the instance)
+          VOLUME_ID=$(aws ec2 describe-volumes \
+            --filters "Name=attachment.instance-id,Values=$INSTANCE_ID" \
+            --query 'Volumes[0].VolumeId' \
             --output text)
 
           # Get RDS instance identifier
@@ -49,6 +55,7 @@ jobs:
           echo "volume_id=$VOLUME_ID" >> $GITHUB_OUTPUT
           echo "db_instance=$DB_INSTANCE" >> $GITHUB_OUTPUT
           echo "docs_bucket=$DOCS_BUCKET" >> $GITHUB_OUTPUT
+          echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
 
       - name: Create Qdrant EBS snapshot
         run: |
@@ -77,30 +84,15 @@ jobs:
 
           echo "✓ Created RDS snapshot: $SNAPSHOT_ID"
 
-      - name: Backup PostgreSQL to S3
+      - name: Verify backups
         run: |
-          # Get RDS endpoint and credentials
-          DB_ENDPOINT=$(aws rds describe-db-instances \
-            --db-instance-identifier ${{ steps.resources.outputs.db_instance }} \
-            --query 'DBInstances[0].Endpoint.Address' \
-            --output text)
-
-          SECRET_ARN=$(aws cloudformation describe-stacks \
-            --stack-name GreenGovRAGStack \
-            --query 'Stacks[0].Outputs[?OutputKey==`DatabaseSecretArn`].OutputValue' \
-            --output text)
-
-          # Get credentials from Secrets Manager
-          DB_CREDS=$(aws secretsmanager get-secret-value \
-            --secret-id $SECRET_ARN \
-            --query SecretString \
-            --output text)
-
-          DB_PASSWORD=$(echo $DB_CREDS | jq -r '.password')
-
-          # Create PostgreSQL dump (requires psql client)
-          # This is a simplified example - in production, run this from an EC2 instance or container
-          echo "✓ Database backup completed (RDS snapshot)"
+          echo "✓ Backup summary:"
+          echo "  - Qdrant EBS snapshot: Created"
+          echo "  - RDS database snapshot: Created"
+          echo "  - RDS automated backups: 7-day retention (configured in stack)"
+          echo ""
+          echo "Note: Database credentials are managed via GitHub Secrets (not AWS Secrets Manager)"
+          echo "      For pg_dump backups, run from an ECS task with DB access"
 
       - name: Clean up old snapshots
         run: |

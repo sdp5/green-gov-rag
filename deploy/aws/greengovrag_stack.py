@@ -774,3 +774,28 @@ function handler(event) {{
             value=f"http://{qdrant_instance.instance_private_ip}:6333",
             description="Qdrant vector database URL (private IP)",
         )
+
+        CfnOutput(
+            self,
+            "QdrantInstanceId",
+            value=qdrant_instance.instance_id,
+            description="Qdrant EC2 instance ID",
+        )
+
+        # Note: QdrantVolumeId must be discovered dynamically via AWS CLI
+        # The volume is created inline with the instance, so we can't reference it directly
+        # Use: aws ec2 describe-volumes --filters "Name=attachment.instance-id,Values=<instance-id>"
+
+        CfnOutput(
+            self,
+            "ApiGatewayURL",
+            value=f"http://{alb.load_balancer_dns_name}",
+            description="API Gateway URL (ALB endpoint)",
+        )
+
+        CfnOutput(
+            self,
+            "DatabaseEndpoint",
+            value=db_instance.db_instance_endpoint_address,
+            description="RDS database endpoint",
+        )

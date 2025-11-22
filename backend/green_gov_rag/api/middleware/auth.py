@@ -3,8 +3,9 @@
 Protects all API endpoints by requiring an API access key in the request headers.
 """
 
-from fastapi import HTTPException, Request, status
+from fastapi import Request, status
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 
 from green_gov_rag.config import settings
 
@@ -27,10 +28,8 @@ class APIKeyAuthMiddleware(BaseHTTPMiddleware):
             call_next: The next middleware/handler in the chain
 
         Returns:
-            Response from the next handler if authentication succeeds
-
-        Raises:
-            HTTPException: 403 Forbidden if API key is missing or invalid
+            Response from the next handler if authentication succeeds, or
+            JSONResponse with 403 status if API key is missing or invalid
         """
         # Skip authentication for health check endpoint
         if request.url.path == "/api/health":
@@ -49,31 +48,35 @@ class APIKeyAuthMiddleware(BaseHTTPMiddleware):
         api_key = request.headers.get("X-API-Key") or request.headers.get("X-Api-Key")
 
         if not api_key:
-            raise HTTPException(
+            return JSONResponse(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Missing API access key. Include X-API-Key header in your request.",
+                content={
+                    "detail": "Missing API access key. Include X-API-Key header in your request."
+                },
             )
 
         # Check if this is an admin route
         if request.url.path.startswith("/api/admin/"):
             # Admin routes require admin API key
             if not settings.admin_api_key:
-                raise HTTPException(
+                return JSONResponse(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Admin API key not configured. Contact system administrator.",
+                    content={
+                        "detail": "Admin API key not configured. Contact system administrator."
+                    },
                 )
 
             if api_key != settings.admin_api_key:
-                raise HTTPException(
+                return JSONResponse(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Invalid admin API key. Admin access denied.",
+                    content={"detail": "Invalid admin API key. Admin access denied."},
                 )
         else:
             # Regular API routes require regular API key
             if api_key != settings.api_access_key:
-                raise HTTPException(
+                return JSONResponse(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Invalid API access key",
+                    content={"detail": "Invalid API access key"},
                 )
 
         # API key is valid, proceed with request

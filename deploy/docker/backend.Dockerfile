@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y \
     g++ \
     curl \
     unzip \
+    pkg-config \
     postgresql-client \
     libgl1 \
     libglib2.0-0 \

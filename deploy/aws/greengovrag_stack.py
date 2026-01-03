@@ -455,9 +455,9 @@ class GreenGovRAGStack(Stack):
         backend_task = ecs.FargateTaskDefinition(
             self,
             f"{project_name}BackendTask",
-            cpu=1024,  # 1 vCPU for better performance
-            memory_limit_mib=3072,  # 3 GB (safe for BAAI/bge-large-en-v1.5 + app stack)
-            ephemeral_storage_gib=30,  # 30 GB for model cache and temporary files
+            cpu=512,  # 0.5 vCPU
+            memory_limit_mib=2048,  # 2 GB (safe for BAAI/bge-large-en-v1.5 + app stack)
+            ephemeral_storage_gib=21,  # 21 GB for model cache and temporary files
             runtime_platform=ecs.RuntimePlatform(
                 cpu_architecture=ecs.CpuArchitecture.ARM64,
                 operating_system_family=ecs.OperatingSystemFamily.LINUX,

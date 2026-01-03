@@ -335,6 +335,17 @@ class GreenGovRAGStack(Stack):
         # - Spot interruptions would cause data loss and service disruption
         # - EBS volume reattachment complexity with ASG across AZs
 
+        # EBS Volume for Qdrant - Separate resource to persist across instance replacements
+        qdrant_volume = ec2.Volume(
+            self,
+            f"{project_name}QdrantVolume",
+            availability_zone=vpc.availability_zones[0],  # Must match instance AZ
+            size=10,
+            volume_type=ec2.EbsDeviceVolumeType.GP3,
+            encrypted=True,
+            removal_policy=RemovalPolicy.RETAIN,  # NEVER delete data on stack destroy
+        )
+
         # IAM role for Qdrant EC2 instance
         qdrant_role = iam.Role(
             self,
@@ -406,6 +417,7 @@ class GreenGovRAGStack(Stack):
         )
 
         # Qdrant EC2 instance (on-demand for reliability)
+        # NOTE: No inline EBS volumes - using separate volume resource instead
         qdrant_instance = ec2.Instance(
             self,
             f"{project_name}QdrantInstance",
@@ -414,22 +426,24 @@ class GreenGovRAGStack(Stack):
                 cpu_type=ec2.AmazonLinuxCpuType.ARM_64
             ),
             vpc=vpc,
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
+            vpc_subnets=ec2.SubnetSelection(
+                subnet_type=ec2.SubnetType.PUBLIC,
+                availability_zones=[vpc.availability_zones[0]],  # Match volume AZ
+            ),
             security_group=qdrant_sg,
             role=qdrant_role,
             user_data=qdrant_user_data,
             require_imdsv2=True,
-            block_devices=[
-                ec2.BlockDevice(
-                    device_name="/dev/xvdf",
-                    volume=ec2.BlockDeviceVolume.ebs(
-                        volume_size=10,
-                        volume_type=ec2.EbsDeviceVolumeType.GP3,
-                        encrypted=True,
-                        delete_on_termination=False,  # Persist data
-                    ),
-                )
-            ],
+        )
+
+        # Attach EBS volume to EC2 instance
+        # NOTE: CfnVolumeAttachment ensures volume persists across instance replacements
+        volume_attachment = ec2.CfnVolumeAttachment(
+            self,
+            f"{project_name}QdrantVolumeAttachment",
+            device="/dev/xvdf",
+            instance_id=qdrant_instance.instance_id,
+            volume_id=qdrant_volume.volume_id,
         )
 
         # Register Qdrant instance with service discovery
@@ -782,9 +796,12 @@ function handler(event) {{
             description="Qdrant EC2 instance ID",
         )
 
-        # Note: QdrantVolumeId must be discovered dynamically via AWS CLI
-        # The volume is created inline with the instance, so we can't reference it directly
-        # Use: aws ec2 describe-volumes --filters "Name=attachment.instance-id,Values=<instance-id>"
+        CfnOutput(
+            self,
+            "QdrantVolumeId",
+            value=qdrant_volume.volume_id,
+            description="Qdrant EBS volume ID (persists across deployments)",
+        )
 
         CfnOutput(
             self,

@@ -143,6 +143,20 @@ class GreenGovRAGStack(Stack):
             allow_all_outbound=True,
         )
 
+        # Qdrant security group (defined before RDS to allow reference)
+        qdrant_sg = ec2.SecurityGroup(
+            self,
+            f"{project_name}QdrantSG",
+            vpc=vpc,
+            description="Security group for Qdrant vector database",
+            allow_all_outbound=True,  # Need internet for Docker Hub, yum, SSM
+        )
+        qdrant_sg.add_ingress_rule(
+            peer=ecs_sg,
+            connection=ec2.Port.tcp(6333),
+            description="Allow ECS tasks to access Qdrant",
+        )
+
         # RDS security group
         rds_sg = ec2.SecurityGroup(
             self,
@@ -156,19 +170,10 @@ class GreenGovRAGStack(Stack):
             connection=ec2.Port.tcp(5432),
             description="Allow ECS tasks to access PostgreSQL",
         )
-
-        # Qdrant security group
-        qdrant_sg = ec2.SecurityGroup(
-            self,
-            f"{project_name}QdrantSG",
-            vpc=vpc,
-            description="Security group for Qdrant vector database",
-            allow_all_outbound=True,  # Need internet for Docker Hub, yum, SSM
-        )
-        qdrant_sg.add_ingress_rule(
-            peer=ecs_sg,
-            connection=ec2.Port.tcp(6333),
-            description="Allow ECS tasks to access Qdrant",
+        rds_sg.add_ingress_rule(
+            peer=qdrant_sg,
+            connection=ec2.Port.tcp(5432),
+            description="Allow Qdrant EC2 instance to access PostgreSQL (for SSM tunneling)",
         )
 
         # Optional: Debug access (comment out in production)

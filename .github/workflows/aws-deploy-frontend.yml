@@ -8,10 +8,6 @@ on:
       - 'data/geo/**'
       - '.github/workflows/aws-deploy-frontend.yml'
   workflow_dispatch:
-  workflow_run:
-    workflows: ["Deploy Backend"]
-    types: [completed]
-    branches: [main]
 
 env:
   AWS_REGION: ap-southeast-2

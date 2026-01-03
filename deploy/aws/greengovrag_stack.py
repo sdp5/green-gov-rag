@@ -29,6 +29,7 @@ from aws_cdk import (
     CfnOutput,
     Duration,
     RemovalPolicy,
+    Size,
     Stack,
     aws_cloudfront as cloudfront,
     aws_cloudfront_origins as origins,
@@ -345,7 +346,7 @@ class GreenGovRAGStack(Stack):
             self,
             f"{project_name}QdrantVolume",
             availability_zone=vpc.availability_zones[0],  # Must match instance AZ
-            size=10,
+            size=Size.gibibytes(10),
             volume_type=ec2.EbsDeviceVolumeType.GP3,
             encrypted=True,
             removal_policy=RemovalPolicy.RETAIN,  # NEVER delete data on stack destroy

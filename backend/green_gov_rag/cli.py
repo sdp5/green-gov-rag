@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import multiprocessing
 import shutil
 from pathlib import Path
 from typing import Optional
@@ -102,6 +103,116 @@ def _get_storage_adapter() -> "ETLStorageAdapter | None":
 # ============================================================================
 # ETL Commands
 # ============================================================================
+
+
+def _process_chunk_file_worker(args: tuple) -> dict:
+    """Worker function to process a single text file for chunking.
+
+    This function is designed to be called by multiprocessing.Pool.map().
+    Each worker creates its own parser instance to avoid shared state issues.
+
+    Args:
+        args: Tuple of (txt_file_path, config_dict)
+            config_dict contains: chunk_size, chunk_overlap, raw_dir,
+            output_dir, use_fast_strategy, effective_mode
+
+    Returns:
+        dict: Result dictionary with status, chunks_count, filename, error
+    """
+    txt_file, config = args
+
+    try:
+        # Extract config
+        chunk_size = config["chunk_size"]
+        chunk_overlap = config["chunk_overlap"]
+        raw_dir = config["raw_dir"]
+        output_dir = config["output_dir"]
+        use_fast_strategy = config["use_fast_strategy"]
+        effective_mode = config["effective_mode"]
+
+        # Check if output already exists (delta mode)
+        out_file = Path(output_dir) / (txt_file.stem + "_chunks.json")
+
+        if effective_mode == "delta" and out_file.exists():
+            return {
+                "status": "skipped",
+                "filename": txt_file.name,
+                "chunks_count": 0,
+                "error": None,
+            }
+
+        # Create parser instance for this worker (no shared state)
+        chunker = TextChunker(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+        hierarchical_parser = HierarchicalPDFParser()
+
+        if use_fast_strategy:
+            fast_parser = UnstructuredPDFParser(strategy=PDFParserStrategy.FAST.value)
+            hierarchical_parser._unstructured_parser = fast_parser
+
+        # Load metadata
+        metadata_file = txt_file.parent / (txt_file.stem + ".metadata.json")
+        base_metadata = {}
+        if metadata_file.exists():
+            with open(metadata_file) as f:
+                base_metadata = json.load(f)
+
+        # Try to find original PDF for citation extraction
+        pdf_file = None
+        for pdf_path in Path(raw_dir).rglob(f"{txt_file.stem}.pdf"):
+            pdf_file = pdf_path
+            break
+
+        chunks = []
+        used_pdf = False
+
+        # Try PDF parsing first
+        if pdf_file and pdf_file.exists():
+            try:
+                hierarchical_chunks = hierarchical_parser.parse_with_structure(
+                    pdf_file, base_metadata=base_metadata
+                )
+                chunks = chunker.chunk_with_hierarchy(hierarchical_chunks)
+                used_pdf = True
+            except Exception:
+                # Fallback to text chunking (silent failure for worker)
+                pass
+
+        # Fallback: simple text chunking
+        if not used_pdf or not chunks:
+            text = txt_file.read_text(encoding="utf-8")
+            text_chunks = chunker.chunk_text(text)
+
+            for i, chunk_text in enumerate(text_chunks):
+                chunk_obj = {
+                    "content": chunk_text,
+                    "metadata": {
+                        **base_metadata,
+                        "chunk_index": i,
+                        "source_file": txt_file.stem,
+                    },
+                }
+                chunks.append(chunk_obj)
+
+        # Write output
+        out_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_file, "w", encoding="utf-8") as f:
+            json.dump(chunks, f, indent=2)
+
+        return {
+            "status": "success",
+            "filename": txt_file.name,
+            "chunks_count": len(chunks),
+            "used_pdf": used_pdf,
+            "error": None,
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "filename": txt_file.name if txt_file else "unknown",
+            "chunks_count": 0,
+            "error": str(e),
+        }
 
 
 @etl_app.command("ingest")
@@ -245,6 +356,12 @@ def etl_chunk(
         "--fast/--accurate",
         help="Use fast parsing strategy (10x faster, slightly lower accuracy) vs accurate (slower, higher accuracy)",
     ),
+    workers: int = typer.Option(
+        1,
+        "--workers",
+        "-w",
+        help="Number of parallel workers (1 = single-threaded, 4 = recommended for quad-core CPUs)",
+    ),
 ) -> None:
     """Chunk parsed documents into smaller text segments.
 
@@ -257,10 +374,22 @@ def etl_chunk(
     - delta: Skip files with existing chunk output
     - auto: Use delta mode by default (recommended)
 
+    Parallel Processing:
+    - Use --workers to process multiple files concurrently
+    - Recommended: --workers 4 for most machines
+    - Works with both --fast and --accurate modes
+    - Speedup: ~3-4x with 4 workers on typical CPUs
+
     Example:
     -------
         # Fast delta processing (default, recommended)
         greengovrag-cli etl chunk
+
+        # Parallel processing with 4 workers
+        greengovrag-cli etl chunk --workers 4
+
+        # Parallel + accurate mode
+        greengovrag-cli etl chunk --workers 4 --accurate
 
         # Full re-processing with accurate mode
         greengovrag-cli etl chunk --mode full --accurate
@@ -288,89 +417,146 @@ def etl_chunk(
     console.print(
         f"Mode: {effective_mode}, Strategy: {'fast' if use_fast_strategy else 'accurate'}"
     )
+    if workers > 1:
+        console.print(f"Workers: {workers} (parallel processing enabled)")
 
-    chunker = TextChunker(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    # Collect all text files to process
+    txt_files = list(Path(input_dir).rglob("*.txt"))
 
-    # Initialize parser with strategy
-    hierarchical_parser = HierarchicalPDFParser()
-    if use_fast_strategy:
-        # Pre-initialize with fast strategy
-        fast_parser: UnstructuredPDFParser = UnstructuredPDFParser(
-            strategy=PDFParserStrategy.FAST.value
-        )
-        hierarchical_parser._unstructured_parser = fast_parser
+    if not txt_files:
+        console.print(f"[yellow]No text files found in {input_dir}[/yellow]")
+        return
 
     chunked_count = 0
     skipped_count = 0
+    error_count = 0
 
-    for txt_file in Path(input_dir).rglob("*.txt"):
-        try:
-            # Check if output already exists (delta mode)
-            out_file = Path(output_dir) / (txt_file.stem + "_chunks.json")
+    # Process files: use multiprocessing if workers > 1, otherwise sequential
+    if workers > 1:
+        # Parallel processing with multiprocessing
+        console.print(
+            f"[dim]Processing {len(txt_files)} files with {workers} workers...[/dim]"
+        )
 
-            if effective_mode == "delta" and out_file.exists():
+        # Prepare config for workers
+        worker_config = {
+            "chunk_size": chunk_size,
+            "chunk_overlap": chunk_overlap,
+            "raw_dir": raw_dir,
+            "output_dir": output_dir,
+            "use_fast_strategy": use_fast_strategy,
+            "effective_mode": effective_mode,
+        }
+
+        # Create work items (txt_file, config) tuples
+        work_items = [(txt_file, worker_config) for txt_file in txt_files]
+
+        # Process in parallel
+        with multiprocessing.Pool(processes=workers) as pool:
+            results = pool.map(_process_chunk_file_worker, work_items)
+
+        # Process results
+        for result in results:
+            if result["status"] == "success":
+                chunked_count += 1
+                pdf_msg = " (from PDF)" if result.get("used_pdf") else ""
+                console.print(
+                    f"  ✓ Chunked: {result['filename']} ({result['chunks_count']} chunks{pdf_msg})"
+                )
+            elif result["status"] == "skipped":
                 skipped_count += 1
-                console.print(f"  ⊘ Skipped: {txt_file.name} (already chunked)")
-                continue
+                console.print(f"  ⊘ Skipped: {result['filename']} (already chunked)")
+            elif result["status"] == "error":
+                error_count += 1
+                console.print(
+                    f"  ✗ Failed to chunk {result['filename']}: {result['error']}",
+                    style="red",
+                )
 
-            # Look for corresponding metadata file from ingestion
-            metadata_file = txt_file.parent / (txt_file.stem + ".metadata.json")
-            base_metadata = {}
-            if metadata_file.exists():
-                with open(metadata_file) as f:
-                    base_metadata = json.load(f)
+    else:
+        # Sequential processing (original logic)
+        console.print(f"[dim]Processing {len(txt_files)} files sequentially...[/dim]")
 
-            # Try to find original PDF in raw directory for citation extraction
-            pdf_file = None
-            for pdf_path in Path(raw_dir).rglob(f"{txt_file.stem}.pdf"):
-                pdf_file = pdf_path
-                break
+        chunker = TextChunker(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
 
-            chunks = []
+        # Initialize parser with strategy
+        hierarchical_parser = HierarchicalPDFParser()
+        if use_fast_strategy:
+            # Pre-initialize with fast strategy
+            fast_parser: UnstructuredPDFParser = UnstructuredPDFParser(
+                strategy=PDFParserStrategy.FAST.value
+            )
+            hierarchical_parser._unstructured_parser = fast_parser
 
-            if pdf_file and pdf_file.exists() and hierarchical_parser:
-                # Use hierarchical parser for PDFs to extract citation metadata
-                try:
-                    hierarchical_chunks = hierarchical_parser.parse_with_structure(
-                        pdf_file, base_metadata=base_metadata
-                    )
-                    # Further chunk if needed (preserving citation metadata)
-                    chunks = chunker.chunk_with_hierarchy(hierarchical_chunks)
-                    console.print(
-                        f"  → Extracted citation metadata from PDF: {pdf_file.name}"
-                    )
-                except Exception as e:
-                    console.print(
-                        f"  [yellow]Warning: Failed to extract citations from PDF, "
-                        f"falling back to text chunking: {e}[/yellow]"
-                    )
-                    pdf_file = None  # Fall back to text chunking
+        for txt_file in txt_files:
+            try:
+                # Check if output already exists (delta mode)
+                out_file = Path(output_dir) / (txt_file.stem + "_chunks.json")
 
-            # Fallback: simple text chunking without citation metadata
-            if not pdf_file or not chunks:
-                text = txt_file.read_text(encoding="utf-8")
-                text_chunks = chunker.chunk_text(text)
+                if effective_mode == "delta" and out_file.exists():
+                    skipped_count += 1
+                    console.print(f"  ⊘ Skipped: {txt_file.name} (already chunked)")
+                    continue
 
-                for i, chunk_text in enumerate(text_chunks):
-                    chunk_obj = {
-                        "content": chunk_text,
-                        "metadata": {
-                            **base_metadata,  # Include document-level metadata
-                            "chunk_index": i,  # Sequential index within document
-                            "source_file": txt_file.stem,
-                        },
-                    }
-                    chunks.append(chunk_obj)
+                # Look for corresponding metadata file from ingestion
+                metadata_file = txt_file.parent / (txt_file.stem + ".metadata.json")
+                base_metadata = {}
+                if metadata_file.exists():
+                    with open(metadata_file) as f:
+                        base_metadata = json.load(f)
 
-            out_file.parent.mkdir(parents=True, exist_ok=True)
+                # Try to find original PDF in raw directory for citation extraction
+                pdf_file = None
+                for pdf_path in Path(raw_dir).rglob(f"{txt_file.stem}.pdf"):
+                    pdf_file = pdf_path
+                    break
 
-            with open(out_file, "w", encoding="utf-8") as f:
-                json.dump(chunks, f, indent=2)
+                chunks = []
 
-            chunked_count += 1
-            console.print(f"  ✓ Chunked: {txt_file.name} ({len(chunks)} chunks)")
-        except Exception as e:
-            console.print(f"  ✗ Failed to chunk {txt_file.name}: {e}", style="red")
+                if pdf_file and pdf_file.exists() and hierarchical_parser:
+                    # Use hierarchical parser for PDFs to extract citation metadata
+                    try:
+                        hierarchical_chunks = hierarchical_parser.parse_with_structure(
+                            pdf_file, base_metadata=base_metadata
+                        )
+                        # Further chunk if needed (preserving citation metadata)
+                        chunks = chunker.chunk_with_hierarchy(hierarchical_chunks)
+                        console.print(
+                            f"  → Extracted citation metadata from PDF: {pdf_file.name}"
+                        )
+                    except Exception as e:
+                        console.print(
+                            f"  [yellow]Warning: Failed to extract citations from PDF, "
+                            f"falling back to text chunking: {e}[/yellow]"
+                        )
+                        pdf_file = None  # Fall back to text chunking
+
+                # Fallback: simple text chunking without citation metadata
+                if not pdf_file or not chunks:
+                    text = txt_file.read_text(encoding="utf-8")
+                    text_chunks = chunker.chunk_text(text)
+
+                    for i, chunk_text in enumerate(text_chunks):
+                        chunk_obj = {
+                            "content": chunk_text,
+                            "metadata": {
+                                **base_metadata,  # Include document-level metadata
+                                "chunk_index": i,  # Sequential index within document
+                                "source_file": txt_file.stem,
+                            },
+                        }
+                        chunks.append(chunk_obj)
+
+                out_file.parent.mkdir(parents=True, exist_ok=True)
+
+                with open(out_file, "w", encoding="utf-8") as f:
+                    json.dump(chunks, f, indent=2)
+
+                chunked_count += 1
+                console.print(f"  ✓ Chunked: {txt_file.name} ({len(chunks)} chunks)")
+            except Exception as e:
+                error_count += 1
+                console.print(f"  ✗ Failed to chunk {txt_file.name}: {e}", style="red")
 
     # Summary
     console.print(
@@ -380,6 +566,8 @@ def etl_chunk(
         console.print(
             f"[dim]Delta mode: Skipped {skipped_count} already-chunked files[/dim]"
         )
+    if error_count > 0:
+        console.print(f"[yellow]⚠ {error_count} files failed to process[/yellow]")
 
 
 @etl_app.command("tag-metadata")

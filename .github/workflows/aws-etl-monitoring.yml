@@ -141,16 +141,35 @@ jobs:
           TASK_ARN="${{ steps.run-monitoring.outputs.task_arn }}"
           TASK_ID=$(echo $TASK_ARN | cut -d'/' -f3)
 
-          LOG_GROUP="/ecs/greengovrag-backend"
-          LOG_STREAM="ecs/backend/$TASK_ID"
+          # Resolve log group from the task definition (CDK auto-generates the name)
+          CLUSTER=$(aws cloudformation describe-stacks \
+            --stack-name GreenGovRAGStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`ClusterName`].OutputValue' \
+            --output text)
+
+          TASK_DEF=$(aws ecs describe-tasks \
+            --cluster "$CLUSTER" \
+            --tasks "$TASK_ARN" \
+            --query 'tasks[0].taskDefinitionArn' \
+            --output text)
+
+          LOG_GROUP=$(aws ecs describe-task-definition \
+            --task-definition "$TASK_DEF" \
+            --query 'taskDefinition.containerDefinitions[?name==`backend`].logConfiguration.options."awslogs-group"' \
+            --output text)
+
+          LOG_STREAM="backend/$TASK_ID"
+
+          echo "Log group: $LOG_GROUP"
+          echo "Log stream: $LOG_STREAM"
 
           # Wait a bit for logs to be available
           sleep 10
 
           # Get logs (last 100 lines should contain JSON output)
           LOGS=$(aws logs get-log-events \
-            --log-group-name $LOG_GROUP \
-            --log-stream-name $LOG_STREAM \
+            --log-group-name "$LOG_GROUP" \
+            --log-stream-name "$LOG_STREAM" \
             --limit 100 \
             --query 'events[*].message' \
             --output text)

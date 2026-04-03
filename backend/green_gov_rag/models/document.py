@@ -92,6 +92,16 @@ class DocumentSource(SQLModel, table=True):
         description="Embedding model used",
     )
 
+    # Lifecycle / registry tracking
+    db_bootstrapped_at: Optional[datetime] = Field(
+        default=None,
+        description="When this source was first seeded from YAML into the DB",
+    )
+    last_monitored_at: Optional[datetime] = Field(
+        default=None,
+        description="When monitoring last ran for this source",
+    )
+
     class Config:
         """Model configuration."""
 
@@ -178,6 +188,32 @@ class DocumentFile(SQLModel, table=True):
 
     # Processing stats
     chunk_count: int = Field(default=0, description="Number of chunks from this file")
+
+    # Lifecycle tracking
+    lifecycle_state: str = Field(
+        default="detect",
+        index=True,
+        description=(
+            "Document lifecycle state: detect/fetch/chunk/embed/"
+            "available_for_search/url_dead/mark_superseded/removed_from_search"
+        ),
+    )
+    lifecycle_transitioned_at: Optional[datetime] = Field(
+        default=None,
+        description="When lifecycle_state last changed",
+    )
+    superseded_by_url: Optional[str] = Field(
+        default=None,
+        description="Replacement URL provided by admin when this file is superseded",
+    )
+    http_last_checked_at: Optional[datetime] = Field(
+        default=None,
+        description="When the URL was last checked for availability",
+    )
+    http_status_code: Optional[int] = Field(
+        default=None,
+        description="Last HTTP status code seen when checking the URL",
+    )
 
     class Config:
         """Model configuration."""

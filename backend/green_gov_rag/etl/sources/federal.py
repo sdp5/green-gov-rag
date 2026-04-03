@@ -8,11 +8,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from green_gov_rag.etl.sources.base import DocumentSource, ValidationResult
+from green_gov_rag.etl.sources.base import (
+    DocumentSource,
+    MonitorableSource,
+    ValidationResult,
+)
 from green_gov_rag.types import FEDERAL_VALID_CATEGORIES
 
 
-class FederalLegislationSource(DocumentSource):
+class FederalLegislationSource(DocumentSource, MonitorableSource):
     """Document source for federal legislation and regulations.
 
     Handles federal-level documents such as:

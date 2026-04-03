@@ -9,10 +9,14 @@ automated monitoring and change detection.
 
 from __future__ import annotations
 
+import hashlib
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -363,72 +367,142 @@ class MonitorableSource(ABC):
         ...         return "0 2 * * *"  # Daily at 2am
     """
 
-    @abstractmethod
-    async def discover_documents(self) -> list[DiscoveredDocument]:
-        """Discover documents by scraping/crawling the source website.
-
-        This method should scrape the source's website to find all available
-        documents (PDFs, HTML pages, etc.) and return metadata about them.
+    async def check_url_alive(self, url: str) -> tuple[bool, int]:
+        """Check if a URL is reachable via HTTP HEAD.
 
         Returns:
-            List of discovered documents with URLs and metadata
-
-        Example:
-            >>> async def discover_documents(self):
-            ...     async with aiohttp.ClientSession() as session:
-            ...         async with session.get(self.GUIDELINES_URL) as response:
-            ...             soup = BeautifulSoup(await response.text(), 'html.parser')
-            ...             pdf_links = soup.find_all('a', href=lambda x: x and x.endswith('.pdf'))
-            ...             return [
-            ...                 DiscoveredDocument(
-            ...                     url=link['href'],
-            ...                     title=link.text.strip(),
-            ...                     metadata={'source': 'CER Guidelines'}
-            ...                 )
-            ...                 for link in pdf_links
-            ...             ]
+            (is_alive, http_status_code). is_alive is True for 2xx/3xx.
+            Returns (False, 0) on network errors.
         """
-        pass
+        try:
+            import aiohttp
 
-    @abstractmethod
+            async with aiohttp.ClientSession() as session:
+                async with session.head(
+                    url,
+                    allow_redirects=True,
+                    timeout=aiohttp.ClientTimeout(total=15),
+                ) as resp:
+                    return resp.status < 400, resp.status
+        except Exception as exc:
+            logger.debug("HEAD %s failed: %s", url, exc)
+            return False, 0
+
+    async def discover_documents(self) -> list[DiscoveredDocument]:
+        """Default: return documents from config download_urls.
+
+        Sources that scrape websites (e.g. CEREmissionsSource) override this.
+        Static URL sources (federal/state/local) use this default.
+
+        TODO: Future enhancement — when a URL is dead (404), fetch the source_url
+        HTML page and use an LLM agent to parse it for a replacement download link.
+        Government pages often contain "This document has been replaced by..." notices
+        or updated PDF links that could be extracted automatically.
+
+        Returns:
+            List of DiscoveredDocument, one per download_url in config.
+        """
+        config: dict[str, Any] = getattr(self, "config", {})
+        urls: list[str] = config.get("download_urls", [])
+        title: str = config.get("title", "")
+        return [DiscoveredDocument(url=url, title=title) for url in urls]
+
     async def check_for_updates(
         self, known_document: dict[str, Any]
     ) -> ChangeDetectionResult:
-        """Check if a known document has been updated.
+        """Default: HEAD request to detect 404 (dead URL) or content changes.
 
-        Given a document we already have in our database, check if the
-        source has published an updated version.
+        Strategy:
+          1. HEAD the URL — if 404 → deleted (signal: url_dead, not superseded).
+          2. Compare Last-Modified header if available (confidence 0.9).
+          3. Partial content hash (first 64 KB) as fallback (confidence 1.0).
+
+        Sources with richer detection (ETag, scraping) override this.
 
         Args:
-            known_document: Dictionary with document metadata including:
-                - url: Document URL
-                - content_hash: SHA256 hash of current content
-                - last_checked: When we last checked for updates
-                - metadata: Additional metadata
+            known_document: Dict with keys url, content_hash, last_checked, metadata.
 
         Returns:
-            ChangeDetectionResult indicating if document changed
-
-        Example:
-            >>> async def check_for_updates(self, known_document):
-            ...     url = known_document['url']
-            ...     async with aiohttp.ClientSession() as session:
-            ...         async with session.head(url) as response:
-            ...             last_modified = response.headers.get('Last-Modified')
-            ...             if last_modified:
-            ...                 remote_date = datetime.strptime(
-            ...                     last_modified, '%a, %d %b %Y %H:%M:%S %Z'
-            ...                 )
-            ...                 local_date = known_document.get('last_modified')
-            ...                 if remote_date > local_date:
-            ...                     return ChangeDetectionResult(
-            ...                         has_changed=True,
-            ...                         change_type='updated',
-            ...                         confidence=0.9,
-            ...                     )
-            ...     return ChangeDetectionResult(has_changed=False, change_type='unchanged')
+            ChangeDetectionResult
         """
-        pass
+        import aiohttp
+
+        url: str = known_document.get("url", "")
+        known_hash: str | None = known_document.get("content_hash")
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                # Step 1 — HEAD for liveness + Last-Modified
+                async with session.head(
+                    url,
+                    allow_redirects=True,
+                    timeout=aiohttp.ClientTimeout(total=15),
+                ) as head_resp:
+                    status = head_resp.status
+
+                    if status == 404:
+                        return ChangeDetectionResult(
+                            has_changed=True,
+                            change_type="deleted",
+                            confidence=1.0,
+                            details="HTTP 404 — URL is dead",
+                        )
+
+                    if status >= 400:
+                        # Transient error — don't act on it
+                        return ChangeDetectionResult(
+                            has_changed=False,
+                            change_type="unchanged",
+                            confidence=0.3,
+                            details=f"HTTP {status} — treating as unchanged",
+                        )
+
+                    # Step 2 — Last-Modified header
+                    last_modified_str = head_resp.headers.get("Last-Modified")
+                    if last_modified_str:
+                        try:
+                            from email.utils import parsedate_to_datetime
+
+                            remote_dt = parsedate_to_datetime(last_modified_str)
+                            local_dt = known_document.get("last_checked")
+                            if local_dt and remote_dt > local_dt:
+                                return ChangeDetectionResult(
+                                    has_changed=True,
+                                    change_type="updated",
+                                    confidence=0.9,
+                                    details=f"Last-Modified changed: {last_modified_str}",
+                                )
+                        except Exception:
+                            pass  # Fall through to hash check
+
+                # Step 3 — partial content hash (first 64 KB)
+                if known_hash:
+                    async with session.get(
+                        url,
+                        timeout=aiohttp.ClientTimeout(total=30),
+                    ) as get_resp:
+                        chunk = await get_resp.content.read(65536)
+                        new_hash = hashlib.sha256(chunk).hexdigest()
+                        if new_hash != known_hash:
+                            return ChangeDetectionResult(
+                                has_changed=True,
+                                change_type="updated",
+                                new_hash=new_hash,
+                                old_hash=known_hash,
+                                confidence=1.0,
+                                details="Content hash changed (first 64 KB)",
+                            )
+
+        except Exception as exc:
+            logger.warning("check_for_updates failed for %s: %s", url, exc)
+            return ChangeDetectionResult(
+                has_changed=False,
+                change_type="unchanged",
+                confidence=0.0,
+                details=f"Error: {exc}",
+            )
+
+        return ChangeDetectionResult(has_changed=False, change_type="unchanged")
 
     def get_monitoring_schedule(self) -> str:
         """Get cron expression for monitoring schedule.

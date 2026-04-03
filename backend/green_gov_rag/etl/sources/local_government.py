@@ -8,10 +8,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from green_gov_rag.etl.sources.base import DocumentSource, ValidationResult
+from green_gov_rag.etl.sources.base import (
+    DocumentSource,
+    MonitorableSource,
+    ValidationResult,
+)
 
 
-class LocalGovernmentSource(DocumentSource):
+class LocalGovernmentSource(DocumentSource, MonitorableSource):
     """Document source for local government (LGA) documents.
 
     Handles LGA-specific documents such as:

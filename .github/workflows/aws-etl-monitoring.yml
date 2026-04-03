@@ -158,7 +158,7 @@ jobs:
             --query 'taskDefinition.containerDefinitions[?name==`backend`].logConfiguration.options."awslogs-group"' \
             --output text)
 
-          LOG_STREAM="backend/$TASK_ID"
+          LOG_STREAM="backend/backend/$TASK_ID"
 
           echo "Log group: $LOG_GROUP"
           echo "Log stream: $LOG_STREAM"

@@ -546,6 +546,88 @@ def etl_monitor(
             chunks = pipeline.chunk_documents(documents)
             console.print(f"  ✓ Created {len(chunks)} chunks")
 
+            # Step 4: Delete stale vectors and re-index changed documents
+            # Collect changed document IDs from monitoring results
+            changed_doc_ids: set[str] = set()
+            for source_result in results.get("source_results", []):
+                for doc in source_result.get("changed_documents", []):
+                    doc_id = doc.get("document_id") or doc.get("id")
+                    if doc_id:
+                        changed_doc_ids.add(str(doc_id))
+
+            # Also capture IDs reported at the top level
+            for doc_id in results.get("changed_document_ids", []):
+                changed_doc_ids.add(str(doc_id))
+
+            vector_store_type = settings.vector_store_type.value
+            console.print(
+                f"Step 4: Updating vector index ({vector_store_type}, delta mode)..."
+            )
+
+            if vector_store_type == "faiss":
+                console.print(
+                    "[yellow]⚠ FAISS does not support deletion. "
+                    "Run 'greengovrag-cli rag index --mode full' to rebuild the index.[/yellow]"
+                )
+            else:
+                store_kwargs: dict = {}
+                if vector_store_type == "qdrant":
+                    store_kwargs["collection_name"] = "greengovrag"
+                    if settings.qdrant_url:
+                        store_kwargs["url"] = settings.qdrant_url
+                    if settings.qdrant_api_key:
+                        store_kwargs["api_key"] = settings.qdrant_api_key
+
+                try:
+                    embedder = ChunkEmbedder(
+                        provider="huggingface", model_name=settings.embedding_model
+                    )
+                    vs = create_vector_store(
+                        embeddings=embedder.embedder,
+                        store_type=vector_store_type,
+                        **store_kwargs,
+                    )
+
+                    if changed_doc_ids:
+                        console.print(
+                            f"  [dim]Deleting old vectors for {len(changed_doc_ids)} changed document(s)...[/dim]"
+                        )
+                        total_deleted = 0
+                        failed_deletions = []
+                        for doc_id in changed_doc_ids:
+                            try:
+                                deleted = vs.delete_by_metadata({"document_id": doc_id})
+                                total_deleted += deleted
+                            except Exception as e:
+                                failed_deletions.append(doc_id)
+                                console.print(
+                                    f"  [yellow]⚠ Failed to delete vectors for {doc_id}: {e}[/yellow]"
+                                )
+
+                        console.print(f"  ✓ Deleted {total_deleted} stale chunks")
+
+                        if failed_deletions:
+                            console.print(
+                                f"  [yellow]⚠ {len(failed_deletions)} document(s) had deletion errors — "
+                                f"run 'greengovrag-cli rag index --mode full' to ensure a clean index[/yellow]"
+                            )
+                    else:
+                        console.print(
+                            "  [dim]No changed document IDs in monitoring results — skipping deletion[/dim]"
+                        )
+
+                    console.print(
+                        "  [dim]Adding updated chunks to vector store...[/dim]"
+                    )
+                    vs.add_chunks(chunks)
+                    console.print(f"  ✓ Indexed {len(chunks)} chunks")
+
+                except Exception as e:
+                    console.print(f"  [red]✗ Vector index update failed: {e}[/red]")
+                    console.print(
+                        "  [dim]Tip: Run 'greengovrag-cli rag index --mode full' to rebuild manually[/dim]"
+                    )
+
             console.print("[bold green]✓ ETL Pipeline completed![/bold green]")
         else:
             console.print(

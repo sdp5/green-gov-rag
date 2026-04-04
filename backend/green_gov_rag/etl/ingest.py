@@ -36,10 +36,10 @@ from green_gov_rag.types import (
     METADATA_FILE_SUFFIX,
 )
 
-# Paths (for backward compatibility with local mode)
+# Paths — derived from settings where possible, with fallbacks
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-CONFIG_PATH = BASE_DIR / "configs" / "documents_config.yml"
-RAW_DATA_DIR = BASE_DIR / "data" / "raw"
+CONFIG_PATH = Path(settings.documents_config_path)
+RAW_DATA_DIR = Path(settings.raw_data_dir)
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 

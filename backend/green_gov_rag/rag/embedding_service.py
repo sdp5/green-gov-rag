@@ -23,35 +23,49 @@ from typing import TYPE_CHECKING
 from green_gov_rag.config import settings
 
 if TYPE_CHECKING:
-    from sentence_transformers import SentenceTransformer
+    from langchain_core.embeddings import Embeddings
 
 
 class EmbeddingService:
-    """Singleton service for lazy-loading embedding models."""
+    """Singleton service for lazy-loading embedding models.
 
-    _model: SentenceTransformer | None = None
+    Works with any provider supported by ``create_embeddings()`` —
+    HuggingFace, Azure OpenAI, OpenAI, or Bedrock.  The LangChain
+    ``Embeddings`` interface is used internally so provider-specific
+    details are abstracted away.
+    """
+
+    _embedder: Embeddings | None = None
     _model_name: str | None = None
+    _provider: str | None = None
 
     @classmethod
-    def get_model(cls) -> SentenceTransformer:
-        """Get or load the embedding model.
+    def get_embedder(cls) -> Embeddings:
+        """Get or create the LangChain Embeddings instance.
 
-        Loads the model on first access and caches it for subsequent calls.
-        Uses the model specified in settings.embedding_model.
+        Lazily creates the embedder on first access.  Recreates if the
+        configured model or provider has changed.
 
         Returns
         -------
-            SentenceTransformer: The loaded embedding model
+            LangChain ``Embeddings`` instance
 
         """
-        # Load model if not already loaded or if model name changed
-        if cls._model is None or cls._model_name != settings.embedding_model:
-            from sentence_transformers import SentenceTransformer
+        current_model = settings.embedding_model
+        current_provider = settings.embedding_provider
 
-            cls._model_name = settings.embedding_model
-            cls._model = SentenceTransformer(cls._model_name)
+        if (
+            cls._embedder is None
+            or cls._model_name != current_model
+            or cls._provider != current_provider
+        ):
+            from green_gov_rag.rag.embeddings import create_embeddings
 
-        return cls._model
+            cls._model_name = current_model
+            cls._provider = current_provider
+            cls._embedder = create_embeddings(current_provider, current_model)
+
+        return cls._embedder
 
     @classmethod
     def embed_texts(cls, texts: list[str]) -> list[list[float]]:
@@ -66,9 +80,8 @@ class EmbeddingService:
             List of embedding vectors (each is a list of floats)
 
         """
-        model = cls.get_model()
-        embeddings = model.encode(texts, show_progress_bar=False)
-        return embeddings.tolist()
+        embedder = cls.get_embedder()
+        return embedder.embed_documents(texts)
 
     @classmethod
     def embed_query(cls, query: str) -> list[float]:
@@ -83,9 +96,8 @@ class EmbeddingService:
             Embedding vector as list of floats
 
         """
-        model = cls.get_model()
-        embedding = model.encode(query, show_progress_bar=False)
-        return embedding.tolist()
+        embedder = cls.get_embedder()
+        return embedder.embed_query(query)
 
     @classmethod
     def get_embedding_dimension(cls) -> int:
@@ -93,50 +105,27 @@ class EmbeddingService:
 
         Returns
         -------
-            int: Embedding dimension (e.g., 384, 768, 1024)
-
-        Raises
-        ------
-            RuntimeError: If embedding dimension cannot be determined
+            int: Embedding dimension (e.g., 384, 768, 3072)
 
         """
-        model = cls.get_model()
-        dimension = model.get_sentence_embedding_dimension()
-        if dimension is None:
-            raise RuntimeError("Could not determine embedding dimension from model")
-        return dimension
+        return settings.embedding_dimensions
 
     @classmethod
     def clear_model(cls) -> None:
-        """Clear the model from memory.
+        """Clear the embedder from memory.
 
-        Useful after batch operations to free up RAM (~1.5GB for BGE-large).
-        The model will be reloaded on next access.
-
-        Example:
-        -------
-            # Process large batch
-            EmbeddingService.embed_texts(large_batch)
-
-            # Free memory
-            EmbeddingService.clear_model()
-
+        Useful after batch operations to free up RAM.
+        The embedder will be recreated on next access.
         """
-        if cls._model is not None:
-            del cls._model
-            cls._model = None
+        if cls._embedder is not None:
+            del cls._embedder
+            cls._embedder = None
             gc.collect()
 
     @classmethod
     def is_loaded(cls) -> bool:
-        """Check if model is currently loaded in memory.
-
-        Returns
-        -------
-            bool: True if model is loaded, False otherwise
-
-        """
-        return cls._model is not None
+        """Check if embedder is currently loaded in memory."""
+        return cls._embedder is not None
 
     @classmethod
     def get_model_info(cls) -> dict[str, str | int | bool]:
@@ -144,21 +133,15 @@ class EmbeddingService:
 
         Returns
         -------
-            Dictionary with model information:
-            - model_name: Name of the model
-            - is_loaded: Whether model is loaded in memory
-            - dimension: Embedding dimension (if loaded)
+            Dictionary with model information
 
         """
-        info: dict[str, str | int | bool] = {
+        return {
             "model_name": settings.embedding_model,
+            "provider": settings.embedding_provider,
             "is_loaded": cls.is_loaded(),
+            "dimension": settings.embedding_dimensions,
         }
-
-        if cls.is_loaded():
-            info["dimension"] = cls.get_embedding_dimension()
-
-        return info
 
 
 # Convenience functions for backwards compatibility

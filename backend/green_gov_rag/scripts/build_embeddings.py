@@ -16,7 +16,7 @@ os.makedirs(PROCESSED_DIR, exist_ok=True)
 
 def build_embeddings() -> None:
     """Build vector embeddings from documents in RAW_DIR."""
-    embedder = ChunkEmbedder(provider="huggingface")
+    embedder = ChunkEmbedder()
     chunker = TextChunker()
     parser = DocumentParser()
 

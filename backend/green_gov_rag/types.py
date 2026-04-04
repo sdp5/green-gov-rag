@@ -600,6 +600,20 @@ class LLMProvider(str, Enum):
 
 
 # ============================================================================
+# Embedding Provider Types
+# ============================================================================
+
+
+class EmbeddingProvider(str, Enum):
+    """Supported embedding providers."""
+
+    HUGGINGFACE = "huggingface"  # Local sentence-transformers models
+    AZURE_OPENAI = "azure_openai"  # Azure OpenAI (text-embedding-3-large, etc.)
+    OPENAI = "openai"  # OpenAI API (text-embedding-3-large, etc.)
+    BEDROCK = "bedrock"  # AWS Bedrock (via OpenAI-compatible API)
+
+
+# ============================================================================
 # Vector Store Types
 # ============================================================================
 

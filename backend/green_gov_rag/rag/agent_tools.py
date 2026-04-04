@@ -72,7 +72,7 @@ class RAGAgent:
 
         # Initialize embedder if not provided
         if embedder is None:
-            embedder = ChunkEmbedder(provider="huggingface")
+            embedder = ChunkEmbedder()
 
         self.embedder = embedder
 
@@ -284,10 +284,7 @@ if __name__ == "__main__":
     # Initialize the vector store (load prebuilt FAISS or Qdrant store)
     vector_store = VectorStore(
         index_path="faiss_index",
-        embeddings=ChunkEmbedder(
-            provider="huggingface",
-            model_name="sentence-transformers/all-MiniLM-L6-v2",
-        ).embedder,
+        embeddings=ChunkEmbedder().embedder,
     )
     # Load existing vector store from
     vector_store = vector_store.load(path="data/processed/faiss_index")

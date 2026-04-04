@@ -132,7 +132,7 @@ def test_embeddings_query_single(mock_embedder):
 
 def test_chunk_embedder_initialization():
     """Test ChunkEmbedder initialization with mocked providers."""
-    with patch("green_gov_rag.rag.embeddings.HuggingFaceEmbeddings") as mock_hf:
+    with patch("langchain_huggingface.HuggingFaceEmbeddings") as mock_hf:
         from green_gov_rag.rag.embeddings import ChunkEmbedder
 
         embedder = ChunkEmbedder(provider="huggingface")
@@ -144,7 +144,7 @@ def test_chunk_embedder_invalid_provider():
     """Test ChunkEmbedder with invalid provider."""
     from green_gov_rag.rag.embeddings import ChunkEmbedder
 
-    with pytest.raises(ValueError, match="provider must be"):
+    with pytest.raises(ValueError, match="Unsupported embedding provider"):
         ChunkEmbedder(provider="invalid")
 
 

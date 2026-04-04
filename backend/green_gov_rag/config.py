@@ -11,7 +11,12 @@ from typing import Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from green_gov_rag.types import CloudProvider, LLMProvider, VectorStoreType
+from green_gov_rag.types import (
+    CloudProvider,
+    EmbeddingProvider,
+    LLMProvider,
+    VectorStoreType,
+)
 
 # Determine the .env file path (look in backend/ directory)
 ENV_FILE = Path(__file__).parent.parent / ".env"
@@ -139,8 +144,20 @@ class Settings(BaseSettings):
         description="LLM model to use for generation",
     )
     embedding_model: str = Field(
-        default="sentence-transformers/all-MiniLM-L6-v2",
+        default="text-embedding-3-large",
         description="Embedding model for vector generation",
+    )
+    embedding_provider: EmbeddingProvider = Field(
+        default=EmbeddingProvider.AZURE_OPENAI,
+        description="Embedding provider (huggingface, azure_openai, openai, bedrock)",
+    )
+    embedding_dimensions: int = Field(
+        default=3072,
+        description="Embedding vector dimensions (384 for MiniLM, 3072 for text-embedding-3-large)",
+    )
+    azure_openai_embedding_deployment: str | None = Field(
+        default=None,
+        description="Azure OpenAI embedding deployment name (defaults to embedding_model)",
     )
 
     # =========================================================================

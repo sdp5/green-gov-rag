@@ -416,7 +416,7 @@ def etl_embed(
         help="Directory containing chunk JSON files",
     ),
     embedding_model: str = typer.Option(
-        "all-MiniLM-L6-v2",
+        settings.embedding_model,
         "--model",
         "-m",
         help="Embedding model to use",
@@ -437,10 +437,10 @@ def etl_embed(
 
     Example:
     -------
-        greengovrag-cli etl embed --model all-MiniLM-L6-v2
+        greengovrag-cli etl embed
 
     """
-    embedder = ChunkEmbedder(provider="huggingface", model_name=embedding_model)
+    embedder = ChunkEmbedder(model_name=embedding_model)
     embedded_files = 0
 
     for chunk_file in Path(input_dir).rglob("*_chunks.json"):
@@ -663,9 +663,7 @@ def etl_monitor(
                         store_kwargs["api_key"] = settings.qdrant_api_key
 
                 try:
-                    embedder = ChunkEmbedder(
-                        provider="huggingface", model_name=settings.embedding_model
-                    )
+                    embedder = ChunkEmbedder(model_name=settings.embedding_model)
                     vs = create_vector_store(
                         embeddings=embedder.embedder,
                         store_type=vector_store_type,
@@ -796,7 +794,7 @@ def rag_index(
         help="Output path for index (FAISS only, default: data/vector_store/<store_type>)",
     ),
     embedding_model: str = typer.Option(
-        "all-MiniLM-L6-v2",
+        settings.embedding_model,
         "--model",
         "-m",
         help="Embedding model to use",
@@ -881,7 +879,7 @@ def rag_index(
                 index_path = (
                     output_path
                     if output_path
-                    else f"data/vector_store/{vector_store}.index"
+                    else f"{settings.vector_store_path}/{vector_store}.index"
                 )
                 index_exists = Path(index_path).exists()
 
@@ -1021,7 +1019,7 @@ def rag_index(
         force=True,
     )
 
-    embedder = ChunkEmbedder(provider="huggingface", model_name=embedding_model)
+    embedder = ChunkEmbedder(model_name=embedding_model)
 
     # Build vector store
     console.print(f"Building {vector_store} vector store...")
@@ -1031,7 +1029,7 @@ def rag_index(
 
     # Determine output path
     if output_path is None:
-        output_path = f"data/vector_store/{vector_store}"
+        output_path = f"{settings.vector_store_path}/{vector_store}"
         if vector_store == "faiss":
             output_path += ".index"
 
@@ -1133,7 +1131,7 @@ def rag_index(
 def rag_query(
     query: str = typer.Argument(..., help="Query string to search for"),
     index_path: str = typer.Option(
-        "data/vector_store/faiss.index",
+        settings.vector_store_path,
         "--index",
         "-i",
         help="Path to vector store index",
@@ -1170,7 +1168,7 @@ def rag_query(
     """
     console.print(f"[bold blue]Searching for:[/bold blue] {query}")
 
-    embedder = ChunkEmbedder(provider="huggingface")
+    embedder = ChunkEmbedder()
     vector_store = VectorStore(embeddings=embedder.embedder, index_path=index_path)
 
     # Build metadata filters
@@ -1210,7 +1208,7 @@ def rag_geospatial_search(
         help="Location name (e.g., 'Adelaide', 'Port Adelaide')",
     ),
     index_path: str = typer.Option(
-        "data/vector_store/faiss.index",
+        settings.vector_store_path,
         "--index",
         "-i",
         help="Path to vector store index",
@@ -1251,7 +1249,7 @@ def rag_geospatial_search(
         spatial_query = None
 
     # Load vector store and search
-    embedder = ChunkEmbedder(provider="huggingface")
+    embedder = ChunkEmbedder()
     vector_store = VectorStore(embeddings=embedder.embedder, index_path=index_path)
 
     search_engine = HybridGeospatialSearch(vector_store)

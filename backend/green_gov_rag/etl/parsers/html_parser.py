@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 from bs4 import BeautifulSoup
 
 
@@ -32,6 +36,26 @@ def parse_html(file_path: str) -> str:
     except Exception as e:
         msg = f"Error parsing HTML file {file_path}: {e}"
         raise RuntimeError(msg)
+
+
+def parse_html_structured(
+    file_path: str,
+    base_metadata: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """Parse HTML into structured format matching HierarchicalPDFParser output.
+
+    Args:
+        file_path: Path to the HTML file.
+        base_metadata: Document-level metadata to merge into output.
+
+    Returns:
+        List with a single element containing the full text + metadata.
+    """
+    text = parse_html(file_path)
+    meta: dict[str, Any] = dict(base_metadata) if base_metadata else {}
+    meta["chunk_type"] = "paragraph"
+    meta["chunk_id"] = 0
+    return [{"content": text, "metadata": meta}]
 
 
 # Example Usage

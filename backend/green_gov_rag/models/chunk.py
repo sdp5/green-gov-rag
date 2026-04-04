@@ -12,7 +12,7 @@ try:
 
     _PGVECTOR_AVAILABLE = True
 except ImportError:
-    _PgVector = None  # type: ignore[assignment,misc]
+    _PgVector = None
     _PGVECTOR_AVAILABLE = False
 
 

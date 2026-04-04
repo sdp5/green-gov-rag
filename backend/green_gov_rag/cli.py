@@ -32,7 +32,7 @@ from green_gov_rag.etl.db_writer import (
     update_document_source_status,
 )
 from green_gov_rag.etl.metadata_tagger import MetadataTagger
-from green_gov_rag.etl.parsers import parse_file
+from green_gov_rag.etl.parsers import parse_file_structured
 from green_gov_rag.etl.parsers.layout_parser import HierarchicalPDFParser
 from green_gov_rag.etl.pipeline import EnhancedETLPipeline
 from green_gov_rag.etl.storage_adapter import ETLStorageAdapter
@@ -143,40 +143,49 @@ def etl_parse(
         settings.raw_data_dir,
         "--input",
         "-i",
-        help="Directory containing raw documents",
+        help="Directory containing raw documents (PDFs, HTML)",
     ),
     output_dir: str = typer.Option(
         settings.processed_data_dir,
         "--output",
         "-o",
-        help="Output directory for parsed text files",
+        help="Output directory for structured JSON files",
     ),
-    parser_type: str = typer.Option(
-        "auto",
-        "--parser",
-        "-p",
-        help="Parser type: auto, pdf, html (auto detects from extension)",
+    use_fast_strategy: bool = typer.Option(
+        True,
+        "--fast/--accurate",
+        help="Use fast parsing (10x faster) vs accurate (hi_res, better for tables/columns)",
     ),
 ) -> None:
-    """Parse PDFs and HTML files into plain text.
+    """Parse documents into structured JSON with layout metadata.
 
-    Extracts text content from various document formats while preserving
-    structure and metadata. Supports PDF (including layout-aware parsing)
-    and HTML documents.
+    Extracts text from PDFs and HTML files, preserving document structure:
+    page numbers, section hierarchy, clause references, and chunk types.
+
+    Output: one ``*_parsed.json`` file per document in the output directory.
 
     Example:
     -------
-        greengovrag-cli etl parse --input data/raw --output data/processed
+        greengovrag-cli etl parse --input data/raw --output data/processed --fast
 
     """
     console.print(f"[bold blue]Parsing documents from {input_dir}...[/bold blue]")
 
+    cli_default = (
+        PDFParserStrategy.FAST if use_fast_strategy else PDFParserStrategy.HI_RES
+    )
+    hierarchical_parser = HierarchicalPDFParser(
+        default_strategy=cli_default,
+        enable_classifier=False,
+    )
+    console.print(f"Strategy: {'fast' if use_fast_strategy else 'accurate (hi_res)'}")
+
     parsed_count = 0
     skipped_count = 0
     for doc_file in Path(input_dir).rglob("*"):
-        if doc_file.is_file() and doc_file.suffix in [".pdf", ".html", ".htm"]:
+        if doc_file.is_file() and doc_file.suffix.lower() in [".pdf", ".html", ".htm"]:
             try:
-                out_file = Path(output_dir) / (doc_file.stem + ".txt")
+                out_file = Path(output_dir) / (doc_file.stem + "_parsed.json")
 
                 # Checkpoint: skip if already parsed
                 if out_file.exists():
@@ -184,20 +193,32 @@ def etl_parse(
                     console.print(f"  ⊘ Skipped: {doc_file.name} (already parsed)")
                     continue
 
-                text = parse_file(str(doc_file))
+                # Load base_metadata from ingestion sidecar
+                metadata_file = doc_file.with_suffix(doc_file.suffix + ".metadata.json")
+                base_metadata: dict = {}
+                if metadata_file.exists():
+                    with open(metadata_file, encoding="utf-8") as f:
+                        base_metadata = json.load(f)
+
+                # Structured parse: PDF → layout-aware, HTML → text wrapper
+                structured_elements = parse_file_structured(
+                    str(doc_file),
+                    base_metadata=base_metadata,
+                    pdf_parser=hierarchical_parser,
+                )
 
                 out_file.parent.mkdir(parents=True, exist_ok=True)
-                out_file.write_text(text, encoding="utf-8")
+                with open(out_file, "w", encoding="utf-8") as f:
+                    json.dump(structured_elements, f, indent=2)
 
-                # Copy metadata file if it exists
-                metadata_file = doc_file.with_suffix(doc_file.suffix + ".metadata.json")
+                # Copy metadata sidecar for downstream tooling
                 if metadata_file.exists():
-                    out_metadata = out_file.with_suffix(".metadata.json")
+                    out_metadata = Path(output_dir) / (doc_file.stem + ".metadata.json")
                     shutil.copy2(metadata_file, out_metadata)
-                    console.print(f"    → Copied metadata: {metadata_file.name}")
 
                 parsed_count += 1
-                console.print(f"  ✓ Parsed: {doc_file.name}")
+                n = len(structured_elements)
+                console.print(f"  ✓ Parsed: {doc_file.name} ({n} elements)")
             except Exception as e:
                 console.print(f"  ✗ Failed to parse {doc_file.name}: {e}", style="red")
 
@@ -216,7 +237,7 @@ def etl_chunk(
         settings.processed_data_dir,
         "--input",
         "-i",
-        help="Directory containing parsed text files",
+        help="Directory containing *_parsed.json files from etl parse",
     ),
     output_dir: str = typer.Option(
         settings.chunks_data_dir,
@@ -235,11 +256,6 @@ def etl_chunk(
         "--chunk-overlap",
         help="Overlap between chunks in characters",
     ),
-    raw_dir: str = typer.Option(
-        settings.raw_data_dir,
-        "--raw-dir",
-        help="Directory containing original PDF files for citation extraction",
-    ),
     mode: str = typer.Option(
         "auto",
         "--mode",
@@ -252,17 +268,13 @@ def etl_chunk(
         "-f",
         help="Force re-chunking even if output exists (overrides delta mode)",
     ),
-    use_fast_strategy: bool = typer.Option(
-        True,
-        "--fast/--accurate",
-        help="Use fast parsing strategy (10x faster, slightly lower accuracy) vs accurate (slower, higher accuracy)",
-    ),
 ) -> None:
-    """Chunk parsed documents into smaller text segments.
+    """Split parsed documents into smaller text chunks.
 
-    Splits documents into manageable chunks for embedding and retrieval,
-    preserving context through overlapping windows. For PDFs, extracts
-    citation metadata (page numbers, section hierarchy, clause references).
+    Reads *_parsed.json files produced by ``etl parse`` and splits each
+    element into chunks of ``--chunk-size`` characters with overlap,
+    preserving all citation metadata (page numbers, section hierarchy,
+    clause references).
 
     Modes:
     - full: Process all files (ignores existing chunks)
@@ -271,14 +283,8 @@ def etl_chunk(
 
     Example:
     -------
-        # Fast delta processing (default, recommended)
         greengovrag-cli etl chunk
-
-        # Full re-processing with accurate mode
-        greengovrag-cli etl chunk --mode full --accurate
-
-        # Force re-chunk specific files
-        greengovrag-cli etl chunk --force
+        greengovrag-cli etl chunk --mode full --chunk-size 500
 
     """
     # Validate mode
@@ -287,117 +293,52 @@ def etl_chunk(
         console.print("Valid modes: full, delta, auto")
         raise typer.Exit(1)
 
-    # Determine effective mode
     effective_mode = mode
     if mode == "auto":
-        effective_mode = "delta"  # Default to delta for auto mode
-
+        effective_mode = "delta"
     if force:
-        effective_mode = "full"  # Force overrides mode
+        effective_mode = "full"
 
     console.print(f"[bold blue]Chunking documents from {input_dir}...[/bold blue]")
-    console.print(f"Chunk size: {chunk_size}, Overlap: {chunk_overlap}")
     console.print(
-        f"Mode: {effective_mode}, Strategy: {'fast' if use_fast_strategy else 'accurate'}"
+        f"Chunk size: {chunk_size}, Overlap: {chunk_overlap}, Mode: {effective_mode}"
     )
 
     chunker = TextChunker(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
 
-    # Initialize parser with CLI-selected strategy.
-    # --fast / --accurate set a uniform default for all documents.
-    # Per-document 'parsing_strategy' overrides in YAML take priority at parse time.
-    cli_default = (
-        PDFParserStrategy.FAST if use_fast_strategy else PDFParserStrategy.HI_RES
-    )
-    hierarchical_parser = HierarchicalPDFParser(
-        default_strategy=cli_default,
-        enable_classifier=False,
-    )
-
     chunked_count = 0
     skipped_count = 0
 
-    for txt_file in Path(input_dir).rglob("*.txt"):
+    for parsed_file in Path(input_dir).rglob("*_parsed.json"):
         try:
-            # Check if output already exists (delta mode)
-            out_file = Path(output_dir) / (txt_file.stem + "_chunks.json")
+            # Derive output filename: doc_parsed.json → doc_chunks.json
+            base_stem = parsed_file.name.removesuffix("_parsed.json")
+            out_file = Path(output_dir) / (base_stem + "_chunks.json")
 
             if effective_mode == "delta" and out_file.exists():
                 skipped_count += 1
-                console.print(f"  ⊘ Skipped: {txt_file.name} (already chunked)")
+                console.print(f"  ⊘ Skipped: {parsed_file.name} (already chunked)")
                 continue
 
-            # Look for corresponding metadata file from ingestion
-            metadata_file = txt_file.parent / (txt_file.stem + ".metadata.json")
-            base_metadata = {}
-            if metadata_file.exists():
-                with open(metadata_file) as f:
-                    base_metadata = json.load(f)
+            with open(parsed_file, encoding="utf-8") as f:
+                structured_elements = json.load(f)
 
-            # Try to find original PDF in raw directory for citation extraction
-            pdf_file = None
-            for pdf_path in Path(raw_dir).rglob(f"{txt_file.stem}.pdf"):
-                pdf_file = pdf_path
-                break
+            if not structured_elements:
+                console.print(f"  [yellow]⚠ Empty: {parsed_file.name}[/yellow]")
+                continue
 
-            chunks = []
-
-            if pdf_file and pdf_file.exists() and hierarchical_parser:
-                # Use hierarchical parser for PDFs to extract citation metadata.
-                # Per-doc parsing_strategy in base_metadata overrides CLI default.
-                try:
-                    hierarchical_chunks = hierarchical_parser.parse_with_structure(
-                        pdf_file, base_metadata=base_metadata
-                    )
-                    # Further chunk if needed (preserving citation metadata)
-                    chunks = chunker.chunk_with_hierarchy(hierarchical_chunks)
-                    console.print(
-                        f"  → Extracted citation metadata from PDF: {pdf_file.name}"
-                    )
-                except Exception as e:
-                    console.print(
-                        f"  [red]✗ PDF parse FAILED for {pdf_file.name}: {e}[/red]"
-                    )
-                    console.print(
-                        "  [yellow]→ Falling back to plain text chunking (no citation metadata)[/yellow]"
-                    )
-                    import logging as _logging
-
-                    _logging.getLogger(__name__).warning(
-                        "PDF parse failed for %s: %s", pdf_file, e, exc_info=True
-                    )
-                    pdf_file = None  # Fall back to text chunking
-                    # Mark fallback so every chunk carries this flag in its metadata
-                    base_metadata["used_text_fallback"] = True
-                    base_metadata["text_fallback_reason"] = str(e)
-
-            # Fallback: simple text chunking without citation metadata
-            if not pdf_file or not chunks:
-                text = txt_file.read_text(encoding="utf-8")
-                text_chunks = chunker.chunk_text(text)
-
-                for i, chunk_text in enumerate(text_chunks):
-                    chunk_obj = {
-                        "content": chunk_text,
-                        "metadata": {
-                            **base_metadata,  # Include document-level metadata
-                            "chunk_index": i,  # Sequential index within document
-                            "source_file": txt_file.stem,
-                        },
-                    }
-                    chunks.append(chunk_obj)
+            # Split large elements while preserving citation metadata
+            chunks = chunker.chunk_with_hierarchy(structured_elements)
 
             out_file.parent.mkdir(parents=True, exist_ok=True)
-
             with open(out_file, "w", encoding="utf-8") as f:
                 json.dump(chunks, f, indent=2)
 
             chunked_count += 1
-            console.print(f"  ✓ Chunked: {txt_file.name} ({len(chunks)} chunks)")
+            console.print(f"  ✓ Chunked: {base_stem} ({len(chunks)} chunks)")
         except Exception as e:
-            console.print(f"  ✗ Failed to chunk {txt_file.name}: {e}", style="red")
+            console.print(f"  ✗ Failed to chunk {parsed_file.name}: {e}", style="red")
 
-    # Summary
     console.print(
         f"[bold green]✓ Chunked {chunked_count} documents to {output_dir}[/bold green]",
     )
@@ -943,7 +884,7 @@ def rag_index(
     console.print(f"Batch size: {batch_size}")
 
     # Load chunks
-    all_chunks = []
+    all_chunks: list[dict] = []
     skipped_files = 0
     processed_files = 0
 

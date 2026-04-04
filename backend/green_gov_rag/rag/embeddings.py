@@ -48,22 +48,32 @@ def create_embeddings(
 
     if provider == "azure_openai":
         from langchain_openai import AzureOpenAIEmbeddings
+        from pydantic import SecretStr
 
         deployment = settings.azure_openai_embedding_deployment or model_name
+        api_key = (
+            SecretStr(settings.azure_openai_api_key)
+            if settings.azure_openai_api_key
+            else None
+        )
         return AzureOpenAIEmbeddings(
             model=model_name,
             azure_deployment=deployment,
             azure_endpoint=settings.azure_openai_endpoint or "",
-            api_key=settings.azure_openai_api_key,
+            api_key=api_key,
             api_version=settings.azure_openai_api_version,
         )
 
     if provider == "openai":
         from langchain_openai import OpenAIEmbeddings
+        from pydantic import SecretStr as _SecretStr
 
+        oai_key = (
+            _SecretStr(settings.openai_api_key) if settings.openai_api_key else None
+        )
         return OpenAIEmbeddings(
             model=model_name,
-            openai_api_key=settings.openai_api_key,
+            api_key=oai_key,
         )
 
     if provider == "bedrock":

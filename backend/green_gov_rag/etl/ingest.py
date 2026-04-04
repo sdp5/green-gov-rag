@@ -22,6 +22,7 @@ import requests
 import yaml
 
 from green_gov_rag.config import settings
+from green_gov_rag.etl.db_writer import save_document_file, save_document_source
 from green_gov_rag.etl.storage_adapter import ETLStorageAdapter
 from green_gov_rag.types import (
     DEFAULT_DOWNLOAD_BACKOFF,
@@ -459,6 +460,41 @@ def ingest_documents(
                                 "source_pdf_url"
                             ] = url  # Add PDF URL for deep linking
 
+                            # Write DocumentSource + DocumentFile to DB immediately
+                            db_file_record = None
+                            try:
+                                db_source_record = save_document_source(
+                                    title=metadata.get("title", ""),
+                                    source_url=metadata.get("source_url", ""),
+                                    jurisdiction=metadata.get(
+                                        "jurisdiction", "unknown"
+                                    ),
+                                    topic=metadata.get("topic", "general"),
+                                    region=metadata.get("region"),
+                                    category=metadata.get("category"),
+                                    esg_metadata=metadata.get("esg_metadata"),
+                                    spatial_metadata=metadata.get("spatial_metadata"),
+                                    metadata=metadata,
+                                    status="completed",
+                                )
+                                db_file_record = save_document_file(
+                                    source_id=db_source_record.id,
+                                    filename=final_filename,
+                                    file_url=url,
+                                    content_hash=metadata_with_file["sha256"],
+                                    file_size_bytes=final_path.stat().st_size,
+                                    status="completed",
+                                )
+                                # Embed file_id and source_id in sidecar so etl chunk inherits them
+                                metadata_with_file["file_id"] = db_file_record.id
+                                metadata_with_file["source_id"] = db_source_record.id
+                            except Exception as db_exc:
+                                logger.warning(
+                                    "Failed to write DB record for %s: %s",
+                                    final_path,
+                                    db_exc,
+                                )
+
                             metadata_path = (
                                 final_path.parent
                                 / f"{final_filename}{METADATA_FILE_SUFFIX}"
@@ -480,6 +516,20 @@ def ingest_documents(
                 except Exception as e:
                     logger.error(f"Failed to process {url}: {e}", exc_info=True)
                     print(f"❌ Error processing {url}: {e}")
+                    # Best-effort: record error in DB if we have a file record
+                    try:
+                        if "db_file_record" in dir() and db_file_record is not None:
+                            from green_gov_rag.etl.db_writer import (
+                                update_document_file_status,
+                            )
+
+                            update_document_file_status(
+                                file_id=db_file_record.id,
+                                status="failed",
+                                error_message=str(e),
+                            )
+                    except Exception:
+                        pass
 
         except Exception as e:
             logger.error(

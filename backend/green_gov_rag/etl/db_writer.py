@@ -117,6 +117,7 @@ def save_document_file(
     file_size_bytes: Optional[int] = None,
     file_metadata: Optional[dict] = None,
     status: str = "pending",
+    id: Optional[str] = None,
 ) -> DocumentFile:
     """Save document file (individual PDF) to database.
 
@@ -128,12 +129,17 @@ def save_document_file(
         file_size_bytes: File size in bytes
         file_metadata: File-specific metadata (page count, format, etc.)
         status: Processing status
+        id: Explicit file ID (if provided, used as-is; otherwise generated from
+            source_id + filename hash). Pass the ID from the ingest metadata.json
+            sidecar to guarantee the same ID is used across all pipeline stages.
 
     Returns:
         DocumentFile: Saved document file
     """
-    # Generate file_id from source_id and filename
-    file_id = f"{source_id}_{hashlib.md5(filename.encode()).hexdigest()[:8]}"
+    # Use provided ID if given, otherwise generate from source_id + filename
+    file_id = (
+        id if id else f"{source_id}_{hashlib.md5(filename.encode()).hexdigest()[:8]}"
+    )
 
     with Session(engine) as session:
         # Check if file already exists
@@ -267,6 +273,7 @@ def save_chunk(
     citation: Optional[str] = None,
     embedding_index: Optional[int] = None,
     embedding_model: Optional[str] = None,
+    embedding: Optional[list[float]] = None,
     metadata: Optional[dict] = None,
 ) -> Chunk:
     """Save text chunk to database.
@@ -286,6 +293,7 @@ def save_chunk(
         citation: Formatted citation string for display
         embedding_index: Index in vector store
         embedding_model: Embedding model used
+        embedding: Dense embedding vector (e.g. 384-dim from all-MiniLM-L6-v2)
         metadata: Additional chunk metadata
 
     Returns:
@@ -320,6 +328,8 @@ def save_chunk(
             existing_chunk.citation = citation
             existing_chunk.embedding_index = embedding_index
             existing_chunk.embedding_model = embedding_model
+            if embedding is not None:
+                existing_chunk.embedding = embedding
             existing_chunk.metadata_ = metadata
 
             session.add(existing_chunk)
@@ -333,24 +343,27 @@ def save_chunk(
             return existing_chunk
         else:
             # Create new chunk
-            chunk = Chunk(
-                source_id=source_id,
-                file_id=file_id,
-                chunk_index=chunk_index,
-                text=text,
-                char_count=len(text),
-                page_number=page_number,
-                page_range=page_range,
-                section_title=section_title,
-                section_hierarchy=section_hierarchy,
-                clause_reference=clause_reference,
-                source_pdf_url=source_pdf_url,
-                deep_link=deep_link,
-                citation=citation,
-                embedding_index=embedding_index,
-                embedding_model=embedding_model,
-                metadata_=metadata,
-            )
+            chunk_kwargs: dict[str, Any] = {
+                "source_id": source_id,
+                "file_id": file_id,
+                "chunk_index": chunk_index,
+                "text": text,
+                "char_count": len(text),
+                "page_number": page_number,
+                "page_range": page_range,
+                "section_title": section_title,
+                "section_hierarchy": section_hierarchy,
+                "clause_reference": clause_reference,
+                "source_pdf_url": source_pdf_url,
+                "deep_link": deep_link,
+                "citation": citation,
+                "embedding_index": embedding_index,
+                "embedding_model": embedding_model,
+                "metadata_": metadata,
+            }
+            if embedding is not None:
+                chunk_kwargs["embedding"] = embedding
+            chunk = Chunk(**chunk_kwargs)
 
             session.add(chunk)
             session.commit()

@@ -6,6 +6,7 @@ the application, replacing hardcoded strings and static dictionaries.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import NamedTuple
 
@@ -633,7 +634,20 @@ class PDFParserStrategy(str, Enum):
 
     HI_RES = "hi_res"  # High resolution (slower, more accurate)
     FAST = "fast"  # Fast processing (lower accuracy)
-    AUTO = "auto"  # Automatic selection
+    AUTO = "auto"  # Automatic selection (let classifier decide)
+    ADI = "adi"  # Azure Document Intelligence (not yet implemented)
+
+
+@dataclass
+class PDFClassificationResult:
+    """Result of PDF complexity classification."""
+
+    strategy: PDFParserStrategy
+    extract_images: bool = False
+    confidence: float = 1.0
+    signals: dict[str, float] = field(default_factory=dict)
+    # "classifier" | "config" | "cli"
+    override_source: str = "classifier"
 
 
 class ChunkType(str, Enum):

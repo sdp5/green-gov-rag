@@ -39,7 +39,11 @@ class UnstructuredPDFParser:
 
     """
 
-    def __init__(self, strategy: str = PDFParserStrategy.HI_RES.value) -> None:
+    def __init__(
+        self,
+        strategy: str = PDFParserStrategy.HI_RES.value,
+        extract_images: bool = False,
+    ) -> None:
         """Initialize Unstructured PDF parser.
 
         Args:
@@ -47,9 +51,12 @@ class UnstructuredPDFParser:
             strategy: Parsing strategy - "hi_res" for detailed analysis (slower),
                      "fast" for quick parsing, or "auto" for automatic selection.
                      Recommended: "hi_res" for regulatory documents.
+            extract_images: Whether to extract images from the PDF. Useful for
+                     vision-heavy documents (planning maps, diagrams). Default False.
 
         """
         self.strategy = strategy
+        self.extract_images = extract_images
 
     def parse_with_structure(
         self,
@@ -79,7 +86,7 @@ class UnstructuredPDFParser:
             strategy=self.strategy,
             infer_table_structure=True,
             include_page_breaks=True,
-            extract_images_in_pdf=False,  # Skip images for now
+            extract_images_in_pdf=self.extract_images,
         )
 
         # Track section hierarchy as we process elements

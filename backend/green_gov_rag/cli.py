@@ -34,7 +34,6 @@ from green_gov_rag.etl.db_writer import (
 from green_gov_rag.etl.metadata_tagger import MetadataTagger
 from green_gov_rag.etl.parsers import parse_file
 from green_gov_rag.etl.parsers.layout_parser import HierarchicalPDFParser
-from green_gov_rag.etl.parsers.unstructured_parser import UnstructuredPDFParser
 from green_gov_rag.etl.pipeline import EnhancedETLPipeline
 from green_gov_rag.etl.storage_adapter import ETLStorageAdapter
 from green_gov_rag.models.base import engine
@@ -291,14 +290,16 @@ def etl_chunk(
 
     chunker = TextChunker(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
 
-    # Initialize parser with strategy
-    hierarchical_parser = HierarchicalPDFParser()
-    if use_fast_strategy:
-        # Pre-initialize with fast strategy
-        fast_parser: UnstructuredPDFParser = UnstructuredPDFParser(
-            strategy=PDFParserStrategy.FAST.value
-        )
-        hierarchical_parser._unstructured_parser = fast_parser
+    # Initialize parser with CLI-selected strategy.
+    # --fast / --accurate set a uniform default for all documents.
+    # Per-document 'parsing_strategy' overrides in YAML take priority at parse time.
+    cli_default = (
+        PDFParserStrategy.FAST if use_fast_strategy else PDFParserStrategy.HI_RES
+    )
+    hierarchical_parser = HierarchicalPDFParser(
+        default_strategy=cli_default,
+        enable_classifier=False,
+    )
 
     chunked_count = 0
     skipped_count = 0
@@ -329,7 +330,8 @@ def etl_chunk(
             chunks = []
 
             if pdf_file and pdf_file.exists() and hierarchical_parser:
-                # Use hierarchical parser for PDFs to extract citation metadata
+                # Use hierarchical parser for PDFs to extract citation metadata.
+                # Per-doc parsing_strategy in base_metadata overrides CLI default.
                 try:
                     hierarchical_chunks = hierarchical_parser.parse_with_structure(
                         pdf_file, base_metadata=base_metadata

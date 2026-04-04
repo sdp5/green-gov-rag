@@ -8,11 +8,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from green_gov_rag.etl.sources.base import DocumentSource, ValidationResult
+from green_gov_rag.etl.sources.base import (
+    DocumentSource,
+    MonitorableSource,
+    ValidationResult,
+)
 from green_gov_rag.types import STATE_CODE_TO_NAME, AustralianState
 
 
-class StateLegislationSource(DocumentSource):
+class StateLegislationSource(DocumentSource, MonitorableSource):
     """Document source for state-level legislation and regulations.
 
     Handles state-level documents from:

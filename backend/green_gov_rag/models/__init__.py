@@ -4,6 +4,7 @@ from green_gov_rag.models.base import get_session, init_db
 from green_gov_rag.models.chunk import Chunk
 from green_gov_rag.models.document import DocumentFile, DocumentSource
 from green_gov_rag.models.document_version import DocumentVersion, MonitoringLog
+from green_gov_rag.models.lifecycle import LifecycleEventLog
 from green_gov_rag.models.query import QueryHistory
 
 __all__ = [
@@ -13,6 +14,7 @@ __all__ = [
     "MonitoringLog",
     "QueryHistory",
     "Chunk",
+    "LifecycleEventLog",
     "get_session",
     "init_db",
 ]

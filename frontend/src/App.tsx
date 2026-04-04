@@ -1,12 +1,14 @@
 import { Leaf, Github } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import PlaygroundPage from './pages/PlaygroundPage';
+import LifecycleDashboardPage from './pages/LifecycleDashboardPage';
 import './index.css';
 import { useEffect, useState } from 'react';
 import apiClient from './api/client';
 
-function App() {
+function PlaygroundShell() {
   const [version, setVersion] = useState<string>('');
 
   useEffect(() => {
@@ -77,6 +79,17 @@ function App() {
         </div>
       </footer>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<PlaygroundShell />} />
+        <Route path="/admin/lifecycle" element={<LifecycleDashboardPage />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

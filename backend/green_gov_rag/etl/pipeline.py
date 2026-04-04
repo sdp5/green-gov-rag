@@ -76,12 +76,17 @@ class EnhancedETLPipeline:
     def load_and_parse_documents(
         self,
         config_path: str = "configs/documents_config.yml",
+        document_ids: list[str] | None = None,
     ) -> list[Document]:
         """Load documents from config and parse them.
 
         Args:
         ----
             config_path: Path to documents config YAML
+            document_ids: Optional allowlist of document IDs. When provided,
+                only URLs whose generated file_id is in this set are loaded.
+                This enables true delta processing — non-changed documents are
+                skipped before download/parse/chunk.
 
         Returns:
         -------
@@ -126,6 +131,10 @@ class EnhancedETLPipeline:
             for url in urls:
                 # Generate file_id for this URL (consistent with ingest.py)
                 file_id = source.get_document_id(url)
+
+                # Delta mode: skip URLs that haven't changed
+                if document_ids is not None and file_id not in document_ids:
+                    continue
 
                 # Add file_id to metadata for citation verification
                 metadata_with_file_id = base_metadata.copy()
@@ -216,9 +225,11 @@ class EnhancedETLPipeline:
         print(f"Storage mode: {'cloud' if self.use_cloud else 'local'}")
         print("=" * 60)
 
-        # Step 1: Load and parse documents
+        # Step 1: Load and parse documents (delta mode if document_ids provided)
         print("\n1. Loading documents from config...")
-        documents = self.load_and_parse_documents(config_path)
+        documents = self.load_and_parse_documents(
+            config_path, document_ids=document_ids
+        )
         print(f"Loaded {len(documents)} documents")
 
         # Step 2: Auto-tag with ESG metadata (if enabled)

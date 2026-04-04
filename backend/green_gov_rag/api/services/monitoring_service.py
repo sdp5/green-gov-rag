@@ -27,7 +27,7 @@ from green_gov_rag.etl.sources.base import (
     MonitorableSource,
 )
 from green_gov_rag.etl.sources.registry import DocumentSourceRegistry
-from green_gov_rag.models import DocumentVersion, MonitoringLog
+from green_gov_rag.models import DocumentFile, DocumentVersion, MonitoringLog
 from green_gov_rag.models.base import engine
 
 logger = logging.getLogger(__name__)
@@ -154,6 +154,7 @@ class MonitoringService:
             documents_new = 0
             documents_updated = 0
             documents_unchanged = 0
+            documents_dead = 0  # URLs returning 404 — no replacement yet
             changed_document_ids = []  # Track changed document IDs
 
             # Check each discovered document
@@ -171,6 +172,11 @@ class MonitoringService:
                 elif change_result.change_type == "updated":
                     documents_updated += 1
                     changed_document_ids.append(doc_id)
+                elif change_result.change_type == "deleted":
+                    # URL returned 404 — transition to url_dead, NOT superseded.
+                    # Document stays in search until admin provides a replacement URL.
+                    documents_dead += 1
+                    self._transition_to_url_dead(doc_id, run_id)
                 elif change_result.change_type == "unchanged":
                     documents_unchanged += 1
 
@@ -189,6 +195,7 @@ class MonitoringService:
                     log_result.documents_updated = documents_updated
                     log_result.documents_unchanged = documents_unchanged
                     log_result.status = "completed"
+                    log_result.details = {"documents_dead": documents_dead}
                     session.add(log_result)
                     session.commit()
 
@@ -201,7 +208,8 @@ class MonitoringService:
                 "documents_discovered": documents_new,
                 "documents_updated": documents_updated,
                 "documents_unchanged": documents_unchanged,
-                "changed_document_ids": changed_document_ids,  # NEW: for delta indexing
+                "documents_dead": documents_dead,
+                "changed_document_ids": changed_document_ids,  # for delta indexing
             }
 
             logger.info(f"Completed monitoring run {run_id}: {result}")
@@ -341,7 +349,7 @@ class MonitoringService:
         content_hash = discovered.content_hash or self._hash_url(discovered.url)
 
         version = DocumentVersion(
-            document_id=doc_id,
+            source_id=doc_id,
             version_number=version_number,
             content_hash=content_hash,
             source_url=discovered.url,
@@ -361,6 +369,42 @@ class MonitoringService:
         session.refresh(version)
 
         return version
+
+    def _transition_to_url_dead(self, doc_id: str, run_id: str) -> None:
+        """Transition a DocumentFile to url_dead when its URL returns 404.
+
+        The document stays in search until an admin provides a replacement URL.
+        Uses DocumentLifecycleService to enforce valid transitions only.
+        """
+        from green_gov_rag.api.services.lifecycle_service import (
+            DocumentLifecycleService,
+            InvalidLifecycleTransition,
+        )
+        from green_gov_rag.models.base import engine
+
+        with Session(engine) as session:
+            # Find the DocumentFile whose id matches doc_id
+            file_row = session.exec(
+                select(DocumentFile).where(DocumentFile.id == doc_id)
+            ).first()
+            if file_row is None:
+                logger.debug("_transition_to_url_dead: no DocumentFile for %s", doc_id)
+                return
+
+            svc = DocumentLifecycleService(session)
+            try:
+                svc.transition(
+                    file_id=file_row.id,
+                    new_state="url_dead",
+                    triggered_by="monitor_run",
+                    http_status=404,
+                    run_id=run_id,
+                    reason="URL returned HTTP 404 — document may be superseded",
+                )
+                logger.info("Transitioned %s to url_dead", doc_id)
+            except InvalidLifecycleTransition as exc:
+                # Already in url_dead or a terminal state — that's fine
+                logger.debug("Skipping lifecycle transition for %s: %s", doc_id, exc)
 
     def _generate_document_id(self, source: Any, url: str) -> str:
         """Generate unique document ID using source plugin (single source of truth).

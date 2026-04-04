@@ -17,7 +17,8 @@ from green_gov_rag.api.routes import router as api_router
 from green_gov_rag.api.schemas import RootResponse
 from green_gov_rag.api.startup_validation import run_startup_validation
 from green_gov_rag.config import settings
-from green_gov_rag.models.base import init_db
+from green_gov_rag.etl.bootstrap import bootstrap_db_from_yaml
+from green_gov_rag.models.base import engine, init_db
 
 # Create FastAPI app
 app = FastAPI(
@@ -51,8 +52,14 @@ async def startup_event():
     # Run startup validation checks
     run_startup_validation()
 
-    # Initialize database
+    # Initialize database (creates tables)
     init_db()
+
+    # Seed DB from YAML config (idempotent — skips existing rows)
+    from sqlmodel import Session
+
+    with Session(engine) as session:
+        bootstrap_db_from_yaml(session)
 
 
 # Include API routes

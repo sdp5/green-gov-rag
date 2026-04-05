@@ -579,6 +579,7 @@ DEFAULT_HTTP_HEADERS = {
 DEFAULT_DOWNLOAD_TIMEOUT = 30  # seconds
 DEFAULT_DOWNLOAD_RETRIES = 3
 DEFAULT_DOWNLOAD_BACKOFF = 2  # exponential backoff multiplier
+NEEDS_ATTENTION_THRESHOLD = 3  # consecutive same-reason failures before flagging
 DEFAULT_HASH_CHUNK_SIZE = 8192  # bytes for file hashing
 FAILED_DOWNLOADS_FILENAME = "failed_downloads.txt"
 DOWNLOAD_ERRORS_LOG_FILENAME = "download_errors.log"
@@ -662,6 +663,23 @@ class PDFClassificationResult:
     signals: dict[str, float] = field(default_factory=dict)
     # "classifier" | "config" | "cli"
     override_source: str = "classifier"
+
+
+@dataclass
+class DownloadResult:
+    """Structured result from download_file(), replacing bare bool.
+
+    failure_reason uses controlled vocabulary for admin dashboard grouping:
+    cloudflare, http_403, http_404, http_503, timeout,
+    connection_error, ssl_error, unknown.
+    """
+
+    success: bool
+    url: str = ""
+    failure_reason: str = ""
+    status_code: int | None = None
+    attempts_this_run: int = 0
+    error_detail: str = ""
 
 
 class ChunkType(str, Enum):

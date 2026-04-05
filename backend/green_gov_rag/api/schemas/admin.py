@@ -124,3 +124,64 @@ class SystemHealthResponse(BaseModel):
     database: str = Field(..., json_schema_extra={"examples": ["connected"]})
     vector_store: str = Field(..., json_schema_extra={"examples": ["faiss"]})
     llm_provider: str = Field(..., json_schema_extra={"examples": ["openai"]})
+
+
+# --- Download failure tracking schemas ---
+
+
+class DownloadFailureGroup(BaseModel):
+    """A group of failures by a dimension (reason/state/lga/jurisdiction)."""
+
+    group_key: str = Field(..., json_schema_extra={"examples": ["cloudflare"]})
+    group_label: str = Field(
+        ..., json_schema_extra={"examples": ["Cloudflare Protection"]}
+    )
+    count: int = Field(..., json_schema_extra={"examples": [20]})
+    needs_attention_count: int = Field(..., json_schema_extra={"examples": [15]})
+    sample_urls: list[str] = Field(
+        default_factory=list,
+        json_schema_extra={"examples": [["https://plan.sa.gov.au/doc.pdf"]]},
+    )
+
+
+class DownloadFailureSummaryResponse(BaseModel):
+    """Failures grouped by a dimension."""
+
+    group_by: str = Field(..., json_schema_extra={"examples": ["reason"]})
+    total_failures: int = Field(..., json_schema_extra={"examples": [25]})
+    total_needs_attention: int = Field(..., json_schema_extra={"examples": [20]})
+    groups: list[DownloadFailureGroup]
+
+
+class DownloadFailureItem(BaseModel):
+    """Single failure detail with source context."""
+
+    file_id: str = Field(..., json_schema_extra={"examples": ["abc123_def456"]})
+    source_id: str = Field(..., json_schema_extra={"examples": ["abc123"]})
+    source_title: str = Field(..., json_schema_extra={"examples": ["SA Planning Code"]})
+    file_url: str = Field(
+        ...,
+        json_schema_extra={"examples": ["https://plan.sa.gov.au/doc.pdf"]},
+    )
+    failure_reason: str | None = Field(
+        None, json_schema_extra={"examples": ["cloudflare"]}
+    )
+    attempt_count: int = Field(..., json_schema_extra={"examples": [3]})
+    needs_attention: bool = Field(..., json_schema_extra={"examples": [True]})
+    last_attempt_at: str | None = Field(
+        None, json_schema_extra={"examples": ["2026-04-05T10:30:00Z"]}
+    )
+    status_code: int | None = Field(None, json_schema_extra={"examples": [403]})
+    jurisdiction: str = Field(..., json_schema_extra={"examples": ["state"]})
+    state: str | None = Field(None, json_schema_extra={"examples": ["SA"]})
+    lga_names: list[str] = Field(
+        default_factory=list,
+        json_schema_extra={"examples": [["City of Adelaide"]]},
+    )
+
+
+class DownloadFailureListResponse(BaseModel):
+    """Paginated failure list."""
+
+    total: int = Field(..., json_schema_extra={"examples": [25]})
+    failures: list[DownloadFailureItem]

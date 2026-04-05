@@ -13,7 +13,7 @@ import json
 import logging
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -22,7 +22,11 @@ import requests
 import yaml
 
 from green_gov_rag.config import settings
-from green_gov_rag.etl.db_writer import save_document_file, save_document_source
+from green_gov_rag.etl.db_writer import (
+    get_existing_file_error_data,
+    save_document_file,
+    save_document_source,
+)
 from green_gov_rag.etl.storage_adapter import ETLStorageAdapter
 from green_gov_rag.types import (
     DEFAULT_DOWNLOAD_BACKOFF,
@@ -34,6 +38,8 @@ from green_gov_rag.types import (
     DOWNLOAD_ERRORS_LOG_FILENAME,
     FAILED_DOWNLOADS_FILENAME,
     METADATA_FILE_SUFFIX,
+    NEEDS_ATTENTION_THRESHOLD,
+    DownloadResult,
 )
 
 # Paths — derived from settings where possible, with fallbacks
@@ -67,12 +73,32 @@ def sha256sum(file_path):
     return h.hexdigest()
 
 
+def _classify_failure(
+    exc: Exception | None,
+    status_code: int | None,
+    is_cloudflare: bool,
+) -> str:
+    """Classify a download failure into a controlled vocabulary reason."""
+    if is_cloudflare:
+        return "cloudflare"
+    if status_code is not None:
+        return f"http_{status_code}"
+    if exc is not None:
+        if isinstance(exc, requests.exceptions.Timeout):
+            return "timeout"
+        if isinstance(exc, requests.exceptions.ConnectionError):
+            return "connection_error"
+        if isinstance(exc, requests.exceptions.SSLError):
+            return "ssl_error"
+    return "unknown"
+
+
 def download_file(
-    url,
-    dest_path,
-    retries=DEFAULT_DOWNLOAD_RETRIES,
-    backoff=DEFAULT_DOWNLOAD_BACKOFF,
-) -> bool:
+    url: str,
+    dest_path: str,
+    retries: int = DEFAULT_DOWNLOAD_RETRIES,
+    backoff: int = DEFAULT_DOWNLOAD_BACKOFF,
+) -> DownloadResult:
     """Download file with retry logic.
 
     Uses browser-like headers to avoid bot detection (Cloudflare, etc.).
@@ -84,10 +110,12 @@ def download_file(
         backoff: Backoff multiplier for retries
 
     Returns:
-        True if successful, False otherwise
+        DownloadResult with success status and failure details
     """
     attempt = 0
     last_status_code = None
+    last_exc: Exception | None = None
+    is_cloudflare = False
 
     while attempt < retries:
         try:
@@ -101,7 +129,6 @@ def download_file(
 
             # Check for bot protection (403/503 from Cloudflare, etc.)
             if resp.status_code in (403, 503):
-                # Check if it's Cloudflare protection
                 is_cloudflare = (
                     "cloudflare" in resp.headers.get("Server", "").lower()
                     or "cf-ray" in resp.headers
@@ -112,18 +139,30 @@ def download_file(
                         f"Cloudflare protection detected for {url}. "
                         "Manual download required."
                     )
-                    # Don't retry Cloudflare-protected URLs
-                    return False
+                    attempt += 1
+                    return DownloadResult(
+                        success=False,
+                        url=url,
+                        failure_reason="cloudflare",
+                        status_code=resp.status_code,
+                        attempts_this_run=attempt,
+                        error_detail="Cloudflare protection detected",
+                    )
 
             resp.raise_for_status()
 
             with open(dest_path, "wb") as f:
                 f.write(resp.content)
-            return True
+            return DownloadResult(
+                success=True,
+                url=url,
+                attempts_this_run=attempt + 1,
+            )
 
         except requests.exceptions.HTTPError as e:
             attempt += 1
-            if last_status_code in (403, 403):
+            last_exc = e
+            if last_status_code in (403,):
                 logger.error(
                     f"Access denied (HTTP {last_status_code}) for {url}. "
                     "Likely bot protection. Skipping retries."
@@ -135,11 +174,61 @@ def download_file(
 
         except Exception as e:
             attempt += 1
+            last_exc = e
             logger.error(f"Error downloading {url}: {e} (attempt {attempt})")
             if attempt < retries:
                 time.sleep(backoff**attempt)
 
-    return False
+    reason = _classify_failure(last_exc, last_status_code, is_cloudflare)
+    return DownloadResult(
+        success=False,
+        url=url,
+        failure_reason=reason,
+        status_code=last_status_code,
+        attempts_this_run=attempt,
+        error_detail=str(last_exc) if last_exc else "",
+    )
+
+
+def _build_error_message_json(
+    result: DownloadResult,
+    prev_error_data: dict[str, Any] | None,
+) -> str:
+    """Build structured JSON error_message, merging with previous attempt history."""
+    prev_history = []
+    if prev_error_data:
+        prev_history = prev_error_data.get("attempt_history", [])
+
+    now = datetime.now(timezone.utc).isoformat()
+    prev_history.append(
+        {
+            "at": now,
+            "reason": result.failure_reason,
+            "status_code": result.status_code,
+        }
+    )
+
+    return json.dumps(
+        {
+            "failure_reason": result.failure_reason,
+            "status_code": result.status_code,
+            "error_detail": result.error_detail,
+            "attempt_count": len(prev_history),
+            "last_attempt_at": now,
+            "attempt_history": prev_history,
+        }
+    )
+
+
+def _check_needs_attention(prev_error_data: dict[str, Any] | None) -> bool:
+    """Check if previous error data indicates needs_attention (3+ same reason)."""
+    if not prev_error_data:
+        return False
+    history = prev_error_data.get("attempt_history", [])
+    if len(history) < NEEDS_ATTENTION_THRESHOLD:
+        return False
+    recent = [h.get("reason") for h in history[-NEEDS_ATTENTION_THRESHOLD:]]
+    return len(set(recent)) == 1
 
 
 def detect_file_type(file_path: Path) -> str | None:
@@ -266,7 +355,8 @@ def _process_document_local(doc: dict[str, Any], metadata: dict[str, Any]) -> No
         logger.info(f"Skipping {url} — already exists")
         return
 
-    if download_file(url, dest_path):
+    result = download_file(url, str(dest_path))
+    if result.success:
         # Detect actual file type and fix extension if needed
         detected_ext = detect_file_type(dest_path)
         final_path = dest_path
@@ -282,7 +372,7 @@ def _process_document_local(doc: dict[str, Any], metadata: dict[str, Any]) -> No
             filename = final_filename
 
         metadata["filename"] = filename
-        metadata["download_timestamp"] = datetime.utcnow().isoformat()
+        metadata["download_timestamp"] = datetime.now(timezone.utc).isoformat()
         metadata["sha256"] = sha256sum(final_path)
 
         with open(
@@ -296,7 +386,9 @@ def _process_document_local(doc: dict[str, Any], metadata: dict[str, Any]) -> No
         # Save failed URL to manual review list
         failed_urls_file = LOG_DIR / FAILED_DOWNLOADS_FILENAME
         with open(failed_urls_file, "a", encoding="utf-8") as f:
-            f.write(f"{datetime.utcnow().isoformat()} | {url} | {metadata['title']}\n")
+            f.write(
+                f"{datetime.now(timezone.utc).isoformat()} | {url} | {metadata['title']}\n"
+            )
         print(f"❌ Failed to download: {url} (saved to {failed_urls_file})")
 
 
@@ -320,7 +412,8 @@ def download_documents(docs: list[dict], output_dir: str) -> list[str]:
             filename = safe_filename(url)
             dest_path = os.path.join(output_dir, filename)
 
-            if download_file(url, dest_path):
+            result = download_file(url, dest_path)
+            if result.success:
                 print(f"✅ Downloaded: {title} -> {filename}")
                 downloaded_files.append(dest_path)
             else:
@@ -329,17 +422,31 @@ def download_documents(docs: list[dict], output_dir: str) -> list[str]:
     return downloaded_files
 
 
+def _upsert_source_record(metadata: dict[str, Any], status: str = "completed"):
+    """Upsert a DocumentSource record from metadata. Returns the record."""
+    return save_document_source(
+        title=metadata.get("title", ""),
+        source_url=metadata.get("source_url", ""),
+        jurisdiction=metadata.get("jurisdiction", "unknown"),
+        topic=metadata.get("topic", "general"),
+        region=metadata.get("region"),
+        category=metadata.get("category"),
+        esg_metadata=metadata.get("esg_metadata"),
+        spatial_metadata=metadata.get("spatial_metadata"),
+        metadata=metadata,
+        status=status,
+    )
+
+
 def ingest_documents(
     use_cloud: bool | None = None,
     config_path: str | Path | None = None,
 ) -> list[str]:
     """Ingest documents from config using plugin system (single source of truth).
 
-    This function uses the document source plugin architecture to:
-    - Validate configurations
-    - Generate consistent document IDs (for delta indexing)
-    - Create hierarchical directory structures
-    - Extract metadata using source-specific logic
+    Implements lifecycle gating: every URL gets a DB record regardless of
+    download outcome. Failed downloads are tracked with structured error info
+    for admin dashboard visibility and retry support.
 
     Args:
         use_cloud: Whether to use cloud storage. If None, uses CLOUD_PROVIDER setting.
@@ -370,7 +477,14 @@ def ingest_documents(
     storage_adapter = ETLStorageAdapter() if use_cloud else None
 
     # Process documents using plugin system
-    document_ids = []
+    document_ids: list[str] = []
+    stats = {
+        "downloaded": 0,
+        "skipped": 0,
+        "failed": 0,
+        "errors": 0,
+        "needs_attention": 0,
+    }
     for doc_config in documents:
         try:
             # 1. Create source plugin (auto-detects type)
@@ -400,6 +514,7 @@ def ingest_documents(
 
             # 6. Process each URL
             for url in urls:
+                db_file_record = None
                 try:
                     # Generate document ID using plugin (consistent with monitoring)
                     doc_id = source.get_document_id(url)
@@ -409,6 +524,7 @@ def ingest_documents(
                         if storage_adapter:
                             cloud_id = storage_adapter.download_from_url(url, metadata)
                             document_ids.append(cloud_id)
+                            stats["downloaded"] += 1
                             print(f"✅ Downloaded to cloud: {url} (ID: {cloud_id})")
                     else:
                         # Local mode - use plugin-generated path
@@ -420,14 +536,88 @@ def ingest_documents(
                         # Create directory
                         dest_path_obj.parent.mkdir(parents=True, exist_ok=True)
 
-                        # Skip if exists
+                        # --- GATE 1: File already on disk → skip, ensure DB records ---
                         if dest_path_obj.exists():
                             logger.info(f"Skipping {url} — already exists")
+
+                            # Upsert DB records for previously downloaded files
+                            try:
+                                sidecar_path = (
+                                    dest_path_obj.parent
+                                    / f"{dest_path_obj.name}{METADATA_FILE_SUFFIX}"
+                                )
+                                if sidecar_path.exists():
+                                    with open(sidecar_path, encoding="utf-8") as mf:
+                                        existing_meta = json.load(mf)
+                                    file_hash = existing_meta.get(
+                                        "sha256", sha256sum(dest_path_obj)
+                                    )
+                                    filename = existing_meta.get(
+                                        "filename", dest_path_obj.name
+                                    )
+                                else:
+                                    file_hash = sha256sum(dest_path_obj)
+                                    filename = dest_path_obj.name
+
+                                db_source_record = _upsert_source_record(
+                                    metadata, status="completed"
+                                )
+                                save_document_file(
+                                    source_id=db_source_record.id,
+                                    filename=filename,
+                                    file_url=url,
+                                    content_hash=file_hash,
+                                    file_size_bytes=dest_path_obj.stat().st_size,
+                                    status="completed",
+                                )
+                            except Exception as db_exc:
+                                logger.warning(
+                                    "Failed to upsert DB record for skipped %s: %s",
+                                    dest_path_obj,
+                                    db_exc,
+                                )
+                                print(f"  ⚠️  DB upsert failed for {doc_id}: {db_exc}")
+
+                            print(f"⏭️  Skipped (exists): {url} (ID: {doc_id})")
+                            stats["skipped"] += 1
                             document_ids.append(doc_id)
                             continue
 
-                        # Download file
-                        if download_file(url, str(dest_path_obj)):
+                        # --- GATE 2: Check previous failure history ---
+                        # Upsert source first so we have source_id for file lookup
+                        try:
+                            db_source_record = _upsert_source_record(
+                                metadata, status="processing"
+                            )
+                        except Exception:
+                            db_source_record = None
+
+                        prev_error_data = None
+                        if db_source_record:
+                            prev_error_data = get_existing_file_error_data(
+                                db_source_record.id, url
+                            )
+
+                        if _check_needs_attention(prev_error_data):
+                            reason = prev_error_data.get("failure_reason", "unknown")  # type: ignore[union-attr]
+                            attempts = prev_error_data.get("attempt_count", 0)  # type: ignore[union-attr]
+                            print(
+                                f"  ⏭️  Skipped (needs attention): {url} "
+                                f"— {reason} x{attempts}"
+                            )
+                            stats["needs_attention"] += 1
+                            continue
+
+                        # --- GATE 3: Attempt download ---
+                        prev_attempts = (
+                            prev_error_data.get("attempt_count", 0)
+                            if prev_error_data
+                            else 0
+                        )
+
+                        result = download_file(url, str(dest_path_obj))
+
+                        if result.success:
                             # Detect actual file type and fix extension if needed
                             detected_ext = detect_file_type(dest_path_obj)
                             final_path = dest_path_obj
@@ -435,48 +625,37 @@ def ingest_documents(
                             if detected_ext and not dest_path_obj.name.lower().endswith(
                                 detected_ext
                             ):
-                                # Rename file with correct extension
                                 final_filename = f"{dest_path_obj.name}{detected_ext}"
                                 final_path = dest_path_obj.parent / final_filename
                                 dest_path_obj.rename(final_path)
                                 logger.info(
-                                    f"Renamed {dest_path_obj.name} → {final_filename} "
+                                    f"Renamed {dest_path_obj.name} → "
+                                    f"{final_filename} "
                                     f"(detected: {detected_ext})"
                                 )
                             else:
                                 final_filename = dest_path_obj.name
 
-                            # Save metadata
+                            # Save metadata sidecar
                             metadata_with_file = metadata.copy()
                             metadata_with_file["filename"] = final_filename
-                            metadata_with_file[
-                                "download_timestamp"
-                            ] = datetime.utcnow().isoformat()
+                            metadata_with_file["download_timestamp"] = datetime.now(
+                                timezone.utc
+                            ).isoformat()
                             metadata_with_file["sha256"] = sha256sum(final_path)
-                            metadata_with_file[
-                                "document_id"
-                            ] = doc_id  # NEW: for delta indexing
-                            metadata_with_file[
-                                "source_pdf_url"
-                            ] = url  # Add PDF URL for deep linking
+                            metadata_with_file["document_id"] = doc_id
+                            metadata_with_file["source_pdf_url"] = url
 
-                            # Write DocumentSource + DocumentFile to DB immediately
-                            db_file_record = None
+                            # Write DocumentSource + DocumentFile to DB
                             try:
-                                db_source_record = save_document_source(
-                                    title=metadata.get("title", ""),
-                                    source_url=metadata.get("source_url", ""),
-                                    jurisdiction=metadata.get(
-                                        "jurisdiction", "unknown"
-                                    ),
-                                    topic=metadata.get("topic", "general"),
-                                    region=metadata.get("region"),
-                                    category=metadata.get("category"),
-                                    esg_metadata=metadata.get("esg_metadata"),
-                                    spatial_metadata=metadata.get("spatial_metadata"),
-                                    metadata=metadata,
-                                    status="completed",
-                                )
+                                if not db_source_record:
+                                    db_source_record = _upsert_source_record(
+                                        metadata, status="completed"
+                                    )
+                                else:
+                                    db_source_record = _upsert_source_record(
+                                        metadata, status="completed"
+                                    )
                                 db_file_record = save_document_file(
                                     source_id=db_source_record.id,
                                     filename=final_filename,
@@ -484,8 +663,8 @@ def ingest_documents(
                                     content_hash=metadata_with_file["sha256"],
                                     file_size_bytes=final_path.stat().st_size,
                                     status="completed",
+                                    error_message=None,
                                 )
-                                # Embed file_id and source_id in sidecar so etl chunk inherits them
                                 metadata_with_file["file_id"] = db_file_record.id
                                 metadata_with_file["source_id"] = db_source_record.id
                             except Exception as db_exc:
@@ -503,22 +682,57 @@ def ingest_documents(
                                 json.dump(metadata_with_file, mf, indent=2)
 
                             print(f"✅ Downloaded: {url} (ID: {doc_id})")
+                            stats["downloaded"] += 1
                             document_ids.append(doc_id)
                         else:
-                            # Log failed download
+                            # --- Download failed: track in DB ---
+                            error_json = _build_error_message_json(
+                                result, prev_error_data
+                            )
+
+                            try:
+                                if not db_source_record:
+                                    db_source_record = _upsert_source_record(
+                                        metadata, status="download_failed"
+                                    )
+                                save_document_file(
+                                    source_id=db_source_record.id,
+                                    filename=dest_path_obj.name,
+                                    file_url=url,
+                                    content_hash="",
+                                    status="download_failed",
+                                    error_message=error_json,
+                                )
+                            except Exception as db_exc:
+                                logger.warning(
+                                    "Failed to write failure DB record for %s: %s",
+                                    url,
+                                    db_exc,
+                                )
+
+                            # Keep flat file logging as CLI convenience
                             failed_urls_file = LOG_DIR / FAILED_DOWNLOADS_FILENAME
                             with open(failed_urls_file, "a", encoding="utf-8") as f:
+                                total = prev_attempts + result.attempts_this_run
                                 f.write(
-                                    f"{datetime.utcnow().isoformat()} | {url} | {metadata.get('title')} | {doc_id}\n"
+                                    f"{datetime.now(timezone.utc).isoformat()} | "
+                                    f"{url} | {result.failure_reason} | "
+                                    f"attempt #{total} | "
+                                    f"{metadata.get('title')} | {doc_id}\n"
                                 )
-                            print(f"❌ Failed: {url} (logged to {failed_urls_file})")
+                            stats["failed"] += 1
+                            print(
+                                f"❌ Failed: {url} — {result.failure_reason} "
+                                f"(attempt #{prev_attempts + result.attempts_this_run})"
+                            )
 
                 except Exception as e:
                     logger.error(f"Failed to process {url}: {e}", exc_info=True)
                     print(f"❌ Error processing {url}: {e}")
+                    stats["errors"] += 1
                     # Best-effort: record error in DB if we have a file record
                     try:
-                        if "db_file_record" in dir() and db_file_record is not None:
+                        if db_file_record is not None:
                             from green_gov_rag.etl.db_writer import (
                                 update_document_file_status,
                             )
@@ -538,7 +752,23 @@ def ingest_documents(
             )
             print(f"❌ Failed to process document config: {doc_config.get('title')}")
 
-    print(f"\n✅ Ingestion complete. Processed {len(document_ids)} document(s).")
+    total_urls = (
+        stats["downloaded"]
+        + stats["skipped"]
+        + stats["failed"]
+        + stats["errors"]
+        + stats["needs_attention"]
+    )
+    print(f"\n{'='*60}")
+    print(f"Ingestion complete. {total_urls} URL(s) across {len(documents)} source(s):")
+    print(f"  ✅ Downloaded: {stats['downloaded']}")
+    print(f"  ⏭️  Skipped (already exists): {stats['skipped']}")
+    print(f"  ❌ Failed: {stats['failed']}")
+    if stats["needs_attention"]:
+        print(f"  ⚠️  Needs attention (3+ failures): {stats['needs_attention']}")
+    if stats["errors"]:
+        print(f"  💥 Errors: {stats['errors']}")
+    print(f"{'='*60}")
     return document_ids
 
 

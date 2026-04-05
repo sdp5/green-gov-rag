@@ -118,6 +118,7 @@ def save_document_file(
     file_metadata: Optional[dict] = None,
     status: str = "pending",
     id: Optional[str] = None,
+    error_message: Optional[str] = None,
 ) -> DocumentFile:
     """Save document file (individual PDF) to database.
 
@@ -132,6 +133,7 @@ def save_document_file(
         id: Explicit file ID (if provided, used as-is; otherwise generated from
             source_id + filename hash). Pass the ID from the ingest metadata.json
             sidecar to guarantee the same ID is used across all pipeline stages.
+        error_message: Error message (plain string or JSON for structured errors)
 
     Returns:
         DocumentFile: Saved document file
@@ -154,6 +156,8 @@ def save_document_file(
             existing_file.file_size_bytes = file_size_bytes
             existing_file.file_metadata = file_metadata
             existing_file.status = status
+            if error_message is not None:
+                existing_file.error_message = error_message
 
             session.add(existing_file)
             session.commit()
@@ -172,6 +176,7 @@ def save_document_file(
                 file_size_bytes=file_size_bytes,
                 file_metadata=file_metadata,
                 status=status,
+                error_message=error_message,
             )
 
             session.add(doc_file)
@@ -388,6 +393,36 @@ def get_document_file_by_id(file_id: str) -> Optional[DocumentFile]:
     with Session(engine) as session:
         statement = select(DocumentFile).where(DocumentFile.id == file_id)
         return session.exec(statement).first()
+
+
+def get_existing_file_error_data(
+    source_id: str, file_url: str
+) -> dict[str, Any] | None:
+    """Read previous attempt history from a download_failed DocumentFile.
+
+    Args:
+        source_id: Parent document source ID
+        file_url: Download URL of the file
+
+    Returns:
+        Parsed error_message JSON dict, or None if no prior failure exists.
+    """
+    import json
+
+    with Session(engine) as session:
+        statement = (
+            select(DocumentFile)
+            .where(DocumentFile.source_id == source_id)
+            .where(DocumentFile.file_url == file_url)
+            .where(DocumentFile.status == "download_failed")
+        )
+        doc_file = session.exec(statement).first()
+        if not doc_file or not doc_file.error_message:
+            return None
+        try:
+            return json.loads(doc_file.error_message)
+        except (json.JSONDecodeError, TypeError):
+            return None
 
 
 def get_chunks_by_source(source_id: str) -> list[Chunk]:

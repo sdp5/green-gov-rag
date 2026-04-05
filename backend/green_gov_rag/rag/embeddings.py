@@ -42,13 +42,21 @@ def create_embeddings(
     model_name = model_name or settings.embedding_model
 
     if provider == "huggingface":
-        from langchain_huggingface import HuggingFaceEmbeddings
+        try:
+            from langchain_huggingface import HuggingFaceEmbeddings
+        except ImportError:
+            raise ImportError(
+                "HuggingFace embeddings require optional dependencies. "
+                "Install with: pip install -e '.[local]'"
+            ) from None
 
         return HuggingFaceEmbeddings(model_name=model_name)
 
+    if provider in ("azure_openai", "openai"):
+        from pydantic import SecretStr
+
     if provider == "azure_openai":
         from langchain_openai import AzureOpenAIEmbeddings
-        from pydantic import SecretStr
 
         deployment = settings.azure_openai_embedding_deployment or model_name
         api_key = (
@@ -66,10 +74,9 @@ def create_embeddings(
 
     if provider == "openai":
         from langchain_openai import OpenAIEmbeddings
-        from pydantic import SecretStr as _SecretStr
 
         oai_key = (
-            _SecretStr(settings.openai_api_key) if settings.openai_api_key else None
+            SecretStr(settings.openai_api_key) if settings.openai_api_key else None
         )
         return OpenAIEmbeddings(
             model=model_name,

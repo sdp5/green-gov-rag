@@ -19,7 +19,7 @@ jobs:
 
   build:
     # Disabled - change to true to enable deployment
-    if: true
+    if: false
     name: Build Frontend
     runs-on: ubuntu-latest
     environment: aws-prod

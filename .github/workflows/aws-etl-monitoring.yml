@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: aws-prod
     # Disabled - change to true to enable monitoring
-    if: true
+    if: false
     timeout-minutes: 360
     permissions:
       id-token: write

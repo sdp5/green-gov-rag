@@ -18,7 +18,7 @@ jobs:
     secrets: inherit
 
   deploy:
-    if: true  # Change to true to enable deployment
+    if: false  # Change to true to enable deployment
     name: Deploy Backend to AWS ECS
     runs-on: ubuntu-latest
     environment: aws-prod

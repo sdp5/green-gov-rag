@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlmodel import JSON, Column, Field, SQLModel
+
+from green_gov_rag.types import NEEDS_ATTENTION_THRESHOLD
 
 if TYPE_CHECKING:
     pass  # Relationships will be defined inline
@@ -95,6 +99,7 @@ class DocumentSource(SQLModel, table=True):
     class Config:
         """Model configuration."""
 
+        ignored_types = (hybrid_property,)
         json_schema_extra = {
             "example": {
                 "id": "ncc_2022",
@@ -109,6 +114,36 @@ class DocumentSource(SQLModel, table=True):
                 "chunk_count": 36170,
             }
         }
+
+    # --- Hybrid properties: spatial_metadata accessors ---
+
+    @hybrid_property
+    def state_code(self) -> str | None:
+        """Extract state from spatial_metadata JSON."""
+        if not self.spatial_metadata:
+            return None
+        return self.spatial_metadata.get("state")
+
+    @hybrid_property
+    def source_lga_names(self) -> list[str]:
+        """Extract lga_names from spatial_metadata JSON."""
+        if not self.spatial_metadata:
+            return []
+        return self.spatial_metadata.get("lga_names", [])
+
+    @hybrid_property
+    def source_lga_codes(self) -> list[int]:
+        """Extract lga_codes from spatial_metadata JSON."""
+        if not self.spatial_metadata:
+            return []
+        return self.spatial_metadata.get("lga_codes", [])
+
+    @hybrid_property
+    def applies_to_all_lgas(self) -> bool:
+        """Whether this source applies to all LGAs (federal/state scope)."""
+        if not self.spatial_metadata:
+            return False
+        return self.spatial_metadata.get("applies_to_all_lgas", False)
 
 
 class DocumentFile(SQLModel, table=True):
@@ -179,9 +214,59 @@ class DocumentFile(SQLModel, table=True):
     # Processing stats
     chunk_count: int = Field(default=0, description="Number of chunks from this file")
 
+    # --- Hybrid properties: error_message JSON accessors ---
+
+    def _parse_error_data(self) -> dict | None:
+        """Parse structured JSON from error_message field."""
+        if not self.error_message:
+            return None
+        try:
+            return json.loads(self.error_message)
+        except (json.JSONDecodeError, TypeError):
+            return None
+
+    @hybrid_property
+    def failure_reason(self) -> str | None:
+        """Extract failure_reason from structured JSON error_message."""
+        data = self._parse_error_data()
+        if data is None:
+            return "legacy" if self.error_message else None
+        return data.get("failure_reason")
+
+    @hybrid_property
+    def attempt_count(self) -> int:
+        """Extract cumulative attempt count from error_message JSON."""
+        data = self._parse_error_data()
+        if data is None:
+            return 0
+        return data.get("attempt_count", 0)
+
+    @hybrid_property
+    def needs_attention(self) -> bool:
+        """True if 3+ consecutive failures with same reason."""
+        if self.status != "download_failed":
+            return False
+        data = self._parse_error_data()
+        if data is None:
+            return False
+        history = data.get("attempt_history", [])
+        if len(history) < NEEDS_ATTENTION_THRESHOLD:
+            return False
+        recent = [h.get("reason") for h in history[-NEEDS_ATTENTION_THRESHOLD:]]
+        return len(set(recent)) == 1
+
+    @hybrid_property
+    def last_attempt_at(self) -> str | None:
+        """Extract last_attempt_at from error_message JSON."""
+        data = self._parse_error_data()
+        if data is None:
+            return None
+        return data.get("last_attempt_at")
+
     class Config:
         """Model configuration."""
 
+        ignored_types = (hybrid_property,)
         json_schema_extra = {
             "example": {
                 "id": "ncc_2022_vol1",

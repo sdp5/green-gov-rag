@@ -12,7 +12,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from green_gov_rag.types import PDFClassificationResult
 
 
 @dataclass
@@ -95,10 +98,10 @@ class DocumentSource(ABC):
         pass
 
     def _extract_structured_metadata(self) -> dict[str, Any]:
-        """Extract esg_metadata and spatial_metadata from config.
+        """Extract esg_metadata, spatial_metadata, and parsing_strategy from config.
 
         Returns:
-            Dictionary with esg_metadata and spatial_metadata keys
+            Dictionary with esg_metadata, spatial_metadata, and parsing_strategy keys
         """
         metadata = {}
 
@@ -109,6 +112,10 @@ class DocumentSource(ABC):
         # Extract spatial metadata if present
         if "spatial_metadata" in self.config:
             metadata["spatial_metadata"] = self.config["spatial_metadata"]
+
+        # Propagate parsing_strategy override so the chunking loop can use it
+        if "parsing_strategy" in self.config:
+            metadata["parsing_strategy"] = self.config["parsing_strategy"]
 
         return metadata
 
@@ -182,7 +189,44 @@ class DocumentSource(ABC):
             "sovereign",
             "esg_metadata",
             "spatial_metadata",
+            "parsing_strategy",
         ]
+
+    def get_parsing_strategy(self) -> PDFClassificationResult | None:
+        """Return a forced parsing strategy for this document, or None to auto-classify.
+
+        Reads 'parsing_strategy' from config. Valid values:
+        - "fast": Force fast strategy (text-heavy, single-column PDFs)
+        - "hi_res": Force hi_res strategy (complex layouts, tables)
+        - "hi_res_vision": Force hi_res with image extraction (maps, diagrams)
+        - "auto" or absent: Let the classifier decide per-document
+
+        Returns:
+            PDFClassificationResult with forced strategy, or None to auto-classify
+        """
+        from green_gov_rag.types import PDFClassificationResult, PDFParserStrategy
+
+        raw = self.config.get("parsing_strategy")
+        if raw is None:
+            return None
+
+        strategy_map: dict[str, tuple[PDFParserStrategy, bool] | None] = {
+            "fast": (PDFParserStrategy.FAST, False),
+            "hi_res": (PDFParserStrategy.HI_RES, False),
+            "hi_res_vision": (PDFParserStrategy.HI_RES, True),
+            "auto": None,
+        }
+        resolved = strategy_map.get(str(raw).lower())
+        if resolved is None:
+            return None
+
+        strategy, extract_images = resolved
+        return PDFClassificationResult(
+            strategy=strategy,
+            extract_images=extract_images,
+            confidence=1.0,
+            override_source="config",
+        )
 
     def _validate_required_fields(self) -> list[str]:
         """Check that all required fields are present.

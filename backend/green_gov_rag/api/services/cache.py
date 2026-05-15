@@ -68,7 +68,7 @@ class CacheService:
             try:
                 from green_gov_rag.rag.embeddings import ChunkEmbedder
 
-                self.embedder = ChunkEmbedder(provider="huggingface")
+                self.embedder = ChunkEmbedder()
                 logger.info("Semantic cache enabled (threshold: 0.95)")
             except Exception as e:
                 logger.warning(f"Semantic cache initialization failed: {e}")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import Optional
 
 from fastapi import APIRouter, Request
@@ -13,10 +14,14 @@ from green_gov_rag.api.schemas import (
     AdminDocumentDetailResponse,
     AdminDocumentListResponse,
     DashboardStats,
+    DownloadFailureGroup,
+    DownloadFailureItem,
+    DownloadFailureListResponse,
+    DownloadFailureSummaryResponse,
     QueryAnalyticsResponse,
     SystemHealthResponse,
 )
-from green_gov_rag.models import DocumentSource, QueryHistory
+from green_gov_rag.models import DocumentFile, DocumentSource, QueryHistory
 from green_gov_rag.models.base import engine
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -50,6 +55,16 @@ async def get_dashboard_stats(request: Request) -> DashboardStats:
             .select_from(DocumentSource)
             .where(DocumentSource.status == "completed")
         ).one()
+        download_failed = session.exec(
+            select(func.count())
+            .select_from(DocumentFile)
+            .where(DocumentFile.status == "download_failed")
+        ).one()
+        # needs_attention requires Python-side filtering (JSON parsing)
+        failed_files = session.exec(
+            select(DocumentFile).where(DocumentFile.status == "download_failed")
+        ).all()
+        needs_attention = sum(1 for f in failed_files if f.needs_attention)
 
         # Query stats
         total_queries = session.exec(
@@ -69,6 +84,8 @@ async def get_dashboard_stats(request: Request) -> DashboardStats:
                 "processing": processing,
                 "failed": failed,
                 "completed": completed,
+                "download_failed": download_failed,
+                "needs_attention": needs_attention,
             },
             queries={
                 "total": total_queries,
@@ -312,6 +329,208 @@ async def get_system_health(request: Request) -> SystemHealthResponse:
         database=database_status,
         vector_store=settings.vector_store_type,
         llm_provider=settings.llm_provider,
+    )
+
+
+def _get_failed_download_pairs() -> list[tuple[DocumentFile, DocumentSource]]:
+    """Fetch all download_failed files joined with their source."""
+    with Session(engine) as session:
+        results = session.exec(
+            select(DocumentFile, DocumentSource)
+            .where(DocumentFile.status == "download_failed")
+            .where(DocumentFile.source_id == DocumentSource.id)
+        ).all()
+        # Expunge so objects are usable outside session
+        pairs = []
+        for doc_file, doc_source in results:
+            session.expunge(doc_file)
+            session.expunge(doc_source)
+            pairs.append((doc_file, doc_source))
+        return pairs
+
+
+def _to_failure_item(
+    doc_file: DocumentFile, doc_source: DocumentSource
+) -> DownloadFailureItem:
+    """Convert a file+source pair to a DownloadFailureItem schema."""
+    return DownloadFailureItem(
+        file_id=doc_file.id,
+        source_id=doc_source.id,
+        source_title=doc_source.title,
+        file_url=doc_file.file_url,
+        failure_reason=doc_file.failure_reason,
+        attempt_count=doc_file.attempt_count,
+        needs_attention=doc_file.needs_attention,
+        last_attempt_at=doc_file.last_attempt_at,
+        status_code=(doc_file._parse_error_data() or {}).get("status_code"),
+        jurisdiction=doc_source.jurisdiction,
+        state=doc_source.state_code,
+        lga_names=doc_source.source_lga_names,
+    )
+
+
+@router.get(
+    "/download-failures",
+    response_model=DownloadFailureSummaryResponse,
+)
+@limiter.limit("10/minute")
+async def get_download_failures(
+    request: Request,
+    group_by: str = "reason",
+) -> DownloadFailureSummaryResponse:
+    """Get download failures grouped by a dimension.
+
+    Args:
+        group_by: Grouping dimension — reason, state, lga, or jurisdiction.
+    """
+    pairs = _get_failed_download_pairs()
+
+    # Build grouping key function
+    def _get_group_keys(
+        doc_file: DocumentFile, doc_source: DocumentSource
+    ) -> list[str]:
+        if group_by == "reason":
+            return [doc_file.failure_reason or "unknown"]
+        if group_by == "state":
+            return [doc_source.state_code or "unknown"]
+        if group_by == "lga":
+            names = doc_source.source_lga_names
+            return names if names else [doc_source.region or "unknown"]
+        if group_by == "jurisdiction":
+            return [doc_source.jurisdiction]
+        return ["unknown"]
+
+    # Group
+    grouped: dict[str, list[tuple[DocumentFile, DocumentSource]]] = defaultdict(list)
+    for doc_file, doc_source in pairs:
+        for key in _get_group_keys(doc_file, doc_source):
+            grouped[key].append((doc_file, doc_source))
+
+    total_needs_attention = sum(1 for f, _ in pairs if f.needs_attention)
+
+    groups = []
+    for key, items in sorted(grouped.items(), key=lambda x: len(x[1]), reverse=True):
+        na_count = sum(1 for f, _ in items if f.needs_attention)
+        sample = [f.file_url for f, _ in items[:3]]
+        groups.append(
+            DownloadFailureGroup(
+                group_key=key,
+                group_label=key,
+                count=len(items),
+                needs_attention_count=na_count,
+                sample_urls=sample,
+            )
+        )
+
+    return DownloadFailureSummaryResponse(
+        group_by=group_by,
+        total_failures=len(pairs),
+        total_needs_attention=total_needs_attention,
+        groups=groups,
+    )
+
+
+@router.get(
+    "/download-failures/detail",
+    response_model=DownloadFailureListResponse,
+)
+@limiter.limit("10/minute")
+async def list_download_failures(
+    request: Request,
+    state: str | None = None,
+    lga_name: str | None = None,
+    failure_reason: str | None = None,
+    jurisdiction: str | None = None,
+    needs_attention_only: bool = False,
+    skip: int = 0,
+    limit: int = 50,
+) -> DownloadFailureListResponse:
+    """List download failures with filters.
+
+    Filters by state, LGA name, failure reason, jurisdiction, and
+    needs_attention status. Filtering on JSON fields (state, lga, reason)
+    is done in Python after the SQL query.
+    """
+    pairs = _get_failed_download_pairs()
+
+    # Apply filters
+    filtered = []
+    for doc_file, doc_source in pairs:
+        if jurisdiction and doc_source.jurisdiction != jurisdiction:
+            continue
+        if state and doc_source.state_code != state:
+            continue
+        if lga_name and lga_name not in doc_source.source_lga_names:
+            continue
+        if failure_reason and doc_file.failure_reason != failure_reason:
+            continue
+        if needs_attention_only and not doc_file.needs_attention:
+            continue
+        filtered.append((doc_file, doc_source))
+
+    total = len(filtered)
+    page = filtered[skip : skip + limit]
+
+    return DownloadFailureListResponse(
+        total=total,
+        failures=[_to_failure_item(f, s) for f, s in page],
+    )
+
+
+@router.post(
+    "/download-failures/{file_id}/retry",
+    response_model=AdminActionResponse,
+)
+@limiter.limit("10/minute")
+async def retry_download(request: Request, file_id: str) -> AdminActionResponse:
+    """Reset a failed download for retry on next ingest run.
+
+    Preserves attempt history but resets status to 'pending' so the
+    next ingest run will re-attempt the download.
+    """
+    import json
+
+    from fastapi import HTTPException
+
+    with Session(engine) as session:
+        doc_file = session.get(DocumentFile, file_id)
+        if not doc_file:
+            raise HTTPException(status_code=404, detail="File not found")
+        if doc_file.status != "download_failed":
+            raise HTTPException(
+                status_code=400,
+                detail=f"File status is '{doc_file.status}', not 'download_failed'",
+            )
+
+        # Preserve history but append admin_reset marker
+        error_data = {}
+        if doc_file.error_message:
+            try:
+                error_data = json.loads(doc_file.error_message)
+            except (json.JSONDecodeError, TypeError):
+                error_data = {}
+
+        history = error_data.get("attempt_history", [])
+        from datetime import datetime, timezone
+
+        history.append(
+            {
+                "at": datetime.now(timezone.utc).isoformat(),
+                "reason": "admin_reset",
+                "status_code": None,
+            }
+        )
+        error_data["attempt_history"] = history
+        doc_file.error_message = json.dumps(error_data)
+        doc_file.status = "pending"
+
+        session.add(doc_file)
+        session.commit()
+
+    return AdminActionResponse(
+        status="reset",
+        document_id=file_id,
+        message="Download reset to pending. Will retry on next ingest run.",
     )
 
 

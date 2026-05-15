@@ -45,10 +45,10 @@ with DAG(
         cwd="/home/sundeep/github/green-gov-rag/backend",
     )
 
-    # Task 2: Parse documents (PDF/HTML to text)
+    # Task 2: Parse documents into structured JSON with layout metadata
     parse_task = BashOperator(
         task_id="parse_documents",
-        bash_command="greengovrag-cli etl parse --input data/raw --output data/processed",
+        bash_command="greengovrag-cli etl parse --input data/raw --output data/processed --fast",
         cwd="/home/sundeep/github/green-gov-rag/backend",
     )
 

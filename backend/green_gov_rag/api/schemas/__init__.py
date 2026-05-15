@@ -6,6 +6,10 @@ from green_gov_rag.api.schemas.admin import (
     AdminDocumentItem,
     AdminDocumentListResponse,
     DashboardStats,
+    DownloadFailureGroup,
+    DownloadFailureItem,
+    DownloadFailureListResponse,
+    DownloadFailureSummaryResponse,
     QueryAnalyticsResponse,
     SystemHealthResponse,
 )
@@ -62,4 +66,8 @@ __all__ = [
     "AdminActionResponse",
     "QueryAnalyticsResponse",
     "SystemHealthResponse",
+    "DownloadFailureGroup",
+    "DownloadFailureItem",
+    "DownloadFailureListResponse",
+    "DownloadFailureSummaryResponse",
 ]

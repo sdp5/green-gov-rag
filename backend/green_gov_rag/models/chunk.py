@@ -7,6 +7,14 @@ from typing import Optional
 
 from sqlmodel import JSON, Column, Field, SQLModel
 
+try:
+    from pgvector.sqlalchemy import Vector as _PgVector
+
+    _PGVECTOR_AVAILABLE = True
+except ImportError:
+    _PgVector = None
+    _PGVECTOR_AVAILABLE = False
+
 
 class Chunk(SQLModel, table=True):
     """Text chunk metadata (embeddings stored in FAISS/Qdrant).
@@ -84,6 +92,19 @@ class Chunk(SQLModel, table=True):
     embedding_model: Optional[str] = Field(
         default=None,
         description="Embedding model used",
+    )
+    # Dense vector stored in PostgreSQL via pgvector.
+    # When pgvector is not installed, falls back to a plain JSON column so the
+    # model still works (e.g. SQLite in unit tests).
+    # Dimension is set at table creation time; changing the embedding model
+    # requires a migration to update the column type.
+    embedding: Optional[list[float]] = Field(
+        default=None,
+        sa_column=Column(
+            _PgVector(3072) if _PGVECTOR_AVAILABLE else JSON,
+            nullable=True,
+        ),
+        description="Dense embedding vector (dimension matches settings.embedding_dimensions)",
     )
 
     # Additional metadata

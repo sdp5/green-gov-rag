@@ -39,16 +39,14 @@ keywords = [
 dependencies = [
     "alembic ~= 1.13.3",
     "boto3 ~= 1.39.17",
-    "faiss-cpu ~= 1.11.0",
     "fastapi ~= 0.116.2",
     "fastapi-admin ~= 1.0.4",
     "langchain-anthropic ~= 0.3.21",
     "langchain-aws ~= 0.2.35",
     "langchain-community ~= 0.3.30",
-    "langchain-huggingface ~= 0.1.2",
     "langchain-openai ~= 0.3.34",
     "langchain-qdrant ~= 0.1.4",
-    "onnx >= 1.16.0",
+    "pgvector ~= 0.3.6",
     "psycopg2-binary ~= 2.9.10",
     "pydantic ~= 2.11.10",
     "pydantic-settings ~= 2.11.0",
@@ -58,20 +56,32 @@ dependencies = [
     "redis ~= 5.0.8",
     "scikit-learn ~= 1.7.2",
     "scipy ~= 1.16.3",
-    "sentence-transformers ~= 3.3.1",
     "shapely ~= 2.0.7",
     "slowapi ~= 0.1.9",
     "sqlalchemy ~= 2.0.44",
     "sqlmodel ~= 0.0.27",
     "typer ~= 0.16.1",
-    "unstructured[pdf] ~= 0.16.0",
+    "unstructured ~= 0.16.0",
     "uvicorn[standard] ~= 0.35.0",
 ]
 requires-python = "~=3.12.3"
 
 [project.optional-dependencies]
+# Local embedding models (HuggingFace sentence-transformers + FAISS)
+# Pulls in torch (~530MB) — not needed when using Azure OpenAI embeddings + Qdrant
+# Local/heavy deps: HuggingFace embeddings, FAISS, and Unstructured hi_res PDF parsing.
+# Pulls in torch (~530MB), sentence-transformers, onnxruntime.
+# Not needed when using Azure OpenAI embeddings + fast PDF strategy + Qdrant.
+local = [
+    "faiss-cpu ~= 1.11.0",
+    "langchain-huggingface ~= 0.1.2",
+    "sentence-transformers ~= 3.3.1",
+    "unstructured[pdf] ~= 0.16.0",
+]
+
 # dev specific dependencies
 dev = [
+    "green_gov_rag[local]",
     "pylint",
     "mypy",
     "mypy-extensions",

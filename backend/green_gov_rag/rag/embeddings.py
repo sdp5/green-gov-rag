@@ -2,50 +2,107 @@
 
 """Embeddings module.
 
-Generate vector embeddings for document chunks using either
-AWS Bedrock LLM or HuggingFace embedding models.
-
-1. Supports dual embedding providers:
-    - HuggingFace (sentence-transformers)
+Generate vector embeddings for document chunks using one of:
+    - HuggingFace (sentence-transformers, local)
+    - Azure OpenAI (text-embedding-3-large, cloud)
+    - OpenAI (text-embedding-3-large, cloud)
     - AWS Bedrock (via OpenAI-compatible API)
-2. Takes chunk dicts with content + metadata.
-3. Returns dicts with embedding included.
-4. Easily integrated into your ETL pipeline after chunker.py.
 
-Now uses centralized settings from green_gov_rag.config
+Takes chunk dicts with content + metadata.
+Returns dicts with embedding included.
+
+Uses centralized settings from green_gov_rag.config
 """
 
 from __future__ import annotations
 
-# Optional: OpenAI-style API (for Bedrock, OpenAI API compatible)
-from langchain_community.embeddings import OpenAIEmbeddings
-
-# Optional: Hugging Face
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_core.embeddings import Embeddings
 
 from green_gov_rag.config import settings
 
 
+def create_embeddings(
+    provider: str | None = None,
+    model_name: str | None = None,
+) -> Embeddings:
+    """Create a LangChain Embeddings instance for the given provider.
+
+    This is the single source of truth for constructing embeddings objects.
+    All code paths (CLI, vector store factory, embedding service) should
+    use this function so the provider/model configuration is consistent.
+
+    Args:
+        provider: Embedding provider string. Defaults to settings.embedding_provider.
+        model_name: Model name / deployment name. Defaults to settings.embedding_model.
+
+    Returns:
+        A LangChain Embeddings instance.
+    """
+    provider = (provider or settings.embedding_provider).lower()
+    model_name = model_name or settings.embedding_model
+
+    if provider == "huggingface":
+        try:
+            from langchain_huggingface import HuggingFaceEmbeddings
+        except ImportError:
+            raise ImportError(
+                "HuggingFace embeddings require optional dependencies. "
+                "Install with: pip install -e '.[local]'"
+            ) from None
+
+        return HuggingFaceEmbeddings(model_name=model_name)
+
+    if provider in ("azure_openai", "openai"):
+        from pydantic import SecretStr
+
+    if provider == "azure_openai":
+        from langchain_openai import AzureOpenAIEmbeddings
+
+        deployment = settings.azure_openai_embedding_deployment or model_name
+        api_key = (
+            SecretStr(settings.azure_openai_api_key)
+            if settings.azure_openai_api_key
+            else None
+        )
+        return AzureOpenAIEmbeddings(
+            model=model_name,
+            azure_deployment=deployment,
+            azure_endpoint=settings.azure_openai_endpoint or "",
+            api_key=api_key,
+            api_version=settings.azure_openai_api_version,
+        )
+
+    if provider == "openai":
+        from langchain_openai import OpenAIEmbeddings
+
+        oai_key = (
+            SecretStr(settings.openai_api_key) if settings.openai_api_key else None
+        )
+        return OpenAIEmbeddings(
+            model=model_name,
+            api_key=oai_key,
+        )
+
+    if provider == "bedrock":
+        from langchain_community.embeddings import OpenAIEmbeddings as BedrockEmbeddings
+
+        bedrock_model = model_name or settings.bedrock_model_id or "anthropic.claude-v2"
+        return BedrockEmbeddings(model=bedrock_model)
+
+    msg = f"Unsupported embedding provider: {provider}. Use: huggingface, azure_openai, openai, bedrock"
+    raise ValueError(msg)
+
+
 class ChunkEmbedder:
-    def __init__(self, provider: str = "bedrock", model_name: str | None = None):
+    def __init__(self, provider: str | None = None, model_name: str | None = None):
         """Initialize embedding generator.
 
-        :param provider: "bedrock" or "huggingface"
-        :param model_name: Name of the model to use.
+        :param provider: Embedding provider. Defaults to settings.embedding_provider.
+        :param model_name: Name of the model to use. Defaults to settings.embedding_model.
         """
-        self.provider = provider.lower()
-        if self.provider == "huggingface":
-            self.model_name = model_name or settings.embedding_model
-            self.embedder: HuggingFaceEmbeddings | OpenAIEmbeddings = (
-                HuggingFaceEmbeddings(model_name=self.model_name)
-            )
-        elif self.provider == "bedrock":
-            bedrock_model = model_name or settings.bedrock_model_id
-            self.model_name = bedrock_model if bedrock_model else "anthropic.claude-v2"
-            self.embedder = OpenAIEmbeddings(model=self.model_name)
-        else:
-            msg = "provider must be 'bedrock' or 'huggingface'"
-            raise ValueError(msg)
+        self.provider = (provider or settings.embedding_provider).lower()
+        self.model_name = model_name or settings.embedding_model
+        self.embedder: Embeddings = create_embeddings(self.provider, self.model_name)
 
     def embed_chunks(
         self, chunks: list[dict], batch_size: int = 100, show_progress: bool = True
@@ -104,7 +161,7 @@ class ChunkEmbedder:
 if __name__ == "__main__":
     from etl.chunker import TextChunker
 
-    # Demo
+    # Demo — uses whatever provider/model is configured in settings / .env
     sample_texts = [
         "LangChain simplifies building AI applications with LLMs. "
         "You can chain prompts, models, and outputs easily.",
@@ -119,7 +176,7 @@ if __name__ == "__main__":
             ],
         )
 
-    embedder = ChunkEmbedder(provider="huggingface")
+    embedder = ChunkEmbedder()
     embedded = embedder.embed_chunks(chunks)
 
     for i, e in enumerate(embedded, 1):

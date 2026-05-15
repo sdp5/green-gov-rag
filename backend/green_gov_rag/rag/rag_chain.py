@@ -228,10 +228,7 @@ if __name__ == "__main__":
     # Quick demo
     store = VectorStoreClass(
         index_path="faiss_index",
-        embeddings=ChunkEmbedderClass(
-            provider="huggingface",
-            model_name="sentence-transformers/all-MiniLM-L6-v2",
-        ).embedder,
+        embeddings=ChunkEmbedderClass().embedder,
     )
     embedder = ChunkEmbedderClass()
     rag_chain = RAGChain(vector_store=store, embedder=embedder)
